@@ -1,0 +1,9 @@
+version: "3.9"
+
+services:
+  paraplyen:
+    build: .
+    container_name: paraplyen
+    restart: unless-stopped
+    ports:
+      - "3000:3000" # Only exposed locally; IIS proxies from outside

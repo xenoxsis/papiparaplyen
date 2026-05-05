@@ -37,7 +37,7 @@ COPY backend/src           ./backend/src
 # compiled server can find them at dist/db/data/ (mirrors __dirname path)
 RUN cd backend \
     && npx tsc \
-    && cp -r src/db/data dist/db/
+    && if [ -d src/db/data ]; then cp -r src/db/data dist/db/; fi
 
 # ──────────────────────────────────────────────────────────────
 # Stage 3 – build the Next.js frontend
