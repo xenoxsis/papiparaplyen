@@ -21,12 +21,12 @@ Built with Next.js 16, Express, and bcrypt. Data is stored in flat JSON files on
 
 ## Tech stack
 
-| Layer | Technology |
-|---|---|
-| Frontend | Next.js 16 (App Router), Tailwind CSS v4, TypeScript |
-| Backend | Express 4, TypeScript, bcrypt |
-| Package manager | pnpm (workspaces) |
-| Container | Docker + pm2 (single image, single port) |
+| Layer           | Technology                                           |
+| --------------- | ---------------------------------------------------- |
+| Frontend        | Next.js 16 (App Router), Tailwind CSS v4, TypeScript |
+| Backend         | Express 4, TypeScript, bcrypt                        |
+| Package manager | pnpm (workspaces)                                    |
+| Container       | Docker + pm2 (single image, single port)             |
 
 ---
 
@@ -94,7 +94,6 @@ Passwords are hashed with **bcrypt** (12 rounds). To hash existing plaintext pas
 cd backend
 npx tsx src/scripts/hash-passwords.ts
 ```
-
 
 ## Deploy on Vercel
 

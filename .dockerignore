@@ -1,0 +1,14 @@
+.git
+.gitignore
+.next
+node_modules
+backend/node_modules
+backend/dist
+
+# Env files – pass secrets at runtime via `docker run -e` or a secrets manager
+.env
+.env.*
+
+# Dev / docs
+*.md
+database/
