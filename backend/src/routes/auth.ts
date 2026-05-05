@@ -15,9 +15,9 @@ router.post("/login", async (req, res) => {
 
   const pool = await getPool();
 
-  const userResult = await pool.request()
-    .input("email", sql.NVarChar, (email as string).toLowerCase())
-    .query(`
+  const userResult = await pool
+    .request()
+    .input("email", sql.NVarChar, (email as string).toLowerCase()).query(`
       SELECT u.id, u.password, u.banned, u.member_id,
              m.name, m.initials
       FROM dbo.users u
@@ -33,11 +33,12 @@ router.post("/login", async (req, res) => {
   if (row.banned) return res.status(403).json({ error: "Account banned" });
 
   const passwordMatch = await bcrypt.compare(password, row.password);
-  if (!passwordMatch) return res.status(401).json({ error: "Invalid credentials" });
+  if (!passwordMatch)
+    return res.status(401).json({ error: "Invalid credentials" });
 
-  const rolesResult = await pool.request()
-    .input("memberId", sql.Int, row.member_id)
-    .query(`
+  const rolesResult = await pool
+    .request()
+    .input("memberId", sql.Int, row.member_id).query(`
       SELECT r.name
       FROM dbo.member_roles mr
       JOIN dbo.roles r ON r.id = mr.role_id
@@ -62,7 +63,8 @@ router.post("/register", async (req, res) => {
   const pool = await getPool();
   const normalizedEmail = (email as string).trim().toLowerCase();
 
-  const existing = await pool.request()
+  const existing = await pool
+    .request()
     .input("email", sql.NVarChar, normalizedEmail)
     .query("SELECT 1 FROM dbo.members WHERE email = @email");
 
@@ -84,12 +86,12 @@ router.post("/register", async (req, res) => {
   const transaction = pool.transaction();
   await transaction.begin();
   try {
-    const memberResult = await transaction.request()
+    const memberResult = await transaction
+      .request()
       .input("name", sql.NVarChar, trimmedName)
       .input("initials", sql.NVarChar, initials)
       .input("email", sql.NVarChar, normalizedEmail)
-      .input("joinedDate", sql.Date, today)
-      .query(`
+      .input("joinedDate", sql.Date, today).query(`
         INSERT INTO dbo.members (name, initials, email, joined_date)
         OUTPUT INSERTED.id
         VALUES (@name, @initials, @email, @joinedDate)
@@ -97,11 +99,11 @@ router.post("/register", async (req, res) => {
 
     const newMemberId: number = memberResult.recordset[0].id;
 
-    await transaction.request()
+    await transaction
+      .request()
       .input("email", sql.NVarChar, normalizedEmail)
       .input("password", sql.NVarChar, hashedPassword)
-      .input("memberId", sql.Int, newMemberId)
-      .query(`
+      .input("memberId", sql.Int, newMemberId).query(`
         INSERT INTO dbo.users (email, password, provider, provider_id, member_id, banned)
         VALUES (@email, @password, 'local', NULL, @memberId, 0)
       `);

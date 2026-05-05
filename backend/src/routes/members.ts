@@ -18,20 +18,22 @@ router.get("/", async (_req, res) => {
     GROUP BY m.id, m.name, m.initials, m.email, m.joined_date, u.banned
     ORDER BY m.id
   `);
-  res.json(result.recordset.map((row) => ({
-    ...row,
-    banned: row.banned === true || row.banned === 1,
-    roles: row.roles_agg ? row.roles_agg.split(",") : [],
-    roles_agg: undefined,
-  })));
+  res.json(
+    result.recordset.map((row) => ({
+      ...row,
+      banned: row.banned === true || row.banned === 1,
+      roles: row.roles_agg ? row.roles_agg.split(",") : [],
+      roles_agg: undefined,
+    })),
+  );
 });
 
 // GET /api/members/:id
 router.get("/:id", async (req, res) => {
   const pool = await getPool();
-  const result = await pool.request()
-    .input("id", sql.Int, Number(req.params.id))
-    .query(`
+  const result = await pool
+    .request()
+    .input("id", sql.Int, Number(req.params.id)).query(`
       SELECT m.id, m.name, m.initials, m.email, m.joined_date,
              ISNULL(u.banned, 0) AS banned,
              STRING_AGG(r.name, ',') AS roles_agg
@@ -42,7 +44,8 @@ router.get("/:id", async (req, res) => {
       WHERE m.id = @id
       GROUP BY m.id, m.name, m.initials, m.email, m.joined_date, u.banned
     `);
-  if (result.recordset.length === 0) return res.status(404).json({ error: "Not found" });
+  if (result.recordset.length === 0)
+    return res.status(404).json({ error: "Not found" });
   const row = result.recordset[0];
   return res.json({
     ...row,
@@ -59,15 +62,16 @@ router.patch("/:id", async (req, res) => {
   const memberId = Number(req.params.id);
 
   if (typeof req.body.banned === "boolean") {
-    await pool.request()
+    await pool
+      .request()
       .input("banned", sql.Bit, req.body.banned ? 1 : 0)
       .input("memberId", sql.Int, memberId)
-      .query("UPDATE dbo.users SET banned = @banned WHERE member_id = @memberId");
+      .query(
+        "UPDATE dbo.users SET banned = @banned WHERE member_id = @memberId",
+      );
   }
 
-  const result = await pool.request()
-    .input("id", sql.Int, memberId)
-    .query(`
+  const result = await pool.request().input("id", sql.Int, memberId).query(`
       SELECT m.id, m.name, m.initials, m.email, m.joined_date,
              ISNULL(u.banned, 0) AS banned,
              STRING_AGG(r.name, ',') AS roles_agg
@@ -78,7 +82,8 @@ router.patch("/:id", async (req, res) => {
       WHERE m.id = @id
       GROUP BY m.id, m.name, m.initials, m.email, m.joined_date, u.banned
     `);
-  if (result.recordset.length === 0) return res.status(404).json({ error: "Not found" });
+  if (result.recordset.length === 0)
+    return res.status(404).json({ error: "Not found" });
   const row = result.recordset[0];
   return res.json({
     ...row,
@@ -95,18 +100,18 @@ router.put("/:id/roles", async (req, res) => {
   const memberId = Number(req.params.id);
   const pool = await getPool();
 
-  const memberCheck = await pool.request()
+  const memberCheck = await pool
+    .request()
     .input("id", sql.Int, memberId)
     .query("SELECT id FROM dbo.members WHERE id = @id");
-  if (memberCheck.recordset.length === 0) return res.status(404).json({ error: "Not found" });
+  if (memberCheck.recordset.length === 0)
+    return res.status(404).json({ error: "Not found" });
 
   const transaction = pool.transaction();
   await transaction.begin();
   try {
     // Remove existing Vagt/Administrator rows for this member
-    await transaction.request()
-      .input("memberId", sql.Int, memberId)
-      .query(`
+    await transaction.request().input("memberId", sql.Int, memberId).query(`
         DELETE mr FROM dbo.member_roles mr
         JOIN dbo.roles r ON r.id = mr.role_id
         WHERE mr.member_id = @memberId AND r.name IN ('Vagt','Administrator')
@@ -114,10 +119,10 @@ router.put("/:id/roles", async (req, res) => {
 
     // Add new role rows
     for (const roleName of newRoleNames) {
-      await transaction.request()
+      await transaction
+        .request()
         .input("memberId", sql.Int, memberId)
-        .input("roleName", sql.NVarChar, roleName)
-        .query(`
+        .input("roleName", sql.NVarChar, roleName).query(`
           INSERT INTO dbo.member_roles (member_id, role_id)
           SELECT @memberId, id FROM dbo.roles WHERE name = @roleName
         `);
@@ -128,9 +133,7 @@ router.put("/:id/roles", async (req, res) => {
     throw err;
   }
 
-  const result = await pool.request()
-    .input("id", sql.Int, memberId)
-    .query(`
+  const result = await pool.request().input("id", sql.Int, memberId).query(`
       SELECT m.id, m.name, m.initials, m.email, m.joined_date,
              ISNULL(u.banned, 0) AS banned,
              STRING_AGG(r.name, ',') AS roles_agg
@@ -156,10 +159,10 @@ router.get("/:id/shifts", async (req, res) => {
   const pool = await getPool();
   const today = new Date().toISOString().slice(0, 10);
 
-  const result = await pool.request()
+  const result = await pool
+    .request()
     .input("memberId", sql.Int, memberId)
-    .input("today", sql.Date, today)
-    .query(`
+    .input("today", sql.Date, today).query(`
       SELECT n.id, n.number, n.name, n.date, n.time_from, n.time_to,
              n.location, n.vagt_member_id, n.vagt_confirmed,
              n.created_at, n.updated_at,

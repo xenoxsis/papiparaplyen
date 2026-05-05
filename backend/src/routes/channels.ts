@@ -6,7 +6,9 @@ const router = Router();
 // GET /api/channels
 router.get("/", async (_req, res) => {
   const pool = await getPool();
-  const result = await pool.request().query("SELECT id, name, type FROM dbo.channels ORDER BY id");
+  const result = await pool
+    .request()
+    .query("SELECT id, name, type FROM dbo.channels ORDER BY id");
   res.json(result.recordset);
 });
 
@@ -15,8 +17,7 @@ router.get("/:id/messages", async (req, res) => {
   const pool = await getPool();
   const channelId = Number(req.params.id);
 
-  const result = await pool.request()
-    .input("channelId", sql.Int, channelId)
+  const result = await pool.request().input("channelId", sql.Int, channelId)
     .query(`
       SELECT m.id, m.channel_id, m.sender_id, m.body, m.sent_at,
              m.type, m.shift_night_id, m.swap_status, m.taken_by_member_id,
@@ -40,15 +41,15 @@ router.post("/:id/messages", async (req, res) => {
   const channelId = Number(req.params.id);
   const isSwap = req.body.type === "shift_swap";
 
-  const insertResult = await pool.request()
+  const insertResult = await pool
+    .request()
     .input("channelId", sql.Int, channelId)
     .input("senderId", sql.Int, req.body.sender_id ?? null)
     .input("body", sql.NVarChar(sql.MAX), req.body.body)
     .input("sentAt", sql.DateTime2, new Date().toISOString())
     .input("type", sql.NVarChar, isSwap ? "shift_swap" : null)
     .input("shiftNightId", sql.Int, isSwap ? req.body.shift_night_id : null)
-    .input("swapStatus", sql.NVarChar, isSwap ? "pending" : null)
-    .query(`
+    .input("swapStatus", sql.NVarChar, isSwap ? "pending" : null).query(`
       INSERT INTO dbo.messages (channel_id, sender_id, body, sent_at, type, shift_night_id, swap_status, taken_by_member_id)
       OUTPUT INSERTED.id
       VALUES (@channelId, @senderId, @body, @sentAt, @type, @shiftNightId, @swapStatus, NULL)
@@ -56,9 +57,7 @@ router.post("/:id/messages", async (req, res) => {
 
   const newId: number = insertResult.recordset[0].id;
 
-  const row = await pool.request()
-    .input("id", sql.Int, newId)
-    .query(`
+  const row = await pool.request().input("id", sql.Int, newId).query(`
       SELECT m.id, m.channel_id, m.sender_id, m.body, m.sent_at,
              m.type, m.shift_night_id, m.swap_status, m.taken_by_member_id,
              s.name AS sender_name, s.initials AS sender_initials,
@@ -77,14 +76,17 @@ router.patch("/:channelId/messages/:messageId", async (req, res) => {
   const messageId = Number(req.params.messageId);
   const channelId = Number(req.params.channelId);
 
-  const check = await pool.request()
+  const check = await pool
+    .request()
     .input("id", sql.Int, messageId)
     .input("channelId", sql.Int, channelId)
     .query("SELECT 1 FROM dbo.messages WHERE id=@id AND channel_id=@channelId");
-  if (check.recordset.length === 0) return res.status(404).json({ error: "Not found" });
+  if (check.recordset.length === 0)
+    return res.status(404).json({ error: "Not found" });
 
   const setParts: string[] = [];
-  const request = pool.request()
+  const request = pool
+    .request()
     .input("id", sql.Int, messageId)
     .input("channelId", sql.Int, channelId);
 
@@ -97,17 +99,21 @@ router.patch("/:channelId/messages/:messageId", async (req, res) => {
     setParts.push("swap_status = @swapStatus");
   }
   if ("taken_by_member_id" in req.body) {
-    request.input("takenByMemberId", sql.Int, req.body.taken_by_member_id ?? null);
+    request.input(
+      "takenByMemberId",
+      sql.Int,
+      req.body.taken_by_member_id ?? null,
+    );
     setParts.push("taken_by_member_id = @takenByMemberId");
   }
 
   if (setParts.length > 0) {
-    await request.query(`UPDATE dbo.messages SET ${setParts.join(", ")} WHERE id=@id AND channel_id=@channelId`);
+    await request.query(
+      `UPDATE dbo.messages SET ${setParts.join(", ")} WHERE id=@id AND channel_id=@channelId`,
+    );
   }
 
-  const row = await pool.request()
-    .input("id", sql.Int, messageId)
-    .query(`
+  const row = await pool.request().input("id", sql.Int, messageId).query(`
       SELECT m.id, m.channel_id, m.sender_id, m.body, m.sent_at,
              m.type, m.shift_night_id, m.swap_status, m.taken_by_member_id,
              s.name AS sender_name, s.initials AS sender_initials,

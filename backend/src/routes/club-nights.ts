@@ -5,18 +5,26 @@ import { callerId, isAdmin, requireAdmin } from "../auth";
 const router = Router();
 
 type NightRow = {
-  id: number; number: number; name: string; date: string;
-  time_from: string; time_to: string; location: string;
-  vagt_member_id: number | null; vagt_confirmed: boolean;
-  created_at: string; updated_at: string;
+  id: number;
+  number: number;
+  name: string;
+  date: string;
+  time_from: string;
+  time_to: string;
+  location: string;
+  vagt_member_id: number | null;
+  vagt_confirmed: boolean;
+  created_at: string;
+  updated_at: string;
   assigned_member_name: string | null;
   assigned_member_initials: string | null;
 };
 
-async function fetchNightWithOptOuts(pool: Awaited<ReturnType<typeof getPool>>, nightId: number) {
-  const nightResult = await pool.request()
-    .input("id", sql.Int, nightId)
-    .query(`
+async function fetchNightWithOptOuts(
+  pool: Awaited<ReturnType<typeof getPool>>,
+  nightId: number,
+) {
+  const nightResult = await pool.request().input("id", sql.Int, nightId).query(`
       SELECT n.id, n.number, n.name,
              CONVERT(varchar(10), n.date, 120) AS date,
              n.time_from, n.time_to, n.location,
@@ -29,8 +37,7 @@ async function fetchNightWithOptOuts(pool: Awaited<ReturnType<typeof getPool>>, 
       WHERE n.id = @id
     `);
 
-  const optOutsResult = await pool.request()
-    .input("nightId", sql.Int, nightId)
+  const optOutsResult = await pool.request().input("nightId", sql.Int, nightId)
     .query(`
       SELECT m.id, m.name, m.initials
       FROM dbo.club_night_opt_outs o
@@ -40,7 +47,9 @@ async function fetchNightWithOptOuts(pool: Awaited<ReturnType<typeof getPool>>, 
 
   return {
     ...nightResult.recordset[0],
-    vagt_confirmed: nightResult.recordset[0].vagt_confirmed === true || nightResult.recordset[0].vagt_confirmed === 1,
+    vagt_confirmed:
+      nightResult.recordset[0].vagt_confirmed === true ||
+      nightResult.recordset[0].vagt_confirmed === 1,
     opted_out_members: optOutsResult.recordset,
   };
 }
@@ -69,12 +78,22 @@ router.get("/", async (_req, res) => {
 
   const nights = nightsResult.recordset.map((n: NightRow) => ({
     ...n,
-    vagt_confirmed: n.vagt_confirmed === true || (n.vagt_confirmed as unknown) === 1,
+    vagt_confirmed:
+      n.vagt_confirmed === true || (n.vagt_confirmed as unknown) === 1,
     opted_out_members: optOutsResult.recordset
       .filter((o: { club_night_id: number }) => o.club_night_id === n.id)
-      .map((o: { club_night_id: number; id: number; name: string; initials: string }) => ({
-        id: o.id, name: o.name, initials: o.initials,
-      })),
+      .map(
+        (o: {
+          club_night_id: number;
+          id: number;
+          name: string;
+          initials: string;
+        }) => ({
+          id: o.id,
+          name: o.name,
+          initials: o.initials,
+        }),
+      ),
   }));
 
   res.json(nights);
@@ -87,12 +106,16 @@ router.post("/", async (req, res) => {
   const now = new Date().toISOString();
 
   // Get next number
-  const maxResult = await pool.request().query(
-    "SELECT ISNULL(MAX(number),0)+1 AS next_number, ISNULL(MAX(id),0)+1 AS next_id FROM dbo.club_nights"
-  );
-  const nextNumber: number = req.body.number ?? maxResult.recordset[0].next_number;
+  const maxResult = await pool
+    .request()
+    .query(
+      "SELECT ISNULL(MAX(number),0)+1 AS next_number, ISNULL(MAX(id),0)+1 AS next_id FROM dbo.club_nights",
+    );
+  const nextNumber: number =
+    req.body.number ?? maxResult.recordset[0].next_number;
 
-  const insertResult = await pool.request()
+  const insertResult = await pool
+    .request()
     .input("number", sql.Int, nextNumber)
     .input("name", sql.NVarChar, req.body.name ?? `Klubaften #${nextNumber}`)
     .input("date", sql.Date, req.body.date)
@@ -101,8 +124,7 @@ router.post("/", async (req, res) => {
     .input("location", sql.NVarChar, req.body.location ?? "Kulturhuset")
     .input("vagtMemberId", sql.Int, req.body.vagt_member_id ?? null)
     .input("createdAt", sql.DateTime2, now)
-    .input("updatedAt", sql.DateTime2, now)
-    .query(`
+    .input("updatedAt", sql.DateTime2, now).query(`
       INSERT INTO dbo.club_nights
         (number, name, date, time_from, time_to, location, vagt_member_id, vagt_confirmed, created_at, updated_at)
       OUTPUT INSERTED.id
@@ -125,28 +147,33 @@ router.patch("/:id", async (req, res) => {
   const pool = await getPool();
   const nightId = Number(req.params.id);
 
-  const nightCheck = await pool.request()
+  const nightCheck = await pool
+    .request()
     .input("id", sql.Int, nightId)
     .query("SELECT vagt_member_id FROM dbo.club_nights WHERE id = @id");
-  if (nightCheck.recordset.length === 0) return res.status(404).json({ error: "Not found" });
+  if (nightCheck.recordset.length === 0)
+    return res.status(404).json({ error: "Not found" });
 
   if ("vagt_member_id" in req.body && req.body.vagt_member_id !== null) {
     // Block if opted out
-    const optCheck = await pool.request()
+    const optCheck = await pool
+      .request()
       .input("nightId", sql.Int, nightId)
       .input("memberId", sql.Int, req.body.vagt_member_id)
-      .query("SELECT 1 FROM dbo.club_night_opt_outs WHERE club_night_id=@nightId AND member_id=@memberId");
+      .query(
+        "SELECT 1 FROM dbo.club_night_opt_outs WHERE club_night_id=@nightId AND member_id=@memberId",
+      );
     if (optCheck.recordset.length > 0) {
       return res.status(409).json({ error: "Vagt har meldt fra denne aften" });
     }
     const currentVagt = nightCheck.recordset[0].vagt_member_id;
     const resetConfirm = currentVagt !== req.body.vagt_member_id ? 1 : 0;
-    await pool.request()
+    await pool
+      .request()
       .input("vagtMemberId", sql.Int, req.body.vagt_member_id)
       .input("resetConfirm", sql.Bit, resetConfirm)
       .input("updatedAt", sql.DateTime2, new Date().toISOString())
-      .input("id", sql.Int, nightId)
-      .query(`
+      .input("id", sql.Int, nightId).query(`
         UPDATE dbo.club_nights
         SET vagt_member_id = @vagtMemberId,
             vagt_confirmed = CASE WHEN @resetConfirm = 1 THEN 0 ELSE vagt_confirmed END,
@@ -154,10 +181,10 @@ router.patch("/:id", async (req, res) => {
         WHERE id = @id
       `);
   } else if ("vagt_member_id" in req.body) {
-    await pool.request()
+    await pool
+      .request()
       .input("updatedAt", sql.DateTime2, new Date().toISOString())
-      .input("id", sql.Int, nightId)
-      .query(`
+      .input("id", sql.Int, nightId).query(`
         UPDATE dbo.club_nights
         SET vagt_member_id = NULL, vagt_confirmed = 0, updated_at = @updatedAt
         WHERE id = @id
@@ -175,20 +202,25 @@ router.post("/:id/confirm", async (req, res) => {
   const pool = await getPool();
   const nightId = Number(req.params.id);
 
-  const nightCheck = await pool.request()
+  const nightCheck = await pool
+    .request()
     .input("id", sql.Int, nightId)
     .query("SELECT vagt_member_id FROM dbo.club_nights WHERE id = @id");
-  if (nightCheck.recordset.length === 0) return res.status(404).json({ error: "Not found" });
+  if (nightCheck.recordset.length === 0)
+    return res.status(404).json({ error: "Not found" });
 
   const vagtMemberId = nightCheck.recordset[0].vagt_member_id;
   if (vagtMemberId !== caller && !(await isAdmin(req))) {
     return res.status(403).json({ error: "Forbidden" });
   }
 
-  await pool.request()
+  await pool
+    .request()
     .input("updatedAt", sql.DateTime2, new Date().toISOString())
     .input("id", sql.Int, nightId)
-    .query("UPDATE dbo.club_nights SET vagt_confirmed=1, updated_at=@updatedAt WHERE id=@id");
+    .query(
+      "UPDATE dbo.club_nights SET vagt_confirmed=1, updated_at=@updatedAt WHERE id=@id",
+    );
 
   return res.json(await fetchNightWithOptOuts(pool, nightId));
 });
@@ -201,21 +233,29 @@ router.post("/:id/opt-out", async (req, res) => {
   const pool = await getPool();
   const nightId = Number(req.params.id);
 
-  const nightCheck = await pool.request()
+  const nightCheck = await pool
+    .request()
     .input("id", sql.Int, nightId)
     .query("SELECT 1 FROM dbo.club_nights WHERE id = @id");
-  if (nightCheck.recordset.length === 0) return res.status(404).json({ error: "Not found" });
+  if (nightCheck.recordset.length === 0)
+    return res.status(404).json({ error: "Not found" });
 
-  const exists = await pool.request()
+  const exists = await pool
+    .request()
     .input("nightId", sql.Int, nightId)
     .input("memberId", sql.Int, memberId)
-    .query("SELECT 1 FROM dbo.club_night_opt_outs WHERE club_night_id=@nightId AND member_id=@memberId");
+    .query(
+      "SELECT 1 FROM dbo.club_night_opt_outs WHERE club_night_id=@nightId AND member_id=@memberId",
+    );
   if (exists.recordset.length > 0) return res.status(200).json({ ok: true });
 
-  await pool.request()
+  await pool
+    .request()
     .input("nightId", sql.Int, nightId)
     .input("memberId", sql.Int, memberId)
-    .query("INSERT INTO dbo.club_night_opt_outs (club_night_id, member_id) VALUES (@nightId, @memberId)");
+    .query(
+      "INSERT INTO dbo.club_night_opt_outs (club_night_id, member_id) VALUES (@nightId, @memberId)",
+    );
 
   return res.status(201).json({ ok: true });
 });
@@ -226,10 +266,13 @@ router.delete("/:id/opt-out", async (req, res) => {
   if (!memberId) return res.status(401).json({ error: "Unauthorized" });
 
   const pool = await getPool();
-  await pool.request()
+  await pool
+    .request()
     .input("nightId", sql.Int, Number(req.params.id))
     .input("memberId", sql.Int, memberId)
-    .query("DELETE FROM dbo.club_night_opt_outs WHERE club_night_id=@nightId AND member_id=@memberId");
+    .query(
+      "DELETE FROM dbo.club_night_opt_outs WHERE club_night_id=@nightId AND member_id=@memberId",
+    );
 
   return res.status(200).json({ ok: true });
 });
@@ -241,15 +284,21 @@ router.delete("/:id", async (req, res) => {
   const pool = await getPool();
   const nightId = Number(req.params.id);
 
-  const nightCheck = await pool.request()
+  const nightCheck = await pool
+    .request()
     .input("id", sql.Int, nightId)
     .query("SELECT 1 FROM dbo.club_nights WHERE id = @id");
-  if (nightCheck.recordset.length === 0) return res.status(404).json({ error: "Not found" });
+  if (nightCheck.recordset.length === 0)
+    return res.status(404).json({ error: "Not found" });
 
-  await pool.request()
+  await pool
+    .request()
     .input("nightId", sql.Int, nightId)
-    .query("DELETE FROM dbo.club_night_opt_outs WHERE club_night_id = @nightId");
-  await pool.request()
+    .query(
+      "DELETE FROM dbo.club_night_opt_outs WHERE club_night_id = @nightId",
+    );
+  await pool
+    .request()
     .input("id", sql.Int, nightId)
     .query("DELETE FROM dbo.club_nights WHERE id = @id");
 

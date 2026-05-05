@@ -15,8 +15,7 @@ export async function isAdmin(req: Request): Promise<boolean> {
   if (memberId === null) return false;
 
   const pool = await getPool();
-  const result = await pool.request()
-    .input("memberId", sql.Int, memberId)
+  const result = await pool.request().input("memberId", sql.Int, memberId)
     .query(`
       SELECT 1
       FROM dbo.users u
@@ -30,7 +29,10 @@ export async function isAdmin(req: Request): Promise<boolean> {
 }
 
 /** Sends 403 and returns false if caller is not an admin. */
-export async function requireAdmin(req: Request, res: Response): Promise<boolean> {
+export async function requireAdmin(
+  req: Request,
+  res: Response,
+): Promise<boolean> {
   if (!(await isAdmin(req))) {
     res.status(403).json({ error: "Forbidden" });
     return false;
