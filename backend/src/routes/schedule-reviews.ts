@@ -1,64 +1,63 @@
 import { Router } from "express";
-import { readTable, writeTable } from "../db";
+import { getPool, sql } from "../db";
 import { callerId, isAdmin } from "../auth";
 
 const router = Router();
 
-interface DbScheduleReview {
-  id: number;
-  member_id: number;
-  reviewed_at: string;
-}
-
-interface DbMember {
-  id: number;
-  name: string;
-  initials: string;
-}
-
 // POST /api/schedule-reviews — upsert reviewed_at for the calling member
-router.post("/", (req, res) => {
+router.post("/", async (req, res) => {
   const caller = callerId(req);
   if (!caller) return res.status(401).json({ error: "Unauthorized" });
 
-  const reviews = readTable<DbScheduleReview>("club_schedule_reviews");
+  const pool = await getPool();
   const now = new Date().toISOString();
-  const existing = reviews.findIndex((r) => r.member_id === caller);
-  if (existing !== -1) {
-    reviews[existing].reviewed_at = now;
+
+  const existing = await pool.request()
+    .input("memberId", sql.Int, caller)
+    .query("SELECT id FROM dbo.club_schedule_reviews WHERE member_id = @memberId");
+
+  if (existing.recordset.length > 0) {
+    await pool.request()
+      .input("reviewedAt", sql.DateTime2, now)
+      .input("memberId", sql.Int, caller)
+      .query("UPDATE dbo.club_schedule_reviews SET reviewed_at = @reviewedAt WHERE member_id = @memberId");
   } else {
-    const newId = reviews.length
-      ? Math.max(...reviews.map((r) => r.id)) + 1
-      : 1;
-    reviews.push({ id: newId, member_id: caller, reviewed_at: now });
+    await pool.request()
+      .input("memberId", sql.Int, caller)
+      .input("reviewedAt", sql.DateTime2, now)
+      .query("INSERT INTO dbo.club_schedule_reviews (member_id, reviewed_at) VALUES (@memberId, @reviewedAt)");
   }
-  writeTable("club_schedule_reviews", reviews);
+
   return res.json({ ok: true, reviewed_at: now });
 });
 
 // GET /api/schedule-reviews/me — returns the calling member's own review
-router.get("/me", (req, res) => {
+router.get("/me", async (req, res) => {
   const caller = callerId(req);
   if (!caller) return res.status(401).json({ error: "Unauthorized" });
-  const reviews = readTable<DbScheduleReview>("club_schedule_reviews");
-  const review = reviews.find((r) => r.member_id === caller) ?? null;
-  return res.json(review);
+
+  const pool = await getPool();
+  const result = await pool.request()
+    .input("memberId", sql.Int, caller)
+    .query("SELECT id, member_id, reviewed_at FROM dbo.club_schedule_reviews WHERE member_id = @memberId");
+
+  return res.json(result.recordset[0] ?? null);
 });
 
 // GET /api/schedule-reviews — admin only; enriched list of all reviews
-router.get("/", (req, res) => {
-  if (!isAdmin(req)) return res.status(403).json({ error: "Forbidden" });
-  const reviews = readTable<DbScheduleReview>("club_schedule_reviews");
-  const members = readTable<DbMember>("members");
-  const enriched = reviews.map((r) => {
-    const m = members.find((mem) => mem.id === r.member_id);
-    return {
-      ...r,
-      member_name: m?.name ?? null,
-      member_initials: m?.initials ?? null,
-    };
-  });
-  return res.json(enriched);
+router.get("/", async (req, res) => {
+  if (!(await isAdmin(req))) return res.status(403).json({ error: "Forbidden" });
+
+  const pool = await getPool();
+  const result = await pool.request().query(`
+    SELECT r.id, r.member_id, r.reviewed_at,
+           m.name AS member_name, m.initials AS member_initials
+    FROM dbo.club_schedule_reviews r
+    JOIN dbo.members m ON m.id = r.member_id
+    ORDER BY r.reviewed_at DESC
+  `);
+
+  return res.json(result.recordset);
 });
 
 export default router;

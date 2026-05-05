@@ -1,3 +1,29 @@
+import sql from "mssql";
+
+const config: sql.config = {
+  server: process.env.DB_SERVER ?? "localhost",
+  database: process.env.DB_NAME ?? "Paraplyen",
+  user: process.env.DB_USER ?? "paraplyen_app",
+  password: process.env.DB_PASSWORD ?? "12qwASZX",
+  options: {
+    encrypt: false,
+    trustServerCertificate: true,
+  },
+};
+
+let _pool: sql.ConnectionPool | null = null;
+
+export async function getPool(): Promise<sql.ConnectionPool> {
+  if (!_pool) {
+    _pool = await new sql.ConnectionPool(config).connect();
+    console.log("  ✓  SQL Server connected");
+  }
+  return _pool;
+}
+
+export { sql };
+
+// ── Flat-file JSON helpers (kept for migration scripts only) ─────
 import { readFileSync, writeFileSync } from "fs";
 import { join } from "path";
 

@@ -1,169 +1,178 @@
 import { Router } from "express";
-import { readTable, writeTable } from "../db";
+import { getPool, sql } from "../db";
 import { requireAdmin } from "../auth";
 
 const router = Router();
 
-interface DbUser {
-  id: number;
-  username: string;
-  password: string;
-  provider: string;
-  provider_id: string | null;
-  member_id: number;
-  banned: boolean;
-}
-
-interface DbMember {
-  id: number;
-  name: string;
-  initials: string;
-  email: string;
-  joined_date: string;
-}
-
-interface DbMemberRole {
-  member_id: number;
-  role_id: number;
-}
-
-interface DbRole {
-  id: number;
-  name: string;
-}
-
-interface DbClubNight {
-  id: number;
-  number: number;
-  name: string;
-  date: string;
-  time_from: string;
-  time_to: string;
-  location: string;
-  vagt_member_id: number | null;
-  vagt_confirmed: boolean;
-}
-
-function enrichMember(
-  m: DbMember,
-  memberRoles: DbMemberRole[],
-  roles: DbRole[],
-  users: DbUser[],
-) {
-  const roleNames = memberRoles
-    .filter((mr) => mr.member_id === m.id)
-    .map((mr) => roles.find((r) => r.id === mr.role_id)?.name)
-    .filter(Boolean) as string[];
-  const user = users.find((u) => u.member_id === m.id);
-  return { ...m, roles: roleNames, banned: user?.banned ?? false };
-}
-
 // GET /api/members
-router.get("/", (_req, res) => {
-  const members = readTable<DbMember>("members");
-  const memberRoles = readTable<DbMemberRole>("member_roles");
-  const roles = readTable<DbRole>("roles");
-  const users = readTable<DbUser>("users");
-  res.json(members.map((m) => enrichMember(m, memberRoles, roles, users)));
+router.get("/", async (_req, res) => {
+  const pool = await getPool();
+  const result = await pool.request().query(`
+    SELECT m.id, m.name, m.initials, m.email, m.joined_date,
+           ISNULL(u.banned, 0) AS banned,
+           STRING_AGG(r.name, ',') AS roles_agg
+    FROM dbo.members m
+    LEFT JOIN dbo.users u ON u.member_id = m.id
+    LEFT JOIN dbo.member_roles mr ON mr.member_id = m.id
+    LEFT JOIN dbo.roles r ON r.id = mr.role_id
+    GROUP BY m.id, m.name, m.initials, m.email, m.joined_date, u.banned
+    ORDER BY m.id
+  `);
+  res.json(result.recordset.map((row) => ({
+    ...row,
+    banned: row.banned === true || row.banned === 1,
+    roles: row.roles_agg ? row.roles_agg.split(",") : [],
+    roles_agg: undefined,
+  })));
 });
 
 // GET /api/members/:id
-router.get("/:id", (req, res) => {
-  const members = readTable<DbMember>("members");
-  const memberRoles = readTable<DbMemberRole>("member_roles");
-  const roles = readTable<DbRole>("roles");
-  const users = readTable<DbUser>("users");
-  const member = members.find((m) => m.id === Number(req.params.id));
-  if (!member) return res.status(404).json({ error: "Not found" });
-  return res.json(enrichMember(member, memberRoles, roles, users));
+router.get("/:id", async (req, res) => {
+  const pool = await getPool();
+  const result = await pool.request()
+    .input("id", sql.Int, Number(req.params.id))
+    .query(`
+      SELECT m.id, m.name, m.initials, m.email, m.joined_date,
+             ISNULL(u.banned, 0) AS banned,
+             STRING_AGG(r.name, ',') AS roles_agg
+      FROM dbo.members m
+      LEFT JOIN dbo.users u ON u.member_id = m.id
+      LEFT JOIN dbo.member_roles mr ON mr.member_id = m.id
+      LEFT JOIN dbo.roles r ON r.id = mr.role_id
+      WHERE m.id = @id
+      GROUP BY m.id, m.name, m.initials, m.email, m.joined_date, u.banned
+    `);
+  if (result.recordset.length === 0) return res.status(404).json({ error: "Not found" });
+  const row = result.recordset[0];
+  return res.json({
+    ...row,
+    banned: row.banned === true || row.banned === 1,
+    roles: row.roles_agg ? row.roles_agg.split(",") : [],
+    roles_agg: undefined,
+  });
 });
 
 // PATCH /api/members/:id  — update banned
-router.patch("/:id", (req, res) => {
-  if (!requireAdmin(req, res)) return;
-  const members = readTable<DbMember>("members");
-  const idx = members.findIndex((m) => m.id === Number(req.params.id));
-  if (idx === -1) return res.status(404).json({ error: "Not found" });
-  const users = readTable<DbUser>("users");
-  if (typeof req.body.banned === "boolean") {
-    const userIdx = users.findIndex((u) => u.member_id === members[idx].id);
-    if (userIdx !== -1) {
-      users[userIdx].banned = req.body.banned;
-      writeTable("users", users);
-    }
-  }
-  const memberRoles = readTable<DbMemberRole>("member_roles");
-  const roles = readTable<DbRole>("roles");
-  return res.json(enrichMember(members[idx], memberRoles, roles, users));
-});
-
-// PUT /api/members/:id/roles  — replace roles (Vagt / Administrator only)
-router.put("/:id/roles", (req, res) => {
-  if (!requireAdmin(req, res)) return;
-  const newRoleNames: string[] = req.body.roles ?? [];
-  const members = readTable<DbMember>("members");
-  const member = members.find((m) => m.id === Number(req.params.id));
-  if (!member) return res.status(404).json({ error: "Not found" });
-
-  const roles = readTable<DbRole>("roles");
-  const memberRoles = readTable<DbMemberRole>("member_roles");
-
-  // Remove existing Vagt/Admin rows for this member
-  const filtered = memberRoles.filter(
-    (mr) =>
-      !(
-        mr.member_id === member.id &&
-        roles.find(
-          (r) =>
-            r.id === mr.role_id &&
-            (r.name === "Vagt" || r.name === "Administrator"),
-        )
-      ),
-  );
-
-  // Add new rows
-  for (const name of newRoleNames) {
-    const role = roles.find((r) => r.name === name);
-    if (role) filtered.push({ member_id: member.id, role_id: role.id });
-  }
-
-  writeTable("member_roles", filtered);
-
-  const updatedRoles = filtered
-    .filter((mr) => mr.member_id === member.id)
-    .map((mr) => roles.find((r) => r.id === mr.role_id)?.name)
-    .filter(Boolean) as string[];
-
-  return res.json({ ...member, roles: updatedRoles });
-});
-
-// GET /api/members/:id/shifts  — upcoming club nights where vagt_member_id = id
-router.get("/:id/shifts", (req, res) => {
+router.patch("/:id", async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
+  const pool = await getPool();
   const memberId = Number(req.params.id);
-  const nights = readTable<DbClubNight>("club_nights");
-  const members = readTable<DbMember>("members");
+
+  if (typeof req.body.banned === "boolean") {
+    await pool.request()
+      .input("banned", sql.Bit, req.body.banned ? 1 : 0)
+      .input("memberId", sql.Int, memberId)
+      .query("UPDATE dbo.users SET banned = @banned WHERE member_id = @memberId");
+  }
+
+  const result = await pool.request()
+    .input("id", sql.Int, memberId)
+    .query(`
+      SELECT m.id, m.name, m.initials, m.email, m.joined_date,
+             ISNULL(u.banned, 0) AS banned,
+             STRING_AGG(r.name, ',') AS roles_agg
+      FROM dbo.members m
+      LEFT JOIN dbo.users u ON u.member_id = m.id
+      LEFT JOIN dbo.member_roles mr ON mr.member_id = m.id
+      LEFT JOIN dbo.roles r ON r.id = mr.role_id
+      WHERE m.id = @id
+      GROUP BY m.id, m.name, m.initials, m.email, m.joined_date, u.banned
+    `);
+  if (result.recordset.length === 0) return res.status(404).json({ error: "Not found" });
+  const row = result.recordset[0];
+  return res.json({
+    ...row,
+    banned: row.banned === true || row.banned === 1,
+    roles: row.roles_agg ? row.roles_agg.split(",") : [],
+    roles_agg: undefined,
+  });
+});
+
+// PUT /api/members/:id/roles  — replace Vagt/Administrator roles
+router.put("/:id/roles", async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
+  const newRoleNames: string[] = req.body.roles ?? [];
+  const memberId = Number(req.params.id);
+  const pool = await getPool();
+
+  const memberCheck = await pool.request()
+    .input("id", sql.Int, memberId)
+    .query("SELECT id FROM dbo.members WHERE id = @id");
+  if (memberCheck.recordset.length === 0) return res.status(404).json({ error: "Not found" });
+
+  const transaction = pool.transaction();
+  await transaction.begin();
+  try {
+    // Remove existing Vagt/Administrator rows for this member
+    await transaction.request()
+      .input("memberId", sql.Int, memberId)
+      .query(`
+        DELETE mr FROM dbo.member_roles mr
+        JOIN dbo.roles r ON r.id = mr.role_id
+        WHERE mr.member_id = @memberId AND r.name IN ('Vagt','Administrator')
+      `);
+
+    // Add new role rows
+    for (const roleName of newRoleNames) {
+      await transaction.request()
+        .input("memberId", sql.Int, memberId)
+        .input("roleName", sql.NVarChar, roleName)
+        .query(`
+          INSERT INTO dbo.member_roles (member_id, role_id)
+          SELECT @memberId, id FROM dbo.roles WHERE name = @roleName
+        `);
+    }
+    await transaction.commit();
+  } catch (err) {
+    await transaction.rollback();
+    throw err;
+  }
+
+  const result = await pool.request()
+    .input("id", sql.Int, memberId)
+    .query(`
+      SELECT m.id, m.name, m.initials, m.email, m.joined_date,
+             ISNULL(u.banned, 0) AS banned,
+             STRING_AGG(r.name, ',') AS roles_agg
+      FROM dbo.members m
+      LEFT JOIN dbo.users u ON u.member_id = m.id
+      LEFT JOIN dbo.member_roles mr ON mr.member_id = m.id
+      LEFT JOIN dbo.roles r ON r.id = mr.role_id
+      WHERE m.id = @id
+      GROUP BY m.id, m.name, m.initials, m.email, m.joined_date, u.banned
+    `);
+  const row = result.recordset[0];
+  return res.json({
+    ...row,
+    banned: row.banned === true || row.banned === 1,
+    roles: row.roles_agg ? row.roles_agg.split(",") : [],
+    roles_agg: undefined,
+  });
+});
+
+// GET /api/members/:id/shifts  — upcoming confirmed shifts for this member
+router.get("/:id/shifts", async (req, res) => {
+  const memberId = Number(req.params.id);
+  const pool = await getPool();
   const today = new Date().toISOString().slice(0, 10);
 
-  const shifts = nights
-    .filter(
-      (n) =>
-        n.vagt_member_id === memberId &&
-        n.vagt_confirmed === true &&
-        n.date >= today,
-    )
-    .sort((a, b) => a.date.localeCompare(b.date))
-    .map((n) => {
-      const vagt = n.vagt_member_id
-        ? members.find((m) => m.id === n.vagt_member_id)
-        : null;
-      return {
-        ...n,
-        assigned_member_name: vagt?.name ?? null,
-        assigned_member_initials: vagt?.initials ?? null,
-      };
-    });
-
-  res.json(shifts);
+  const result = await pool.request()
+    .input("memberId", sql.Int, memberId)
+    .input("today", sql.Date, today)
+    .query(`
+      SELECT n.id, n.number, n.name, n.date, n.time_from, n.time_to,
+             n.location, n.vagt_member_id, n.vagt_confirmed,
+             n.created_at, n.updated_at,
+             m.name AS assigned_member_name,
+             m.initials AS assigned_member_initials
+      FROM dbo.club_nights n
+      LEFT JOIN dbo.members m ON m.id = n.vagt_member_id
+      WHERE n.vagt_member_id = @memberId
+        AND n.vagt_confirmed = 1
+        AND n.date >= @today
+      ORDER BY n.date
+    `);
+  res.json(result.recordset);
 });
 
 export default router;
