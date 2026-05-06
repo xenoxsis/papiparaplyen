@@ -9,6 +9,7 @@ import {
   Clock,
   GripVertical,
   MapPin,
+  MessagesSquare,
   Plus,
   Search,
   Trash2,
@@ -25,12 +26,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/lib/auth-context";
+import Link from "next/link";
 import { useRequireAuth } from "@/lib/useRequireAuth";
 import {
   deleteClubNightOptOut,
   deleteClubNight,
   getClubNights,
   getMembers,
+  getMessages,
   getMyScheduleReview,
   getScheduleReviews,
   patchClubNight,
@@ -39,6 +42,7 @@ import {
   postScheduleReview,
   type ApiClubNight,
   type ApiMember,
+  type ApiMessage,
   type ApiScheduleReview,
 } from "@/lib/api";
 
@@ -71,6 +75,7 @@ export default function SchedulePage() {
     null,
   );
   const [assignModalSearch, setAssignModalSearch] = useState("");
+  const [pendingSwapMsgs, setPendingSwapMsgs] = useState<ApiMessage[]>([]);
   const dragErrorTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -78,6 +83,15 @@ export default function SchedulePage() {
     getMembers()
       .then((ms) =>
         setVagter(ms.filter((m) => m.roles.includes("Vagt") && !m.banned)),
+      )
+      .catch(console.error);
+    getMessages(2)
+      .then((msgs) =>
+        setPendingSwapMsgs(
+          msgs.filter(
+            (m) => m.type === "shift_swap" && m.swap_status === "pending",
+          ),
+        ),
       )
       .catch(console.error);
     if (isAdmin) {
@@ -592,6 +606,9 @@ export default function SchedulePage() {
                 const vagt = effectiveVagt(night);
                 const hasVagt = vagt !== null;
                 const isPending = night.id in pendingChanges;
+                const swapMsg =
+                  pendingSwapMsgs.find((m) => m.shift_night_id === night.id) ??
+                  null;
                 const isOver = dragOverNightId === night.id;
                 const myOptOut =
                   user !== null &&
@@ -722,6 +739,15 @@ export default function SchedulePage() {
                             <span className="text-[10px] text-[#F4A261] font-medium">
                               Ikke gemt
                             </span>
+                          )}
+                          {swapMsg && (
+                            <Link
+                              href={`/member/profile?vagter=${swapMsg.id}`}
+                              className="flex items-center gap-1 rounded-full px-2 py-0.5 bg-blue-50 border border-blue-200 text-[10px] font-medium text-blue-600 hover:bg-blue-100 transition-colors"
+                            >
+                              <MessagesSquare className="size-3" />
+                              Afbud anmodet
+                            </Link>
                           )}
                         </div>
                       </div>

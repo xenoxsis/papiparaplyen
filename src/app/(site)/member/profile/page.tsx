@@ -128,6 +128,8 @@ export default function ProfilePage() {
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const scrollOnNextRender = useRef(false);
   const pendingScrollMsgId = useRef<number | null>(null);
+  const didHandleVagterParam = useRef(false);
+  const [vagterMsgId, setVagterMsgId] = useState<number | null>(null);
   const [isScrolledUp, setIsScrolledUp] = useState(false);
   const [highlightMessageId, setHighlightMessageId] = useState<number | null>(
     null,
@@ -170,6 +172,55 @@ export default function ProfilePage() {
     }, 15000);
     return () => clearInterval(id);
   }, [channels]);
+
+  // Read ?vagter= param from URL (avoids useSearchParams Suspense requirement)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const id = Number(params.get("vagter")) || null;
+    if (id) setVagterMsgId(id);
+  }, []);
+
+  // Handle ?vagter=<id> query param — navigate to that message in Vagter channel
+  useEffect(() => {
+    if (
+      !vagterMsgId ||
+      didHandleVagterParam.current ||
+      allMessages.length === 0
+    )
+      return;
+    const msg = allMessages.find((m) => m.id === vagterMsgId);
+    if (!msg) return;
+    didHandleVagterParam.current = true;
+    pendingScrollMsgId.current = vagterMsgId;
+    if (activeChannelId !== msg.channel_id) {
+      setActiveChannelId(msg.channel_id);
+    } else {
+      const el = messagesContainerRef.current?.querySelector(
+        `[data-msg-id="${vagterMsgId}"]`,
+      ) as HTMLElement | null;
+      if (el) {
+        el.scrollIntoView({ block: "center" });
+        setHighlightMessageId(vagterMsgId);
+        setTimeout(() => setHighlightMessageId(null), 2000);
+      }
+    }
+  }, [allMessages, vagterMsgId, activeChannelId]);
+
+  // When the user's own swap request is accepted by someone, refresh nights
+  useEffect(() => {
+    if (!user) return;
+    const myTakenSwap = allMessages.find(
+      (m) =>
+        m.type === "shift_swap" &&
+        m.swap_status === "taken" &&
+        m.sender_id === user.id,
+    );
+    if (myTakenSwap) {
+      getClubNights().then(setNights).catch(console.error);
+      getMemberShifts(user.id).then(setShifts).catch(console.error);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allMessages]);
 
   // Derived: pending swap the current user has requested
   const pendingSwap = useMemo(() => {
@@ -279,7 +330,8 @@ export default function ProfilePage() {
         taken_by_member_id: user.id,
       });
       setSwapConfirmMsg(null);
-      // Refresh shifts + channel 2 messages
+      // Refresh nights, shifts + channel 2 messages
+      getClubNights().then(setNights).catch(console.error);
       getMemberShifts(user.id).then(setShifts).catch(console.error);
       getMessages(2).then((msgs) => {
         setAllMessages((prev) => [
@@ -398,12 +450,12 @@ export default function ProfilePage() {
         </div>
       )}
 
-      {/* Tag over confirmation */}
+      {/* Take confirmation */}
       {swapConfirmMsg && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-sm mx-4 p-6 flex flex-col gap-4">
             <h2 className="font-semibold text-base text-neutral-900">
-              Tag over vagten?
+              Tag vagten?
             </h2>
             <p className="text-sm text-neutral-500">
               {nights.find((n) => n.id === swapConfirmMsg.shift_night_id)
@@ -1027,10 +1079,11 @@ export default function ProfilePage() {
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => setShowChannelDrawer(true)}
-                  className="md:hidden flex items-center justify-center w-8 h-8 rounded-md border-none bg-transparent text-neutral-500 hover:bg-neutral-100 transition-colors cursor-pointer shrink-0"
+                  className="md:hidden flex items-center gap-1.5 px-2.5 h-8 rounded-md border border-neutral-200 bg-white text-neutral-600 text-xs font-medium hover:bg-neutral-50 transition-colors cursor-pointer shrink-0"
                   aria-label="Åbn samtaler"
                 >
-                  <MessagesSquare className="size-4" />
+                  <MessagesSquare className="size-3.5" />
+                  Samtaler
                 </button>
                 <div
                   className={`w-10 h-10 rounded-full text-white flex items-center justify-center shrink-0 ${

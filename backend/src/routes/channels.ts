@@ -130,6 +130,39 @@ router.patch(
       WHERE m.id = @id
     `);
 
+    // When a swap is accepted, automatically opt-out the original sender
+    if (req.body.swap_status === "taken") {
+      const { sender_id: senderId, shift_night_id: shiftNightId } =
+        row.recordset[0] ?? {};
+      if (senderId && shiftNightId) {
+        const existing = await pool
+          .request()
+          .input("nightId", sql.Int, shiftNightId)
+          .input("memberId", sql.Int, senderId)
+          .query(
+            "SELECT 1 FROM dbo.club_night_opt_outs WHERE club_night_id=@nightId AND member_id=@memberId",
+          );
+        if (existing.recordset.length === 0) {
+          await pool
+            .request()
+            .input("nightId", sql.Int, shiftNightId)
+            .input("memberId", sql.Int, senderId)
+            .query(
+              "INSERT INTO dbo.club_night_opt_outs (club_night_id, member_id) VALUES (@nightId, @memberId)",
+            );
+        }
+        // Clear vagt assignment if sender was assigned
+        await pool
+          .request()
+          .input("senderId", sql.Int, senderId)
+          .input("shiftNightId", sql.Int, shiftNightId)
+          .input("updatedAt", sql.DateTime2, new Date().toISOString())
+          .query(
+            "UPDATE dbo.club_nights SET vagt_member_id = NULL, vagt_confirmed = 0, updated_at = @updatedAt WHERE id = @shiftNightId AND vagt_member_id = @senderId",
+          );
+      }
+    }
+
     return res.json(row.recordset[0]);
   },
 );
