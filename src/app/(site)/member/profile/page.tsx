@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { toast } from "sonner";
 import {
   AlarmClock,
+  Bell,
   CalendarDays,
   ChevronDown,
   Clock,
@@ -24,6 +26,7 @@ import {
   getChannels,
   getMessages,
   getMemberShifts,
+  getMyScheduleReview,
   postClubNight,
   postMessage,
   patchMessage,
@@ -33,6 +36,7 @@ import {
   type ApiClubNight,
   type ApiChannel,
   type ApiMessage,
+  type ApiScheduleReview,
 } from "@/lib/api";
 
 function GroupChatItem({
@@ -111,6 +115,7 @@ export default function ProfilePage() {
   const [channelSearch, setChannelSearch] = useState("");
   const [showChannelSearch, setShowChannelSearch] = useState(false);
   const [showChannelDrawer, setShowChannelDrawer] = useState(false);
+  const [myReview, setMyReview] = useState<ApiScheduleReview | null>(null);
   // Swap state
   const [showSwapModal, setShowSwapModal] = useState(false);
   const [swapTargetShift, setSwapTargetShift] = useState<ApiClubNight | null>(
@@ -130,6 +135,7 @@ export default function ProfilePage() {
 
   useEffect(() => {
     getClubNights().then(setNights).catch(console.error);
+    getMyScheduleReview().then(setMyReview).catch(console.error);
     getChannels()
       .then(async (chs) => {
         setChannels(chs);
@@ -295,6 +301,10 @@ export default function ProfilePage() {
   // Nights assigned to me but not yet confirmed (visible only to the assigned vagt)
   const today = new Date().toISOString().slice(0, 10);
   const confirmedNightsCount = nights.filter((n) => n.vagt_confirmed).length;
+  const isVagt = user?.roles.includes("Vagt") ?? false;
+  const hasUnreviewedNights =
+    isVagt &&
+    nights.some((n) => !myReview || n.created_at > myReview.reviewed_at);
   const pendingShiftsForMe = user
     ? nights.filter(
         (n) =>
@@ -431,6 +441,30 @@ export default function ProfilePage() {
           <span className="text-white/60 text-xs">Klubaftener</span>
         </div>
       </MemberHero>
+
+      {/* Unreviewed nights banner — for vagter */}
+      {hasUnreviewedNights && (
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl border border-[#F4A261]/40 bg-[#F4A261]/10 p-4">
+          <div className="flex items-start gap-3 flex-1">
+            <Bell className="size-5 text-[#F4A261] shrink-0 mt-0.5" />
+            <div className="flex flex-col gap-0.5">
+              <p className="text-sm font-semibold text-neutral-900">
+                Der er nye aftener siden du sidst gennemgik skemaet
+              </p>
+              <p className="text-xs text-neutral-500">
+                Gennemgå listen og meld fra på de aftener du ikke kan tage
+              </p>
+            </div>
+          </div>
+          <Link
+            href="/member/schedule"
+            className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#F4A261] text-white text-xs font-semibold hover:bg-orange-400 transition-colors w-full sm:w-auto justify-center"
+          >
+            <CalendarDays className="size-3.5" />
+            Gå til vagtplan
+          </Link>
+        </div>
+      )}
 
       {/* Two-column grid */}
       <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-6">

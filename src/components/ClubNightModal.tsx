@@ -12,10 +12,12 @@ function today() {
 
 export function ClubNightModal({
   nextNumber,
+  existingDates = [],
   onClose,
   onAdd,
 }: {
   nextNumber: number;
+  existingDates?: string[];
   onClose: () => void;
   onAdd: (data: {
     name: string;
@@ -26,7 +28,7 @@ export function ClubNightModal({
     vagt_member_id: number | null;
   }) => void;
 }) {
-  const [name, setName] = useState(`Klubaften #${nextNumber}`);
+  const [name, setName] = useState("Klubaften");
   const [date, setDate] = useState(today());
   const [timeFrom, setTimeFrom] = useState("18:00");
   const [timeTo, setTimeTo] = useState("23:00");
@@ -34,6 +36,10 @@ export function ClubNightModal({
   const [vagtId, setVagtId] = useState<string>("none");
   const [vagter, setVagter] = useState<ApiMember[]>([]);
   const overlayRef = useRef<HTMLDivElement>(null);
+
+  const isDuplicate = existingDates.includes(date);
+  const isPast = date < today();
+  const isBlocked = isDuplicate || isPast;
 
   useEffect(() => {
     getMembers()
@@ -57,6 +63,7 @@ export function ClubNightModal({
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (isBlocked) return;
     onAdd({
       name,
       date,
@@ -110,9 +117,22 @@ export function ClubNightModal({
             <Input
               type="date"
               value={date}
+              min={today()}
               onChange={(e) => setDate(e.target.value)}
               required
             />
+            {isDuplicate && (
+              <p className="text-xs text-[#e63946] flex items-center gap-1">
+                <CalendarDays className="size-3.5 shrink-0" />
+                Der er allerede en klubaften på denne dato.
+              </p>
+            )}
+            {isPast && (
+              <p className="text-xs text-[#e63946] flex items-center gap-1">
+                <CalendarDays className="size-3.5 shrink-0" />
+                Datoen kan ikke være i fortiden.
+              </p>
+            )}
           </div>
 
           {/* Tid */}
@@ -180,7 +200,8 @@ export function ClubNightModal({
             </Button>
             <Button
               type="submit"
-              className="bg-[#e63946] hover:bg-red-600 text-white"
+              disabled={isBlocked}
+              className="bg-[#e63946] hover:bg-red-600 text-white disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Tilføj klubaften
             </Button>

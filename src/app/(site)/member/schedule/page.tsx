@@ -114,6 +114,41 @@ export default function SchedulePage() {
   ).length;
   const hasPendingChanges = Object.keys(pendingChanges).length > 0;
 
+  // Warn before leaving with unsaved changes (admin only).
+  // Uses a document-level click interceptor to catch Next.js <Link> navigation,
+  // and beforeunload for browser refresh/close.
+  useEffect(() => {
+    if (!isAdmin || !hasPendingChanges) return;
+
+    function handleBeforeUnload(e: BeforeUnloadEvent) {
+      e.preventDefault();
+    }
+
+    function handleClick(e: MouseEvent) {
+      const anchor = (e.target as HTMLElement).closest("a");
+      if (!anchor) return;
+      const href = anchor.getAttribute("href");
+      // Only intercept internal navigation away from this page
+      if (!href || href.startsWith("#") || href.startsWith("http")) return;
+      if (
+        !window.confirm(
+          "Du har ugemte ændringer. Vil du forlade siden uden at gemme?",
+        )
+      ) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    }
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    document.addEventListener("click", handleClick, true); // capture phase
+
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      document.removeEventListener("click", handleClick, true);
+    };
+  }, [isAdmin, hasPendingChanges]);
+
   // For vagter: which nights are newer than their last review?
   const myReview = user
     ? reviews.find((r) => r.member_id === user.id)
@@ -262,6 +297,7 @@ export default function SchedulePage() {
               ? Math.max(...nights.map((n) => n.number)) + 1
               : 51
           }
+          existingDates={nights.map((n) => n.date)}
           onClose={() => setShowAddModal(false)}
           onAdd={async (data) => {
             try {

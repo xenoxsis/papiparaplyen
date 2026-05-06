@@ -62,7 +62,7 @@ export default async function Home() {
             />
           </div>
           <div className="flex flex-col gap-4">
-            <span className="inline-flex items-center gap-1 bg-yellow-400 text-black rounded-full px-4 py-1 text-sm font-medium w-fit">
+            <span className="inline-flex items-center gap-1 bg-yellow-400 text-black rounded-full px-4 py-1 text-sm font-medium mx-auto sm:mx-0 w-fit">
               <Sparkles className="size-3 mr-1" />
               Brætspilsklub siden 2022
             </span>

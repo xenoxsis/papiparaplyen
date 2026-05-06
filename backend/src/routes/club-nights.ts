@@ -117,7 +117,7 @@ router.post("/", requireAuth, async (req, res) => {
   const insertResult = await pool
     .request()
     .input("number", sql.Int, nextNumber)
-    .input("name", sql.NVarChar, req.body.name ?? `Klubaften #${nextNumber}`)
+    .input("name", sql.NVarChar, req.body.name ?? "Klubaften")
     .input("date", sql.Date, req.body.date)
     .input("timeFrom", sql.NVarChar, req.body.time_from ?? "18:00")
     .input("timeTo", sql.NVarChar, req.body.time_to ?? "23:00")
