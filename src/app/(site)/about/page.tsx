@@ -74,7 +74,7 @@ export default function AboutPage() {
 
             <div className="relative rounded-2xl overflow-hidden min-h-64 md:min-h-96">
               <Image
-                src="https://images.unsplash.com/photo-1610890716171-6b1bb98ffd09?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=800"
+                src="https://images.unsplash.com/photo-1632501641765-e568d28b0015?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=800"
                 alt="People playing board games at a table"
                 fill
                 className="object-cover"
