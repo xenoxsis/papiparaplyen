@@ -24,8 +24,8 @@ export function MemberHero({ children }: { children: ReactNode }) {
   const roleLabel = isAdmin ? "Administrator" : isVagt ? "Vagt" : "Medlem";
 
   return (
-    <div className="bg-neutral-900 rounded-2xl text-white p-6 flex justify-between items-center gap-6">
-      <div className="flex items-center gap-4">
+    <div className="bg-neutral-900 rounded-2xl text-white p-6 flex flex-col sm:flex-row justify-between items-center gap-4 sm:gap-6">
+      <div className="flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left">
         <div className="w-16 h-16 rounded-full border-2 border-[#e63946] bg-[#e63946] text-white flex items-center justify-center text-lg font-bold tracking-wider select-none shrink-0">
           {initials}
         </div>
@@ -34,14 +34,16 @@ export function MemberHero({ children }: { children: ReactNode }) {
             Velkommen tilbage
           </span>
           <h1 className="font-bold text-2xl text-white">{name}</h1>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center justify-center sm:justify-start gap-2">
             {roleBadge ?? (
               <span className="text-white/70 text-sm">{roleLabel}</span>
             )}
           </div>
         </div>
       </div>
-      <div className="flex items-center gap-6 shrink-0">{children}</div>
+      <div className="flex items-center justify-center sm:justify-start gap-4 sm:gap-6 shrink-0 flex-wrap">
+        {children}
+      </div>
     </div>
   );
 }

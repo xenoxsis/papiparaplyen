@@ -51,8 +51,8 @@ export default async function Home() {
     <>
       {/* Hero */}
       <section className="w-full bg-linear-to-br from-neutral-900 to-neutral-950">
-        <div className="max-w-285 mx-auto px-8 py-12 flex flex-row items-center gap-8">
-          <div className="shrink-0 w-40 h-40 rounded-2xl bg-white flex items-center justify-center p-2">
+        <div className="max-w-285 mx-auto px-4 sm:px-8 py-10 sm:py-12 flex flex-col sm:flex-row items-center gap-6 sm:gap-8 text-center sm:text-left">
+          <div className="shrink-0 w-28 h-28 sm:w-40 sm:h-40 rounded-2xl bg-white flex items-center justify-center p-2">
             <Image
               src="/papiparaplyen-logo.png"
               alt="Pap i Paraplyen logo"
@@ -66,13 +66,13 @@ export default async function Home() {
               <Sparkles className="size-3 mr-1" />
               Brætspilsklub siden 2022
             </span>
-            <h1 className="font-bold text-white text-5xl tracking-tight leading-none">
+            <h1 className="font-bold text-white text-3xl sm:text-5xl tracking-tight leading-none">
               Pap i Paraplyen
             </h1>
             <p className="text-white/80 text-lg">
               Din lokale brætspilsklub - alle er velkomne!
             </p>
-            <div className="flex flex-row gap-4 mt-2">
+            <div className="flex flex-row gap-4 mt-2 justify-center sm:justify-start">
               <Button
                 asChild
                 className="bg-red-500 hover:bg-red-600 text-white gap-2"
@@ -99,7 +99,7 @@ export default async function Home() {
 
       {/* About */}
       <section className="w-full bg-white">
-        <div className="max-w-285 mx-auto px-8 py-12 grid grid-cols-2 gap-12">
+        <div className="max-w-285 mx-auto px-4 sm:px-8 py-10 sm:py-12 grid grid-cols-1 md:grid-cols-2 gap-8 sm:gap-12">
           <div className="flex flex-col justify-center gap-4">
             <span className="font-semibold uppercase text-red-500 text-sm tracking-wider">
               Om os
@@ -141,7 +141,7 @@ export default async function Home() {
               </div>
             </div>
           </div>
-          <div className="relative rounded-2xl overflow-hidden min-h-96">
+          <div className="relative rounded-2xl overflow-hidden min-h-64 sm:min-h-96">
             <Image
               src="https://images.unsplash.com/photo-1610890716171-6b1bb98ffd09?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=800"
               alt="People playing board games at a table"
@@ -158,7 +158,7 @@ export default async function Home() {
 
       {/* Events */}
       <section className="w-full bg-neutral-100">
-        <div className="max-w-285 mx-auto px-8 py-12 flex flex-col gap-8">
+        <div className="max-w-285 mx-auto px-4 sm:px-8 py-10 sm:py-12 flex flex-col gap-8">
           <div className="flex justify-between items-end">
             <div className="flex flex-col gap-2">
               <span className="font-semibold uppercase text-red-500 text-sm tracking-wider">
@@ -175,7 +175,7 @@ export default async function Home() {
               </Link>
             </Button>
           </div>
-          <div className="grid grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {nights.map((night, i) => {
               const d = new Date(night.date);
               const dateLabel = d.toLocaleDateString("da-DK", {

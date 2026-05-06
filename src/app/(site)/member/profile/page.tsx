@@ -9,7 +9,6 @@ import {
   Clock,
   MapPin,
   MessagesSquare,
-  MoreVertical,
   RefreshCcw,
   Search,
   Send,
@@ -111,6 +110,7 @@ export default function ProfilePage() {
   const [msgBody, setMsgBody] = useState("");
   const [channelSearch, setChannelSearch] = useState("");
   const [showChannelSearch, setShowChannelSearch] = useState(false);
+  const [showChannelDrawer, setShowChannelDrawer] = useState(false);
   // Swap state
   const [showSwapModal, setShowSwapModal] = useState(false);
   const [swapTargetShift, setSwapTargetShift] = useState<ApiClubNight | null>(
@@ -314,7 +314,7 @@ export default function ProfilePage() {
       : [];
 
   return (
-    <main className="bg-neutral-100 min-h-[calc(100vh-3.5rem)] p-8 flex flex-col gap-8">
+    <main className="bg-neutral-100 min-h-[calc(100vh-3.5rem)] p-4 sm:p-8 flex flex-col gap-6 sm:gap-8">
       {showAddModal && (
         <ClubNightModal
           nextNumber={
@@ -423,7 +423,7 @@ export default function ProfilePage() {
           </span>
           <span className="text-white/60 text-xs">Vagter</span>
         </div>
-        <div className="w-px h-10 bg-white/20" />
+        <div className="hidden sm:block w-px h-10 bg-white/20" />
         <div className="flex flex-col items-center">
           <span className="font-bold text-2xl text-[#2a9d8f]">
             {confirmedNightsCount}
@@ -433,7 +433,7 @@ export default function ProfilePage() {
       </MemberHero>
 
       {/* Two-column grid */}
-      <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-6">
         {/* Left: Pending confirmation + Next shift / All shifts */}
         <div className="flex flex-col gap-4">
           {/* Pending shifts panel */}
@@ -868,9 +868,24 @@ export default function ProfilePage() {
           </button>
         </div>
 
-        <div className="grid grid-cols-[1fr_2fr] gap-4 h-105">
-          {/* Contact list */}
-          <div className="border border-neutral-200 rounded-lg flex flex-col overflow-hidden">
+        <div className="relative grid grid-cols-1 md:grid-cols-[1fr_2fr] gap-4 h-105">
+          {/* Contact list — drawer on mobile, sidebar on md+ */}
+          {/* Mobile backdrop */}
+          {showChannelDrawer && (
+            <div
+              className="md:hidden absolute inset-0 z-10 bg-black/30 rounded-lg"
+              onClick={() => setShowChannelDrawer(false)}
+            />
+          )}
+          <div
+            className={`flex flex-col overflow-hidden border border-neutral-200 rounded-lg
+            md:flex
+            ${
+              showChannelDrawer
+                ? "absolute inset-y-0 left-0 z-20 w-72 bg-white shadow-xl"
+                : "hidden md:flex"
+            }`}
+          >
             {showChannelSearch && (
               <div className="p-2 border-b border-neutral-100">
                 <div className="relative">
@@ -909,6 +924,7 @@ export default function ProfilePage() {
                       onClick={() => {
                         setShowChannelSearch(false);
                         setChannelSearch("");
+                        setShowChannelDrawer(false);
                         if (msg.channel_id !== activeChannelId) {
                           pendingScrollMsgId.current = msg.id;
                           setActiveChannelId(msg.channel_id);
@@ -966,6 +982,7 @@ export default function ProfilePage() {
                       setActiveChannelId(ch.id);
                       setShowChannelSearch(false);
                       setChannelSearch("");
+                      setShowChannelDrawer(false);
                     }}
                   />
                 ))}
@@ -977,6 +994,13 @@ export default function ProfilePage() {
           <div className="border border-neutral-200 rounded-lg flex flex-col overflow-hidden">
             <div className="border-b border-neutral-200 flex p-3 justify-between items-center shrink-0">
               <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setShowChannelDrawer(true)}
+                  className="md:hidden flex items-center justify-center w-8 h-8 rounded-md border-none bg-transparent text-neutral-500 hover:bg-neutral-100 transition-colors cursor-pointer shrink-0"
+                  aria-label="Åbn samtaler"
+                >
+                  <MessagesSquare className="size-4" />
+                </button>
                 <div
                   className={`w-10 h-10 rounded-full text-white flex items-center justify-center shrink-0 ${
                     activeChannel?.type === "all_members"
@@ -1003,9 +1027,6 @@ export default function ProfilePage() {
                   </span>
                 </div>
               </div>
-              <button className="inline-flex items-center justify-center w-8 h-8 rounded-md border-none bg-transparent text-neutral-500 hover:bg-neutral-100 transition-colors cursor-pointer">
-                <MoreVertical className="size-4" />
-              </button>
             </div>
 
             <div className="relative flex flex-col flex-1 overflow-hidden">

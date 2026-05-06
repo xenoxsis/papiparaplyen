@@ -100,7 +100,7 @@ export default function AdminPage() {
   };
 
   return (
-    <main className="bg-neutral-100 min-h-[calc(100vh-3.5rem)] p-8 flex flex-col gap-8">
+    <main className="bg-neutral-100 min-h-[calc(100vh-3.5rem)] p-4 sm:p-8 flex flex-col gap-6 sm:gap-8">
       {/* Confirm ban dialog */}
       {pendingBan && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
@@ -148,14 +148,14 @@ export default function AdminPage() {
           </span>
           <span className="text-white/60 text-xs">Aktive medlemmer</span>
         </div>
-        <div className="bg-white/20 w-px h-10" />
+        <div className="hidden sm:block bg-white/20 w-px h-10" />
         <div className="flex flex-col items-center">
           <span className="font-bold text-2xl text-[#2a9d8f]">
             {counts.Vagt}
           </span>
           <span className="text-white/60 text-xs">Vagter</span>
         </div>
-        <div className="bg-white/20 w-px h-10" />
+        <div className="hidden sm:block bg-white/20 w-px h-10" />
         <div className="flex flex-col items-center">
           <span className="font-bold text-[#e63946] text-2xl">
             {counts.banned}
@@ -174,7 +174,7 @@ export default function AdminPage() {
             </h2>
           </div>
 
-          <div className="relative w-72">
+          <div className="relative w-full sm:w-72">
             <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
             <Input
               placeholder="Søg navn eller e-mail…"

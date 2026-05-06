@@ -1,4 +1,4 @@
-const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
+const BASE = process.env.NEXT_PUBLIC_API_URL ?? "";
 
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
   let token: string | null = null;

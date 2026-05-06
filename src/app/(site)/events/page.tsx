@@ -24,7 +24,7 @@ export default function EventsPage() {
 
   return (
     <section className="bg-neutral-100 w-full min-h-[60vh]">
-      <div className="max-w-285 mx-auto px-8 py-12 flex flex-col gap-8">
+      <div className="max-w-285 mx-auto px-4 sm:px-8 py-10 sm:py-12 flex flex-col gap-8">
         <div className="flex items-end justify-between gap-4">
           <div className="flex flex-col gap-2">
             <span className="font-semibold uppercase text-blue-500 text-sm tracking-wider">

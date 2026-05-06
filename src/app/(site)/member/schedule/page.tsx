@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import {
   CalendarDays,
   Check,
+  ChevronDown,
   Clock,
   GripVertical,
   MapPin,
@@ -66,6 +67,10 @@ export default function SchedulePage() {
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   const [draggingMemberId, setDraggingMemberId] = useState<number | null>(null);
   const [dragOverNightId, setDragOverNightId] = useState<number | null>(null);
+  const [assignModalNightId, setAssignModalNightId] = useState<number | null>(
+    null,
+  );
+  const [assignModalSearch, setAssignModalSearch] = useState("");
   const dragErrorTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -165,6 +170,19 @@ export default function SchedulePage() {
     setPendingChanges((prev) => ({ ...prev, [nightId]: null }));
   }
 
+  function handleAssignFromModal(nightId: number, memberId: number) {
+    const night = nights.find((n) => n.id === nightId);
+    if (!night) return;
+    const current = effectiveVagt(night);
+    setAssignModalNightId(null);
+    setAssignModalSearch("");
+    if (current && current.id !== memberId) {
+      setConfirmDialog({ nightId, newMemberId: memberId });
+    } else {
+      setPendingChanges((prev) => ({ ...prev, [nightId]: memberId }));
+    }
+  }
+
   async function saveChanges() {
     setSaving(true);
     try {
@@ -236,7 +254,7 @@ export default function SchedulePage() {
   }
 
   return (
-    <main className="bg-neutral-100 min-h-[calc(100vh-3.5rem)] p-8 flex flex-col gap-8">
+    <main className="bg-neutral-100 min-h-[calc(100vh-3.5rem)] p-4 sm:p-8 flex flex-col gap-6 sm:gap-8">
       {isAdmin && showAddModal && (
         <ClubNightModal
           nextNumber={
@@ -379,7 +397,7 @@ export default function SchedulePage() {
         </div>
         {isAdmin && (
           <>
-            <div className="bg-white/20 w-px h-10" />
+            <div className="hidden sm:block bg-white/20 w-px h-10" />
             <div className="flex flex-col items-center">
               <span className="font-bold text-[#E63946] text-2xl leading-8">
                 {missingCount}
@@ -388,7 +406,7 @@ export default function SchedulePage() {
                 Vagter at tildele
               </span>
             </div>
-            <div className="bg-white/20 w-px h-10" />
+            <div className="hidden sm:block bg-white/20 w-px h-10" />
             <div className="flex flex-col items-center">
               <span className="font-bold text-[#F4A261] text-2xl leading-8">
                 {awaitingConfirmCount}
@@ -397,7 +415,7 @@ export default function SchedulePage() {
                 Afventer bekræftelse
               </span>
             </div>
-            <div className="bg-white/20 w-px h-10" />
+            <div className="hidden sm:block bg-white/20 w-px h-10" />
             <div className="flex flex-col items-center">
               <span className="font-bold text-[#2A9D8F] text-2xl leading-8">
                 {vagter.length}
@@ -411,14 +429,14 @@ export default function SchedulePage() {
       </MemberHero>
 
       <div
-        className={`grid gap-6 ${isAdmin ? "grid-cols-3 items-stretch" : "grid-cols-1"}`}
+        className={`grid gap-6 ${isAdmin ? "grid-cols-1 md:grid-cols-3 items-stretch" : "grid-cols-1"}`}
       >
         {/* Shift list */}
         <Card
-          className={`${isAdmin ? "col-span-2" : "col-span-1"} p-6 gap-4 flex flex-col`}
+          className={`${isAdmin ? "md:col-span-2" : "col-span-1"} p-6 gap-4 flex flex-col`}
         >
           <CardHeader className="p-0 gap-4 flex flex-col">
-            <div className="flex justify-between items-center">
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
               <div className="flex items-center gap-2">
                 <CalendarDays className="size-5" />
                 <CardTitle className="text-base leading-6">
@@ -426,38 +444,38 @@ export default function SchedulePage() {
                 </CardTitle>
               </div>
               {isAdmin && (
-                <div className="flex gap-2">
-                  {hasPendingChanges && (
-                    <>
-                      <Button
-                        variant="outline"
-                        onClick={() => setPendingChanges({})}
-                        disabled={saving}
-                      >
-                        Fortryd
-                      </Button>
-                      <Button
-                        className="bg-[#2A9D8F] hover:bg-teal-700 text-white gap-2"
-                        onClick={saveChanges}
-                        disabled={saving}
-                      >
-                        <Check className="size-4" />
-                        {saving
-                          ? "Gemmer…"
-                          : `Gem ${Object.keys(pendingChanges).length} ændring${Object.keys(pendingChanges).length !== 1 ? "er" : ""}`}
-                      </Button>
-                    </>
-                  )}
-                  <Button
-                    className="bg-[#E63946] text-white gap-2"
-                    onClick={() => setShowAddModal(true)}
-                  >
-                    <Plus className="size-4" />
-                    Tilføj klubaften
-                  </Button>
-                </div>
+                <Button
+                  className="bg-[#E63946] text-white gap-2"
+                  onClick={() => setShowAddModal(true)}
+                >
+                  <Plus className="size-4" />
+                  Tilføj klubaften
+                </Button>
               )}
             </div>
+
+            {/* Save/discard pending changes — own row so it never competes with the title */}
+            {isAdmin && hasPendingChanges && (
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setPendingChanges({})}
+                  disabled={saving}
+                >
+                  Fortryd
+                </Button>
+                <Button
+                  className="bg-[#2A9D8F] hover:bg-teal-700 text-white gap-2"
+                  onClick={saveChanges}
+                  disabled={saving}
+                >
+                  <Check className="size-4" />
+                  {saving
+                    ? "Gemmer…"
+                    : `Gem ${Object.keys(pendingChanges).length} ændring${Object.keys(pendingChanges).length !== 1 ? "er" : ""}`}
+                </Button>
+              </div>
+            )}
 
             <div className="relative">
               <Search className="size-4 top-1/2 -translate-y-1/2 text-neutral-500 absolute left-3" />
@@ -505,7 +523,7 @@ export default function SchedulePage() {
           <CardContent className="flex p-0 flex-col gap-3">
             {/* Vagt review banner */}
             {hasUnreviewedNights && (
-              <div className="flex items-center gap-3 rounded-lg border border-[#F4A261]/40 bg-[#F4A261]/10 p-3">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-lg border border-[#F4A261]/40 bg-[#F4A261]/10 p-3">
                 <div className="flex-1">
                   <p className="text-sm font-medium text-neutral-800">
                     Der er nye aftener siden du sidst gennemgik skemaet
@@ -517,7 +535,7 @@ export default function SchedulePage() {
                 <button
                   onClick={submitReview}
                   disabled={submittingReview}
-                  className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#F4A261] text-white text-xs font-semibold hover:bg-orange-400 transition-colors cursor-pointer border-none disabled:opacity-60"
+                  className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#F4A261] text-white text-xs font-semibold hover:bg-orange-400 transition-colors cursor-pointer border-none disabled:opacity-60 w-full sm:w-auto justify-center"
                 >
                   <Check className="size-3.5" />
                   {submittingReview ? "Gemmer…" : "Jeg har gennemgået skemaet"}
@@ -601,11 +619,14 @@ export default function SchedulePage() {
                           {hasVagt ? (
                             <>
                               <div
+                                onClick={() =>
+                                  isAdmin && setAssignModalNightId(night.id)
+                                }
                                 className={`rounded-full flex pl-1 pr-2 py-1 items-center gap-1 border ${
                                   isPending
                                     ? "bg-[#F4A261]/10 border-[#F4A261]/40"
                                     : "bg-white border-neutral-200"
-                                }`}
+                                } ${isAdmin ? "cursor-pointer hover:border-neutral-400" : ""}`}
                               >
                                 <div className="w-6 h-6 rounded-full bg-[#E63946] text-white flex items-center justify-center text-[0.55rem] font-bold select-none shrink-0">
                                   {vagt.initials}
@@ -635,23 +656,26 @@ export default function SchedulePage() {
                                   </span>
                                 ))}
                             </>
-                          ) : (
-                            <div
-                              className={`rounded-full border border-dashed flex px-2 py-1 items-center gap-1 transition-colors ${
+                          ) : isAdmin ? (
+                            <button
+                              onClick={() => setAssignModalNightId(night.id)}
+                              className={`rounded-lg sm:rounded-full border flex px-2.5 py-1.5 sm:py-1 items-center gap-1.5 transition-colors ${
                                 isOver
-                                  ? "border-[#2A9D8F] bg-[#2A9D8F]/10"
-                                  : "border-[#E63946]/30 bg-[#E63946]/10"
+                                  ? "border-[#2A9D8F] bg-[#2A9D8F]/10 text-[#2A9D8F]"
+                                  : "border-[#E63946]/40 bg-[#E63946] sm:bg-[#E63946]/10 text-white sm:text-[#E63946] hover:bg-[#E63946]/20 sm:hover:bg-[#E63946]/20 sm:hover:border-[#E63946]/60"
                               }`}
                             >
-                              <UserPlus
-                                className={`size-3 ${isOver ? "text-[#2A9D8F]" : "text-[#E63946]"}`}
-                              />
-                              <span
-                                className={`text-xs leading-4 ${isOver ? "text-[#2A9D8F]" : "text-[#E63946]"}`}
-                              >
-                                {isOver
-                                  ? "Slip for at tildele"
-                                  : "Ingen vagt tildelt"}
+                              <UserPlus className="size-3.5 sm:size-3 shrink-0" />
+                              <span className="text-xs leading-4 font-medium">
+                                {isOver ? "Slip for at tildele" : "Tildel vagt"}
+                              </span>
+                              <ChevronDown className="size-3 shrink-0 sm:hidden" />
+                            </button>
+                          ) : (
+                            <div className="rounded-full border border-dashed flex px-2 py-1 items-center gap-1 border-[#E63946]/30 bg-[#E63946]/10">
+                              <UserPlus className="size-3 text-[#E63946]" />
+                              <span className="text-xs leading-4 text-[#E63946]">
+                                Ingen vagt tildelt
                               </span>
                             </div>
                           )}
@@ -662,15 +686,6 @@ export default function SchedulePage() {
                           )}
                         </div>
                       </div>
-                      <Badge
-                        className={`${
-                          hasVagt
-                            ? "bg-[#2A9D8F]/10 text-[#2A9D8F]"
-                            : "bg-[#E63946]/10 text-[#E63946]"
-                        } border-0 shrink-0`}
-                      >
-                        {hasVagt ? "1/1 tildelt" : "0/1 tildelt"}
-                      </Badge>
                       {isAdmin && (
                         <button
                           onClick={() => setDeleteConfirmId(night.id)}
@@ -731,7 +746,8 @@ export default function SchedulePage() {
         {/* Draggable people panel + review panel — admins only */}
         {isAdmin && (
           <div className="col-span-1 flex flex-col gap-6 min-h-0">
-            <Card className="border-l-4 border-l-[#E63946] p-6 gap-4 flex flex-col flex-1 min-h-0">
+            {/* Vagter drag panel — desktop only */}
+            <Card className="border-l-4 border-l-[#E63946] p-6 gap-4 hidden md:flex flex-col flex-1 min-h-0">
               <CardHeader className="p-0 gap-2 flex flex-col">
                 <div className="flex items-center gap-2">
                   <Users className="size-5 text-[#E63946]" />
@@ -770,7 +786,7 @@ export default function SchedulePage() {
                           : "border-transparent hover:bg-neutral-50 hover:border-neutral-200"
                       }`}
                     >
-                      <GripVertical className="size-4 text-neutral-300 shrink-0" />
+                      <GripVertical className="hidden sm:block size-4 text-neutral-300 shrink-0" />
                       <div className="w-9 h-9 rounded-full bg-[#E63946] text-white flex items-center justify-center text-[0.65rem] font-bold select-none shrink-0">
                         {m.initials}
                       </div>
@@ -788,7 +804,7 @@ export default function SchedulePage() {
               </CardContent>
             </Card>
 
-            {/* Review status panel — admins only */}
+            {/* Review status panel — admins, all screens */}
             <Card className="p-6 gap-4 flex flex-col">
               <CardHeader className="p-0 gap-1 flex flex-col">
                 <div className="flex items-center gap-2">
@@ -841,6 +857,125 @@ export default function SchedulePage() {
           </div>
         )}
       </div>
+
+      {/* Mobile assign-vagt bottom sheet (admin only) */}
+      {isAdmin &&
+        assignModalNightId !== null &&
+        (() => {
+          const night = nights.find((n) => n.id === assignModalNightId);
+          const currentVagt = night ? effectiveVagt(night) : null;
+          const query = assignModalSearch.toLowerCase();
+          const filtered = vagter.filter((m) =>
+            m.name.toLowerCase().includes(query),
+          );
+          return (
+            <>
+              {/* Backdrop */}
+              <div
+                className="fixed inset-0 z-40 bg-black/40"
+                onClick={() => {
+                  setAssignModalNightId(null);
+                  setAssignModalSearch("");
+                }}
+              />
+              {/* Sheet */}
+              <div className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-2xl shadow-2xl flex flex-col max-h-[75vh]">
+                {/* Handle */}
+                <div className="flex justify-center pt-3 pb-1 shrink-0">
+                  <div className="w-10 h-1 rounded-full bg-neutral-200" />
+                </div>
+                {/* Header */}
+                <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-100 shrink-0">
+                  <div className="flex flex-col">
+                    <span className="font-semibold text-sm text-neutral-900">
+                      Tildel vagt
+                    </span>
+                    {night && (
+                      <span className="text-xs text-neutral-500 truncate">
+                        {night.name}
+                      </span>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => {
+                      setAssignModalNightId(null);
+                      setAssignModalSearch("");
+                    }}
+                    className="w-8 h-8 flex items-center justify-center rounded-full bg-neutral-100 text-neutral-500 hover:bg-neutral-200 transition-colors"
+                  >
+                    <X className="size-4" />
+                  </button>
+                </div>
+                {/* Search */}
+                <div className="px-4 py-2 shrink-0">
+                  <div className="relative">
+                    <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+                    <input
+                      autoFocus
+                      placeholder="Søg vagt…"
+                      value={assignModalSearch}
+                      onChange={(e) => setAssignModalSearch(e.target.value)}
+                      className="w-full h-9 pl-9 pr-3 text-sm rounded-lg border border-neutral-200 outline-none bg-white placeholder:text-neutral-400 focus:border-neutral-400 font-[inherit]"
+                    />
+                  </div>
+                </div>
+                {/* List */}
+                <div className="flex flex-col overflow-y-auto px-2 pb-4 gap-1">
+                  {/* Remove option */}
+                  {currentVagt && (
+                    <button
+                      onClick={() => {
+                        removeVagt(assignModalNightId);
+                        setAssignModalNightId(null);
+                        setAssignModalSearch("");
+                      }}
+                      className="flex items-center gap-3 px-3 py-3 rounded-xl text-left hover:bg-red-50 transition-colors"
+                    >
+                      <div className="w-10 h-10 rounded-full bg-[#E63946]/10 text-[#E63946] flex items-center justify-center shrink-0">
+                        <UserMinus className="size-4" />
+                      </div>
+                      <span className="text-sm font-medium text-[#E63946]">
+                        Fjern vagt
+                      </span>
+                    </button>
+                  )}
+                  {filtered.length === 0 && (
+                    <p className="text-sm text-neutral-400 text-center py-4">
+                      Ingen vagter fundet
+                    </p>
+                  )}
+                  {filtered.map((m) => {
+                    const isCurrent = currentVagt?.id === m.id;
+                    return (
+                      <button
+                        key={m.id}
+                        onClick={() =>
+                          handleAssignFromModal(assignModalNightId, m.id)
+                        }
+                        className={`flex items-center gap-3 px-3 py-3 rounded-xl text-left transition-colors ${
+                          isCurrent ? "bg-[#2A9D8F]/10" : "hover:bg-neutral-50"
+                        }`}
+                      >
+                        <div className="w-10 h-10 rounded-full bg-[#E63946] text-white flex items-center justify-center text-xs font-bold shrink-0">
+                          {m.initials}
+                        </div>
+                        <div className="flex flex-col flex-1 min-w-0">
+                          <span className="text-sm font-medium text-neutral-900 truncate">
+                            {m.name}
+                          </span>
+                          <span className="text-xs text-neutral-400">Vagt</span>
+                        </div>
+                        {isCurrent && (
+                          <Check className="size-4 text-[#2A9D8F] shrink-0" />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </>
+          );
+        })()}
     </main>
   );
 }

@@ -19,7 +19,7 @@ export default function AboutPage() {
   return (
     <>
       <section className="w-full bg-white">
-        <div className="max-w-285 mx-auto px-8 py-12">
+        <div className="max-w-285 mx-auto px-4 sm:px-8 py-10 sm:py-12">
           <div className="flex flex-col gap-2 mb-8">
             <span className="font-semibold uppercase text-red-500 text-sm tracking-wider">
               Om os
@@ -27,7 +27,7 @@ export default function AboutPage() {
             <h1 className="font-bold text-neutral-900 text-3xl">Hvem er vi?</h1>
           </div>
 
-          <div className="grid grid-cols-2 gap-12">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 sm:gap-12">
             <div className="flex flex-col gap-4">
               <p className="leading-relaxed text-neutral-500">
                 Pap i Paraplyen er en hyggelig brætspilsklub, hvor vi mødes
@@ -72,7 +72,7 @@ export default function AboutPage() {
               </div>
             </div>
 
-            <div className="relative rounded-2xl overflow-hidden min-h-96">
+            <div className="relative rounded-2xl overflow-hidden min-h-64 md:min-h-96">
               <Image
                 src="https://images.unsplash.com/photo-1610890716171-6b1bb98ffd09?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=800"
                 alt="People playing board games at a table"
@@ -89,7 +89,7 @@ export default function AboutPage() {
       </section>
 
       <section className="w-full bg-neutral-100">
-        <div className="max-w-285 mx-auto px-8 py-12">
+        <div className="max-w-285 mx-auto px-4 sm:px-8 py-10 sm:py-12">
           <div className="flex flex-col gap-2 mb-8">
             <span className="font-semibold uppercase text-red-500 text-sm tracking-wider">
               Vores værdier
@@ -99,7 +99,7 @@ export default function AboutPage() {
             </h2>
           </div>
 
-          <div className="grid grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
             <div className="bg-white rounded-xl p-6 flex flex-col gap-3">
               <div className="w-10 h-10 rounded-lg bg-red-500 flex items-center justify-center">
                 <Heart className="size-5 text-white" />
@@ -136,7 +136,7 @@ export default function AboutPage() {
 
       {vagter.length > 0 && (
         <section className="w-full bg-white">
-          <div className="max-w-285 mx-auto px-8 py-12">
+          <div className="max-w-285 mx-auto px-4 sm:px-8 py-10 sm:py-12">
             <div className="text-center flex flex-col items-center gap-2 mb-8">
               <span className="font-semibold uppercase text-red-500 text-sm tracking-wider">
                 Vagter

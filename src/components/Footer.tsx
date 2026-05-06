@@ -4,7 +4,7 @@ import Link from "next/link";
 export default function Footer() {
   return (
     <footer className="bg-neutral-900 text-white w-full">
-      <div className="max-w-285 mx-auto px-8 py-8 flex flex-row justify-between items-center gap-8">
+      <div className="max-w-285 mx-auto px-4 sm:px-8 py-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
         <div className="flex flex-row items-center gap-4">
           <div className="w-12 h-12 rounded-lg bg-white flex justify-center items-center p-1.5 shrink-0">
             <Dices className="size-7 text-neutral-900" />
@@ -31,7 +31,7 @@ export default function Footer() {
 
       <div className="border-t border-white/10" />
 
-      <div className="max-w-285 mx-auto px-8 py-4 flex flex-row justify-between items-center text-xs text-white/60">
+      <div className="max-w-285 mx-auto px-4 sm:px-8 py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 text-xs text-white/60">
         <span>© 2025 Pap i Paraplyen. Alle rettigheder forbeholdes.</span>
         <div className="flex flex-row gap-4">
           <a href="#" className="hover:text-white transition-colors">
