@@ -572,9 +572,6 @@ export default function ProfilePage() {
                         onClick={async () => {
                           try {
                             await postClubNightOptOut(shift.id);
-                            await patchClubNight(shift.id, {
-                              vagt_member_id: null,
-                            });
                             const updated = await getClubNights();
                             setNights(updated);
                             toast.success("Framelding registreret");

@@ -236,7 +236,7 @@ router.post("/:id/opt-out", requireAuth, async (req, res) => {
   const nightCheck = await pool
     .request()
     .input("id", sql.Int, nightId)
-    .query("SELECT 1 FROM dbo.club_nights WHERE id = @id");
+    .query("SELECT vagt_member_id FROM dbo.club_nights WHERE id = @id");
   if (nightCheck.recordset.length === 0)
     return res.status(404).json({ error: "Not found" });
 
@@ -256,6 +256,17 @@ router.post("/:id/opt-out", requireAuth, async (req, res) => {
     .query(
       "INSERT INTO dbo.club_night_opt_outs (club_night_id, member_id) VALUES (@nightId, @memberId)",
     );
+
+  // If the opting-out member is the assigned vagt, clear the assignment
+  if (nightCheck.recordset[0].vagt_member_id === memberId) {
+    await pool
+      .request()
+      .input("updatedAt", sql.DateTime2, new Date().toISOString())
+      .input("id", sql.Int, nightId)
+      .query(
+        "UPDATE dbo.club_nights SET vagt_member_id = NULL, vagt_confirmed = 0, updated_at = @updatedAt WHERE id = @id",
+      );
+  }
 
   return res.status(201).json({ ok: true });
 });

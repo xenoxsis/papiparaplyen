@@ -672,7 +672,7 @@ export default function SchedulePage() {
                                 </span>
                                 {isAdmin && (
                                   <button
-                                    onClick={() => removeVagt(night.id)}
+                                    onClick={(e) => { e.stopPropagation(); removeVagt(night.id); }}
                                     className="cursor-pointer text-neutral-400 border-none bg-transparent p-0 hover:text-neutral-700 transition-colors"
                                   >
                                     <X className="size-3" />
