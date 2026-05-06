@@ -1,6 +1,7 @@
 import bcrypt from "bcrypt";
 import { Router } from "express";
 import { getPool, sql } from "../db";
+import { signToken, getMemberRoles } from "../auth";
 
 const SALT_ROUNDS = 12;
 
@@ -45,11 +46,14 @@ router.post("/login", async (req, res) => {
       WHERE mr.member_id = @memberId
     `);
 
+  const roles = rolesResult.recordset.map((r: { name: string }) => r.name);
+  const token = signToken({ memberId: row.member_id, roles });
   return res.json({
     id: row.member_id,
     name: row.name,
     initials: row.initials,
-    roles: rolesResult.recordset.map((r: { name: string }) => r.name),
+    roles,
+    token,
   });
 });
 
@@ -110,11 +114,14 @@ router.post("/register", async (req, res) => {
 
     await transaction.commit();
 
+    const roles = await getMemberRoles(newMemberId);
+    const token = signToken({ memberId: newMemberId, roles });
     return res.status(201).json({
       id: newMemberId,
       name: trimmedName,
       initials,
-      roles: [],
+      roles,
+      token,
     });
   } catch (err) {
     await transaction.rollback();

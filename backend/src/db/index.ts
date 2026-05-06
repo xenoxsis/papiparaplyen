@@ -1,10 +1,14 @@
 import sql from "mssql";
 
+if (!process.env.DB_PASSWORD) {
+  throw new Error("DB_PASSWORD environment variable is required");
+}
+
 const config: sql.config = {
   server: process.env.DB_SERVER ?? "localhost",
   database: process.env.DB_NAME ?? "Paraplyen",
   user: process.env.DB_USER ?? "paraplyen_app",
-  password: process.env.DB_PASSWORD ?? "12qwASZX",
+  password: process.env.DB_PASSWORD,
   options: {
     encrypt: false,
     trustServerCertificate: true,

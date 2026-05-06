@@ -1,6 +1,8 @@
 import { Router } from "express";
 import { getPool, sql } from "../db";
-import { requireAdmin } from "../auth";
+import { requireAdmin, requireAuth } from "../auth";
+
+const SUPERUSER_EMAIL = "REDACTED";
 
 const router = Router();
 
@@ -56,10 +58,19 @@ router.get("/:id", async (req, res) => {
 });
 
 // PATCH /api/members/:id  — update banned
-router.patch("/:id", async (req, res) => {
+router.patch("/:id", requireAuth, async (req, res) => {
   if (!(await requireAdmin(req, res))) return;
   const pool = await getPool();
   const memberId = Number(req.params.id);
+
+  // Superuser cannot be banned
+  const targetCheck = await pool
+    .request()
+    .input("id", sql.Int, memberId)
+    .query("SELECT m.email FROM dbo.members m WHERE m.id = @id");
+  if (targetCheck.recordset[0]?.email?.toLowerCase() === SUPERUSER_EMAIL) {
+    return res.status(403).json({ error: "This account is protected" });
+  }
 
   if (typeof req.body.banned === "boolean") {
     await pool
@@ -94,11 +105,24 @@ router.patch("/:id", async (req, res) => {
 });
 
 // PUT /api/members/:id/roles  — replace Vagt/Administrator roles
-router.put("/:id/roles", async (req, res) => {
+router.put("/:id/roles", requireAuth, async (req, res) => {
   if (!(await requireAdmin(req, res))) return;
   const newRoleNames: string[] = req.body.roles ?? [];
   const memberId = Number(req.params.id);
   const pool = await getPool();
+
+  // Superuser must always keep Administrator role
+  const targetCheck = await pool
+    .request()
+    .input("id", sql.Int, memberId)
+    .query("SELECT m.email FROM dbo.members m WHERE m.id = @id");
+  if (targetCheck.recordset[0]?.email?.toLowerCase() === SUPERUSER_EMAIL) {
+    if (!newRoleNames.includes("Administrator")) {
+      return res
+        .status(403)
+        .json({ error: "Cannot remove Administrator from this account" });
+    }
+  }
 
   const memberCheck = await pool
     .request()

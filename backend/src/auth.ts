@@ -1,31 +1,62 @@
-import { Request, Response } from "express";
+import { Request, Response, NextFunction } from "express";
+import jwt from "jsonwebtoken";
 import { getPool, sql } from "./db";
 
-/** Returns the member_id of the caller from X-Member-Id header, or null. */
-export function callerId(req: Request): number | null {
-  const header = req.headers["x-member-id"];
-  if (!header) return null;
-  const id = Number(header);
-  return isNaN(id) ? null : id;
+if (!process.env.JWT_SECRET) {
+  throw new Error("JWT_SECRET environment variable is required");
+}
+const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_EXPIRES = "7d";
+
+export type JwtPayload = {
+  memberId: number;
+  roles: string[];
+};
+
+/** Sign a JWT for a member. */
+export function signToken(payload: JwtPayload): string {
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES });
 }
 
-/** Returns true if the caller (via X-Member-Id) has the Administrator role. */
-export async function isAdmin(req: Request): Promise<boolean> {
-  const memberId = callerId(req);
-  if (memberId === null) return false;
+/** Verify a JWT and return the payload, or null if invalid. */
+export function verifyToken(token: string): JwtPayload | null {
+  try {
+    return jwt.verify(token, JWT_SECRET) as JwtPayload;
+  } catch {
+    return null;
+  }
+}
 
-  const pool = await getPool();
-  const result = await pool.request().input("memberId", sql.Int, memberId)
-    .query(`
-      SELECT 1
-      FROM dbo.users u
-      JOIN dbo.member_roles mr ON mr.member_id = u.member_id
-      JOIN dbo.roles r         ON r.id = mr.role_id
-      WHERE u.member_id = @memberId
-        AND u.banned = 0
-        AND r.name = 'Administrator'
-    `);
-  return result.recordset.length > 0;
+/** Express middleware: requires a valid JWT. Sets res.locals.jwt on success. */
+export function requireAuth(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): void {
+  const header = req.headers["authorization"];
+  const token = header?.startsWith("Bearer ") ? header.slice(7) : null;
+  if (!token) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+  const payload = verifyToken(token);
+  if (!payload) {
+    res.status(401).json({ error: "Invalid or expired token" });
+    return;
+  }
+  res.locals.jwt = payload;
+  next();
+}
+
+/** Returns the member_id from the verified JWT payload, or null. */
+export function callerId(res: Response): number | null {
+  return (res.locals.jwt as JwtPayload | undefined)?.memberId ?? null;
+}
+
+/** Returns true if the caller has the Administrator role (from JWT). */
+export function isAdmin(res: Response): boolean {
+  const payload = res.locals.jwt as JwtPayload | undefined;
+  return payload?.roles.includes("Administrator") ?? false;
 }
 
 /** Sends 403 and returns false if caller is not an admin. */
@@ -33,9 +64,21 @@ export async function requireAdmin(
   req: Request,
   res: Response,
 ): Promise<boolean> {
-  if (!(await isAdmin(req))) {
+  if (!isAdmin(res)) {
     res.status(403).json({ error: "Forbidden" });
     return false;
   }
   return true;
+}
+
+/** Fetch roles for a member from the DB (used at login time). */
+export async function getMemberRoles(memberId: number): Promise<string[]> {
+  const pool = await getPool();
+  const result = await pool.request().input("memberId", sql.Int, memberId)
+    .query(`
+    SELECT r.name FROM dbo.member_roles mr
+    JOIN dbo.roles r ON r.id = mr.role_id
+    WHERE mr.member_id = @memberId
+  `);
+  return result.recordset.map((r: { name: string }) => r.name);
 }

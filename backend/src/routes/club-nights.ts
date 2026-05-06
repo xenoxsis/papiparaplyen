@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { getPool, sql } from "../db";
-import { callerId, isAdmin, requireAdmin } from "../auth";
+import { callerId, isAdmin, requireAdmin, requireAuth } from "../auth";
 
 const router = Router();
 
@@ -100,7 +100,7 @@ router.get("/", async (_req, res) => {
 });
 
 // POST /api/club-nights
-router.post("/", async (req, res) => {
+router.post("/", requireAuth, async (req, res) => {
   if (!(await requireAdmin(req, res))) return;
   const pool = await getPool();
   const now = new Date().toISOString();
@@ -136,11 +136,11 @@ router.post("/", async (req, res) => {
 });
 
 // PATCH /api/club-nights/:id  — update vagt_member_id / vagt_confirmed
-router.patch("/:id", async (req, res) => {
-  const caller = callerId(req);
+router.patch("/:id", requireAuth, async (req, res) => {
+  const caller = callerId(res);
   const assigning = req.body.vagt_member_id;
   const selfAssign = typeof assigning === "number" && assigning === caller;
-  if (!selfAssign && !(await isAdmin(req))) {
+  if (!selfAssign && !isAdmin(res)) {
     return res.status(403).json({ error: "Forbidden" });
   }
 
@@ -195,8 +195,8 @@ router.patch("/:id", async (req, res) => {
 });
 
 // POST /api/club-nights/:id/confirm
-router.post("/:id/confirm", async (req, res) => {
-  const caller = callerId(req);
+router.post("/:id/confirm", requireAuth, async (req, res) => {
+  const caller = callerId(res);
   if (!caller) return res.status(401).json({ error: "Unauthorized" });
 
   const pool = await getPool();
@@ -210,7 +210,7 @@ router.post("/:id/confirm", async (req, res) => {
     return res.status(404).json({ error: "Not found" });
 
   const vagtMemberId = nightCheck.recordset[0].vagt_member_id;
-  if (vagtMemberId !== caller && !(await isAdmin(req))) {
+  if (vagtMemberId !== caller && !isAdmin(res)) {
     return res.status(403).json({ error: "Forbidden" });
   }
 
@@ -226,8 +226,8 @@ router.post("/:id/confirm", async (req, res) => {
 });
 
 // POST /api/club-nights/:id/opt-out
-router.post("/:id/opt-out", async (req, res) => {
-  const memberId = callerId(req);
+router.post("/:id/opt-out", requireAuth, async (req, res) => {
+  const memberId = callerId(res);
   if (!memberId) return res.status(401).json({ error: "Unauthorized" });
 
   const pool = await getPool();
@@ -261,8 +261,8 @@ router.post("/:id/opt-out", async (req, res) => {
 });
 
 // DELETE /api/club-nights/:id/opt-out
-router.delete("/:id/opt-out", async (req, res) => {
-  const memberId = callerId(req);
+router.delete("/:id/opt-out", requireAuth, async (req, res) => {
+  const memberId = callerId(res);
   if (!memberId) return res.status(401).json({ error: "Unauthorized" });
 
   const pool = await getPool();
@@ -278,7 +278,7 @@ router.delete("/:id/opt-out", async (req, res) => {
 });
 
 // DELETE /api/club-nights/:id — admin only
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", requireAuth, async (req, res) => {
   if (!(await requireAdmin(req, res))) return;
 
   const pool = await getPool();

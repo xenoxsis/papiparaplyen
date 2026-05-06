@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { getPool, sql } from "../db";
+import { requireAuth } from "../auth";
 
 const router = Router();
 
@@ -36,7 +37,7 @@ router.get("/:id/messages", async (req, res) => {
 });
 
 // POST /api/channels/:id/messages
-router.post("/:id/messages", async (req, res) => {
+router.post("/:id/messages", requireAuth, async (req, res) => {
   const pool = await getPool();
   const channelId = Number(req.params.id);
   const isSwap = req.body.type === "shift_swap";
@@ -71,49 +72,54 @@ router.post("/:id/messages", async (req, res) => {
 });
 
 // PATCH /api/channels/:channelId/messages/:messageId
-router.patch("/:channelId/messages/:messageId", async (req, res) => {
-  const pool = await getPool();
-  const messageId = Number(req.params.messageId);
-  const channelId = Number(req.params.channelId);
+router.patch(
+  "/:channelId/messages/:messageId",
+  requireAuth,
+  async (req, res) => {
+    const pool = await getPool();
+    const messageId = Number(req.params.messageId);
+    const channelId = Number(req.params.channelId);
 
-  const check = await pool
-    .request()
-    .input("id", sql.Int, messageId)
-    .input("channelId", sql.Int, channelId)
-    .query("SELECT 1 FROM dbo.messages WHERE id=@id AND channel_id=@channelId");
-  if (check.recordset.length === 0)
-    return res.status(404).json({ error: "Not found" });
+    const check = await pool
+      .request()
+      .input("id", sql.Int, messageId)
+      .input("channelId", sql.Int, channelId)
+      .query(
+        "SELECT 1 FROM dbo.messages WHERE id=@id AND channel_id=@channelId",
+      );
+    if (check.recordset.length === 0)
+      return res.status(404).json({ error: "Not found" });
 
-  const setParts: string[] = [];
-  const request = pool
-    .request()
-    .input("id", sql.Int, messageId)
-    .input("channelId", sql.Int, channelId);
+    const setParts: string[] = [];
+    const request = pool
+      .request()
+      .input("id", sql.Int, messageId)
+      .input("channelId", sql.Int, channelId);
 
-  if (req.body.body !== undefined) {
-    request.input("body", sql.NVarChar(sql.MAX), req.body.body);
-    setParts.push("body = @body");
-  }
-  if (req.body.swap_status !== undefined) {
-    request.input("swapStatus", sql.NVarChar, req.body.swap_status);
-    setParts.push("swap_status = @swapStatus");
-  }
-  if ("taken_by_member_id" in req.body) {
-    request.input(
-      "takenByMemberId",
-      sql.Int,
-      req.body.taken_by_member_id ?? null,
-    );
-    setParts.push("taken_by_member_id = @takenByMemberId");
-  }
+    if (req.body.body !== undefined) {
+      request.input("body", sql.NVarChar(sql.MAX), req.body.body);
+      setParts.push("body = @body");
+    }
+    if (req.body.swap_status !== undefined) {
+      request.input("swapStatus", sql.NVarChar, req.body.swap_status);
+      setParts.push("swap_status = @swapStatus");
+    }
+    if ("taken_by_member_id" in req.body) {
+      request.input(
+        "takenByMemberId",
+        sql.Int,
+        req.body.taken_by_member_id ?? null,
+      );
+      setParts.push("taken_by_member_id = @takenByMemberId");
+    }
 
-  if (setParts.length > 0) {
-    await request.query(
-      `UPDATE dbo.messages SET ${setParts.join(", ")} WHERE id=@id AND channel_id=@channelId`,
-    );
-  }
+    if (setParts.length > 0) {
+      await request.query(
+        `UPDATE dbo.messages SET ${setParts.join(", ")} WHERE id=@id AND channel_id=@channelId`,
+      );
+    }
 
-  const row = await pool.request().input("id", sql.Int, messageId).query(`
+    const row = await pool.request().input("id", sql.Int, messageId).query(`
       SELECT m.id, m.channel_id, m.sender_id, m.body, m.sent_at,
              m.type, m.shift_night_id, m.swap_status, m.taken_by_member_id,
              s.name AS sender_name, s.initials AS sender_initials,
@@ -124,7 +130,8 @@ router.patch("/:channelId/messages/:messageId", async (req, res) => {
       WHERE m.id = @id
     `);
 
-  return res.json(row.recordset[0]);
-});
+    return res.json(row.recordset[0]);
+  },
+);
 
 export default router;

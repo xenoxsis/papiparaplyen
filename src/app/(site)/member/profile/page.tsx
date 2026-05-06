@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { MemberHero } from "@/components/MemberHero";
 import { ClubNightModal } from "@/components/ClubNightModal";
 import { useAuth } from "@/lib/auth-context";
+import { useRequireAuth } from "@/lib/useRequireAuth";
 import {
   getClubNights,
   getChannels,
@@ -97,6 +98,7 @@ function GroupChatItem({
 }
 
 export default function ProfilePage() {
+  useRequireAuth();
   const { user, setPendingShiftCount } = useAuth();
   const [activeChannelId, setActiveChannelId] = useState<number>(1);
   const [showAddModal, setShowAddModal] = useState(false);

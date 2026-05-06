@@ -65,6 +65,8 @@ WORKDIR /app
 
 # ── Backend ────────────────────────────────────────────────────
 COPY --from=backend-builder /app/backend/dist         ./backend/dist
+# pnpm hoists workspace deps to root node_modules – copy both
+COPY --from=backend-builder /app/node_modules         ./node_modules
 COPY --from=backend-builder /app/backend/node_modules ./backend/node_modules
 
 # ── Frontend (Next.js standalone) ──────────────────────────────

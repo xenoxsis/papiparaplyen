@@ -24,6 +24,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/lib/auth-context";
+import { useRequireAuth } from "@/lib/useRequireAuth";
 import {
   deleteClubNightOptOut,
   deleteClubNight,
@@ -43,6 +44,7 @@ import {
 type PendingChanges = Record<number, number | null>;
 
 export default function SchedulePage() {
+  useRequireAuth();
   const { user } = useAuth();
   const isAdmin = user?.roles.includes("Administrator") ?? false;
 

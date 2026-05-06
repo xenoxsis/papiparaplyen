@@ -1,11 +1,10 @@
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
 
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
-  let memberId: string | null = null;
+  let token: string | null = null;
   try {
-    const stored =
-      typeof window !== "undefined" ? localStorage.getItem("auth_user") : null;
-    if (stored) memberId = String((JSON.parse(stored) as { id: number }).id);
+    token =
+      typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
   } catch {
     /* ignore */
   }
@@ -13,7 +12,7 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     headers: {
       "Content-Type": "application/json",
-      ...(memberId ? { "X-Member-Id": memberId } : {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
     ...init,
   });
@@ -88,6 +87,7 @@ export type AuthUser = {
   name: string;
   initials: string;
   roles: string[];
+  token: string;
 };
 
 // ── Members ──────────────────────────────────────────────────────────────────

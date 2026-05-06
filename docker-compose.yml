@@ -6,4 +6,19 @@ services:
     container_name: paraplyen
     restart: unless-stopped
     ports:
-      - "3000:3000" # Only exposed locally; IIS proxies from outside
+      - "3000:3000" # Next.js frontend
+      - "3001:3001" # Express backend (IIS routes /api/* directly here)
+    environment:
+      DB_SERVER: ${DB_SERVER}
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      BASE_URL: ${BASE_URL}
+      FRONTEND_URL: ${FRONTEND_URL}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      FACEBOOK_APP_ID: ${FACEBOOK_APP_ID}
+      FACEBOOK_APP_SECRET: ${FACEBOOK_APP_SECRET}
+      JWT_SECRET: ${JWT_SECRET}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"

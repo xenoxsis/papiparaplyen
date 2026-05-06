@@ -1,12 +1,12 @@
 import { Router } from "express";
 import { getPool, sql } from "../db";
-import { callerId, isAdmin } from "../auth";
+import { callerId, isAdmin, requireAuth } from "../auth";
 
 const router = Router();
 
 // POST /api/schedule-reviews — upsert reviewed_at for the calling member
-router.post("/", async (req, res) => {
-  const caller = callerId(req);
+router.post("/", requireAuth, async (req, res) => {
+  const caller = callerId(res);
   if (!caller) return res.status(401).json({ error: "Unauthorized" });
 
   const pool = await getPool();
@@ -41,8 +41,8 @@ router.post("/", async (req, res) => {
 });
 
 // GET /api/schedule-reviews/me — returns the calling member's own review
-router.get("/me", async (req, res) => {
-  const caller = callerId(req);
+router.get("/me", requireAuth, async (req, res) => {
+  const caller = callerId(res);
   if (!caller) return res.status(401).json({ error: "Unauthorized" });
 
   const pool = await getPool();
@@ -57,9 +57,8 @@ router.get("/me", async (req, res) => {
 });
 
 // GET /api/schedule-reviews — admin only; enriched list of all reviews
-router.get("/", async (req, res) => {
-  if (!(await isAdmin(req)))
-    return res.status(403).json({ error: "Forbidden" });
+router.get("/", requireAuth, async (req, res) => {
+  if (!isAdmin(res)) return res.status(403).json({ error: "Forbidden" });
 
   const pool = await getPool();
   const result = await pool.request().query(`

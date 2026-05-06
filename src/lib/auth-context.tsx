@@ -18,7 +18,9 @@ export type User = {
 
 type AuthContextType = {
   user: User | null;
+  isLoading: boolean;
   login: (email: string, password: string) => Promise<boolean>;
+  loginWithData: (user: User, token: string) => void;
   logout: () => void;
   pendingShiftCount: number;
   setPendingShiftCount: (count: number) => void;
@@ -28,6 +30,7 @@ const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [pendingShiftCount, setPendingShiftCount] = useState(0);
 
   // Reading from localStorage after mount is a valid external-store sync.
@@ -38,28 +41,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(parsed);
     } catch {
       // ignore
+    } finally {
+      setIsLoading(false);
     }
   }, []);
 
   async function login(email: string, password: string): Promise<boolean> {
     try {
       const authUser = await postLogin(email, password);
-      setUser(authUser);
-      localStorage.setItem("auth_user", JSON.stringify(authUser));
+      const { token, ...user } = authUser;
+      setUser(user);
+      localStorage.setItem("auth_user", JSON.stringify(user));
+      localStorage.setItem("auth_token", token);
       return true;
     } catch {
       return false;
     }
   }
 
+  function loginWithData(user: User, token: string) {
+    setUser(user);
+    localStorage.setItem("auth_user", JSON.stringify(user));
+    localStorage.setItem("auth_token", token);
+  }
+
   function logout() {
     setUser(null);
     localStorage.removeItem("auth_user");
+    localStorage.removeItem("auth_token");
   }
 
   return (
     <AuthContext.Provider
-      value={{ user, login, logout, pendingShiftCount, setPendingShiftCount }}
+      value={{
+        user,
+        isLoading,
+        login,
+        loginWithData,
+        logout,
+        pendingShiftCount,
+        setPendingShiftCount,
+      }}
     >
       {children}
     </AuthContext.Provider>

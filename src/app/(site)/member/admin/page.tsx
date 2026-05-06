@@ -19,6 +19,7 @@ import {
   putMemberRoles,
   type ApiMember,
 } from "@/lib/api";
+import { useRequireAuth } from "@/lib/useRequireAuth";
 
 type Role = "Vagt" | "Administrator";
 
@@ -27,7 +28,10 @@ const ROLE_STYLES: Record<Role, string> = {
   Administrator: "bg-[#f4a261]/15 text-[#d4751a]",
 };
 
+const SUPERUSER_EMAIL = "REDACTED";
+
 export default function AdminPage() {
+  useRequireAuth("Administrator");
   const [members, setMembers] = useState<ApiMember[]>([]);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"alle" | Role | "banned">("alle");
@@ -256,8 +260,12 @@ export default function AdminPage() {
                     })}
                   </td>
                   <td className="py-3 pr-4">
-                    {m.banned ? (
-                      <span className="text-neutral-400 text-xs">-</span>
+                    {m.banned || m.email.toLowerCase() === SUPERUSER_EMAIL ? (
+                      <span className="text-neutral-400 text-xs">
+                        {m.email.toLowerCase() === SUPERUSER_EMAIL && !m.banned
+                          ? "🔒 Superbruger"
+                          : "-"}
+                      </span>
                     ) : (
                       <div className="flex gap-1 flex-wrap">
                         <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-neutral-100 text-neutral-500 border border-transparent">
@@ -280,26 +288,32 @@ export default function AdminPage() {
                     )}
                   </td>
                   <td className="py-3">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleBanClick(m)}
-                      className={`gap-1.5 text-xs h-8 ${
-                        m.banned
-                          ? "text-[#2a9d8f] border-[#2a9d8f]/30 hover:bg-[#2a9d8f]/5"
-                          : "text-[#e63946] border-[#e63946]/30 hover:bg-[#e63946]/5"
-                      }`}
-                    >
-                      {m.banned ? (
-                        <>
-                          <UserCheck className="size-3" /> Genoptag
-                        </>
-                      ) : (
-                        <>
-                          <UserX className="size-3" /> Udeluk
-                        </>
-                      )}
-                    </Button>
+                    {m.email.toLowerCase() === SUPERUSER_EMAIL ? (
+                      <span className="text-neutral-300 text-xs">
+                        Beskyttet
+                      </span>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleBanClick(m)}
+                        className={`gap-1.5 text-xs h-8 ${
+                          m.banned
+                            ? "text-[#2a9d8f] border-[#2a9d8f]/30 hover:bg-[#2a9d8f]/5"
+                            : "text-[#e63946] border-[#e63946]/30 hover:bg-[#e63946]/5"
+                        }`}
+                      >
+                        {m.banned ? (
+                          <>
+                            <UserCheck className="size-3" /> Genoptag
+                          </>
+                        ) : (
+                          <>
+                            <UserX className="size-3" /> Udeluk
+                          </>
+                        )}
+                      </Button>
+                    )}
                   </td>
                 </tr>
               ))}

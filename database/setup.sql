@@ -169,9 +169,7 @@ GO
 -- =============================================================
 
 -- Roles (fixed lookup values – inserted with explicit IDs)
-SET IDENTITY_INSERT dbo.roles ON;
 INSERT INTO dbo.roles (id, name) VALUES (1, N'Vagt'), (2, N'Administrator'), (3, N'Medlem');
-SET IDENTITY_INSERT dbo.roles OFF;
 GO
 
 -- Channels
@@ -185,6 +183,7 @@ VALUES (N'Daniel Olsen', N'DO', N'admin@example.com', CAST(GETDATE() AS DATE));
 GO
 
 -- User  (password is the bcrypt hash of the original password)
+-- Replace admin@example.com with the real admin email and set a proper password hash before deploying.
 INSERT INTO dbo.users (email, password, provider, provider_id, member_id, banned)
 SELECT N'admin@example.com',
        N'$2b$12$REPLACETHISWITHAREALBCRYPTHASHBEFOREDEPLOYING000000000000',
