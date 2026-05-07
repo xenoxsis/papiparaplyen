@@ -35,8 +35,7 @@ export default function SchedulePage() {
   useRequireAuth();
   const { user } = useAuth();
   const isAdmin = user?.roles.includes("Administrator") ?? false;
-  const isTilskuer =
-    !isAdmin && (user?.roles.includes("Tilskuer") ?? false);
+  const isTilskuer = !isAdmin && (user?.roles.includes("Tilskuer") ?? false);
 
   // ── Data ─────────────────────────────────────────────────────────────────
   const {
