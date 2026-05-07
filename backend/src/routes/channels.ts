@@ -1,6 +1,6 @@
 import { Router, Request, Response } from "express";
 import { getPool, sql } from "../db";
-import { requireAuth } from "../auth";
+import { requireAuth, verifyToken } from "../auth";
 
 const router = Router();
 
@@ -37,8 +37,34 @@ function broadcast(channelId: number, data: unknown) {
 }
 
 // GET /api/channels/:id/stream  — SSE endpoint
-router.get("/:id/stream", (req: Request, res: Response) => {
+router.get("/:id/stream", async (req: Request, res: Response) => {
   const channelId = Number(req.params.id);
+
+  // Auth via query param (EventSource can't send headers)
+  const token = req.query.token as string | undefined;
+  const jwtPayload = token ? verifyToken(token) : null;
+  if (!jwtPayload) {
+    res.status(401).end();
+    return;
+  }
+
+  // For vagter channel, require appropriate role
+  const pool = await getPool();
+  const chanResult = await pool
+    .request()
+    .input("channelId", sql.Int, channelId)
+    .query("SELECT type FROM dbo.channels WHERE id = @channelId");
+  const channelType: string | undefined = chanResult.recordset[0]?.type;
+  if (channelType === "vagter") {
+    const allowed =
+      jwtPayload.roles.includes("Administrator") ||
+      jwtPayload.roles.includes("Vagt") ||
+      jwtPayload.roles.includes("Tilskuer");
+    if (!allowed) {
+      res.status(403).end();
+      return;
+    }
+  }
 
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
@@ -70,18 +96,47 @@ router.get("/:id/stream", (req: Request, res: Response) => {
 });
 
 // GET /api/channels
-router.get("/", async (_req, res) => {
+router.get("/", requireAuth, async (_req, res) => {
   const pool = await getPool();
+  const jwt = res.locals.jwt as { roles: string[] };
+  const canSeeVagterChannel =
+    jwt.roles.includes("Administrator") ||
+    jwt.roles.includes("Vagt") ||
+    jwt.roles.includes("Tilskuer");
+
   const result = await pool
     .request()
     .query("SELECT id, name, type FROM dbo.channels ORDER BY id");
-  res.json(result.recordset);
+
+  const channels = canSeeVagterChannel
+    ? result.recordset
+    : result.recordset.filter((c: { type: string }) => c.type !== "vagter");
+
+  res.json(channels);
 });
 
 // GET /api/channels/:id/messages
-router.get("/:id/messages", async (req, res) => {
+router.get("/:id/messages", requireAuth, async (req, res) => {
   const pool = await getPool();
   const channelId = Number(req.params.id);
+
+  // Check if this channel is restricted
+  const chanResult = await pool
+    .request()
+    .input("channelId", sql.Int, channelId)
+    .query("SELECT type FROM dbo.channels WHERE id = @channelId");
+  const channelType: string | undefined = chanResult.recordset[0]?.type;
+  if (channelType === "vagter") {
+    const jwt = res.locals.jwt as { roles: string[] };
+    const allowed =
+      jwt.roles.includes("Administrator") ||
+      jwt.roles.includes("Vagt") ||
+      jwt.roles.includes("Tilskuer");
+    if (!allowed) {
+      res.status(403).json({ error: "Forbidden" });
+      return;
+    }
+  }
 
   const result = await pool.request().input("channelId", sql.Int, channelId)
     .query(`

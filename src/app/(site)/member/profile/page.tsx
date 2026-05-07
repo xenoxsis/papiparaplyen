@@ -107,7 +107,7 @@ function GroupChatItem({
 }
 
 export default function ProfilePage() {
-  useRequireAuth();
+  const { authorized } = useRequireAuth();
   const { user, setPendingShiftCount } = useAuth();
   const [activeChannelId, setActiveChannelId] = useState<number>(1);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -442,6 +442,7 @@ export default function ProfilePage() {
         )
       : [];
 
+  if (!authorized) return null;
   return (
     <main className="bg-neutral-100 min-h-[calc(100vh-3.5rem)] p-4 sm:p-8 flex flex-col gap-6 sm:gap-8">
       {showAddModal && (
@@ -585,322 +586,332 @@ export default function ProfilePage() {
         </div>
       )}
 
-      {/* Two-column grid */}
-      <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-6">
-        {/* Left: Pending confirmation + Next shift / All shifts */}
-        <div className="flex flex-col gap-4">
-          {/* Pending shifts panel */}
-          {pendingShiftsForMe.length > 0 && (
-            <div className="bg-white rounded-xl border-l-4 border-[#F4A261] p-6 flex flex-col gap-4 shadow-sm w-full min-w-0">
-              <div className="flex items-center gap-2">
-                <AlarmClock className="size-5 text-[#F4A261] shrink-0" />
-                <h2 className="font-semibold text-base text-neutral-900">
-                  Afventende vagter
-                </h2>
-                <span className="ml-auto text-xs font-semibold bg-[#F4A261]/15 text-[#F4A261] rounded-full px-2 py-0.5">
-                  {pendingShiftsForMe.length}
-                </span>
-              </div>
-              <div className="flex items-center justify-between gap-2 -mt-2">
-                <p className="text-xs text-neutral-500">
-                  Du er tildelt disse vagter - bekræft at du kan, eller meld fra
-                </p>
-                {pendingShiftsForMe.length > 1 && (
-                  <button
-                    onClick={async () => {
-                      try {
-                        await Promise.all(
-                          pendingShiftsForMe.map((s) =>
-                            postClubNightConfirm(s.id),
-                          ),
-                        );
-                        const updated = await getClubNights();
-                        setNights(updated);
-                        getMemberShifts(user!.id)
-                          .then(setShifts)
-                          .catch(console.error);
-                        toast.success("Alle vagter bekræftet!");
-                      } catch {
-                        toast.error("Noget gik galt. Prøv igen.");
-                      }
-                    }}
-                    className="shrink-0 text-xs font-semibold px-3 py-1 rounded-lg bg-[#2a9d8f] text-white hover:bg-teal-700 transition-colors cursor-pointer border-none"
-                  >
-                    Bekræft alle
-                  </button>
-                )}
-              </div>
-              <div className="flex flex-col gap-3">
-                {pendingShiftsForMe.map((shift) => (
-                  <div
-                    key={shift.id}
-                    className="rounded-lg border border-neutral-200 bg-neutral-50 p-3 flex flex-col gap-2"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="rounded-lg bg-[#F4A261] text-white flex flex-col justify-center items-center w-14 h-14 shrink-0">
-                        <span className="font-medium uppercase text-[0.55rem] leading-none">
-                          {new Date(shift.date).toLocaleDateString("da-DK", {
-                            weekday: "short",
-                          })}
-                        </span>
-                        <span className="font-bold text-lg leading-tight">
-                          {new Date(shift.date).getDate()}
-                        </span>
-                        <span className="font-medium uppercase text-[0.55rem] leading-none opacity-80">
-                          {new Date(shift.date).toLocaleDateString("da-DK", {
-                            month: "short",
-                          })}
-                        </span>
-                      </div>
-                      <div className="flex flex-col gap-0.5 flex-1 min-w-0">
-                        <span className="font-semibold text-sm text-neutral-900 truncate">
-                          {shift.name}
-                        </span>
-                        <div className="flex items-center gap-2 text-xs text-neutral-500">
-                          <span className="flex items-center gap-1">
-                            <Clock className="size-3" />
-                            {shift.time_from} - {shift.time_to}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1 text-xs text-neutral-500">
-                      <MapPin className="size-3" />
-                      {shift.location}
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={async () => {
-                          try {
-                            await postClubNightConfirm(shift.id);
-                            const updated = await getClubNights();
-                            setNights(updated);
-                            getMemberShifts(user!.id)
-                              .then(setShifts)
-                              .catch(console.error);
-                            toast.success("Vagt bekræftet!");
-                          } catch {
-                            toast.error("Noget gik galt. Prøv igen.");
-                          }
-                        }}
-                        className="flex-1 h-8 rounded-lg bg-[#2a9d8f] text-white text-xs font-semibold hover:bg-teal-700 transition-colors cursor-pointer border-none"
-                      >
-                        Bekræft vagt
-                      </button>
-                      <button
-                        onClick={async () => {
-                          try {
-                            await postClubNightOptOut(shift.id);
-                            const updated = await getClubNights();
-                            setNights(updated);
-                            toast.success("Framelding registreret");
-                          } catch {
-                            toast.error("Noget gik galt. Prøv igen.");
-                          }
-                        }}
-                        className="flex-1 h-8 rounded-lg bg-white border border-[#e63946]/40 text-[#e63946] text-xs font-semibold hover:bg-[#e63946]/5 transition-colors cursor-pointer"
-                      >
-                        Meld fra
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Next shift / All shifts */}
-          <div className="bg-white rounded-xl border-l-4 border-[#e63946] p-6 flex flex-col gap-4 shadow-sm w-full min-w-0">
-            <div className="flex flex-col gap-2">
-              <div className="flex justify-between items-center">
+      {/* Two-column grid — left column only shown for Vagter/Admins */}
+      <div
+        className={`grid grid-cols-1 gap-6 ${user?.roles.includes("Vagt") || user?.roles.includes("Administrator") ? "md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]" : ""}`}
+      >
+        {/* Left: Pending confirmation + Next shift — Vagter/Admins only */}
+        {(user?.roles.includes("Vagt") ||
+          user?.roles.includes("Administrator")) && (
+          <div className="flex flex-col gap-4">
+            {/* Pending shifts panel */}
+            {pendingShiftsForMe.length > 0 && (
+              <div className="bg-white rounded-xl border-l-4 border-[#F4A261] p-6 flex flex-col gap-4 shadow-sm w-full min-w-0">
                 <div className="flex items-center gap-2">
-                  <AlarmClock className="size-5 text-[#e63946] shrink-0" />
+                  <AlarmClock className="size-5 text-[#F4A261] shrink-0" />
                   <h2 className="font-semibold text-base text-neutral-900">
-                    {showAllShifts ? "Mine vagter" : "Min næste vagt"}
+                    Afventende vagter
                   </h2>
+                  <span className="ml-auto text-xs font-semibold bg-[#F4A261]/15 text-[#F4A261] rounded-full px-2 py-0.5">
+                    {pendingShiftsForMe.length}
+                  </span>
                 </div>
-              </div>
-              <p className="text-xs text-neutral-500">
-                {showAllShifts ? `${shifts.length} vagter i alt` : ""}
-              </p>
-            </div>
-
-            {!showAllShifts ? (
-              <>
-                {nextShift ? (
-                  <div className="flex flex-col gap-3">
-                    <div className="bg-neutral-100 rounded-lg flex p-3 items-center gap-3">
-                      <div className="rounded-lg bg-[#e63946] text-white flex flex-col justify-center items-center w-14 h-14 shrink-0">
-                        <span className="font-medium uppercase text-[0.625rem] leading-none">
-                          {new Date(nextShift.date).toLocaleDateString(
-                            "da-DK",
-                            {
-                              weekday: "short",
-                            },
-                          )}
-                        </span>
-                        <span className="font-bold text-xl leading-tight">
-                          {new Date(nextShift.date).getDate()}
-                        </span>
-                        <span className="font-medium uppercase text-[0.625rem] leading-none opacity-80">
-                          {new Date(nextShift.date).toLocaleDateString(
-                            "da-DK",
-                            { month: "short" },
-                          )}
-                        </span>
-                      </div>
-                      <div className="flex flex-col gap-1">
-                        <span className="font-semibold text-sm text-neutral-900">
-                          {nextShift.name}
-                        </span>
-                        <span className="text-neutral-500 text-xs">
-                          {new Date(nextShift.date).toLocaleDateString(
-                            "da-DK",
-                            {
-                              day: "numeric",
-                              month: "long",
-                              year: "numeric",
-                            },
-                          )}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex flex-col gap-2 text-sm text-neutral-900">
-                      <div className="flex items-center gap-2">
-                        <Clock className="size-4 text-neutral-500 shrink-0" />
-                        <span>
-                          {nextShift.time_from} - {nextShift.time_to}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <MapPin className="size-4 text-neutral-500 shrink-0" />
-                        <span>{nextShift.location}</span>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <p className="text-sm text-neutral-400 py-4 text-center">
-                    Ingen kommende vagter
+                <div className="flex items-center justify-between gap-2 -mt-2">
+                  <p className="text-xs text-neutral-500">
+                    Du er tildelt disse vagter - bekræft at du kan, eller meld
+                    fra
                   </p>
-                )}
-                {nextShift && (
-                  <div className="flex gap-2">
-                    {pendingSwap?.shiftId === nextShift.id ? (
-                      <Button
-                        variant="outline"
-                        className="flex-1 gap-2 border-red-300 text-[#e63946] hover:bg-red-50"
-                        onClick={cancelSwap}
-                      >
-                        <RefreshCcw className="size-4" />
-                        Annuller bytte
-                      </Button>
-                    ) : (
-                      <Button
-                        variant="outline"
-                        className="flex-1 gap-2"
-                        onClick={() => {
-                          if (!nextShift) return;
-                          setSwapTargetShift(nextShift);
-                          setShowSwapModal(true);
-                        }}
-                        disabled={
-                          pendingSwap !== null &&
-                          pendingSwap.shiftId !== nextShift.id
+                  {pendingShiftsForMe.length > 1 && (
+                    <button
+                      onClick={async () => {
+                        try {
+                          await Promise.all(
+                            pendingShiftsForMe.map((s) =>
+                              postClubNightConfirm(s.id),
+                            ),
+                          );
+                          const updated = await getClubNights();
+                          setNights(updated);
+                          getMemberShifts(user!.id)
+                            .then(setShifts)
+                            .catch(console.error);
+                          toast.success("Alle vagter bekræftet!");
+                        } catch {
+                          toast.error("Noget gik galt. Prøv igen.");
                         }
-                      >
-                        <RefreshCcw className="size-4" />
-                        Byt vagt
-                      </Button>
-                    )}
-                  </div>
-                )}
-                <button
-                  onClick={() => setShowAllShifts(true)}
-                  className="mt-auto text-xs text-[#e63946] hover:underline text-left font-medium cursor-pointer bg-transparent border-none p-0"
-                >
-                  Se alle mine vagter →
-                </button>
-              </>
-            ) : (
-              <>
-                <div className="flex flex-col gap-2">
-                  {shifts.length === 0 && (
-                    <p className="text-sm text-neutral-400 py-4 text-center">
-                      Ingen kommende vagter
-                    </p>
+                      }}
+                      className="shrink-0 text-xs font-semibold px-3 py-1 rounded-lg bg-[#2a9d8f] text-white hover:bg-teal-700 transition-colors cursor-pointer border-none"
+                    >
+                      Bekræft alle
+                    </button>
                   )}
-                  {shifts.map((s) => (
+                </div>
+                <div className="flex flex-col gap-3">
+                  {pendingShiftsForMe.map((shift) => (
                     <div
-                      key={s.id}
-                      className="rounded-lg flex flex-col gap-2 p-3 border bg-white border-neutral-200"
+                      key={shift.id}
+                      className="rounded-lg border border-neutral-200 bg-neutral-50 p-3 flex flex-col gap-2"
                     >
                       <div className="flex items-center gap-3">
-                        <div className="rounded-lg bg-[#e63946] text-white flex flex-col justify-center items-center w-14 h-14 shrink-0">
+                        <div className="rounded-lg bg-[#F4A261] text-white flex flex-col justify-center items-center w-14 h-14 shrink-0">
                           <span className="font-medium uppercase text-[0.55rem] leading-none">
-                            {new Date(s.date).toLocaleDateString("da-DK", {
+                            {new Date(shift.date).toLocaleDateString("da-DK", {
                               weekday: "short",
                             })}
                           </span>
                           <span className="font-bold text-lg leading-tight">
-                            {new Date(s.date).getDate()}
+                            {new Date(shift.date).getDate()}
                           </span>
                           <span className="font-medium uppercase text-[0.55rem] leading-none opacity-80">
-                            {new Date(s.date).toLocaleDateString("da-DK", {
+                            {new Date(shift.date).toLocaleDateString("da-DK", {
                               month: "short",
                             })}
                           </span>
                         </div>
                         <div className="flex flex-col gap-0.5 flex-1 min-w-0">
                           <span className="font-semibold text-sm text-neutral-900 truncate">
-                            {s.name}
+                            {shift.name}
                           </span>
                           <div className="flex items-center gap-2 text-xs text-neutral-500">
                             <span className="flex items-center gap-1">
                               <Clock className="size-3" />
-                              {s.time_from} - {s.time_to}
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <MapPin className="size-3" />
-                              {s.location}
+                              {shift.time_from} - {shift.time_to}
                             </span>
                           </div>
                         </div>
                       </div>
-                      {pendingSwap?.shiftId === s.id ? (
+                      <div className="flex items-center gap-1 text-xs text-neutral-500">
+                        <MapPin className="size-3" />
+                        {shift.location}
+                      </div>
+                      <div className="flex gap-2">
                         <button
-                          onClick={cancelSwap}
-                          className="w-full h-8 rounded-lg border border-red-200 bg-red-50 text-[#e63946] text-xs font-medium hover:bg-red-100 transition-colors cursor-pointer"
-                        >
-                          Annuller vagtbytte
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => {
-                            setSwapTargetShift(s);
-                            setShowSwapModal(true);
+                          onClick={async () => {
+                            try {
+                              await postClubNightConfirm(shift.id);
+                              const updated = await getClubNights();
+                              setNights(updated);
+                              getMemberShifts(user!.id)
+                                .then(setShifts)
+                                .catch(console.error);
+                              toast.success("Vagt bekræftet!");
+                            } catch {
+                              toast.error("Noget gik galt. Prøv igen.");
+                            }
                           }}
-                          disabled={
-                            pendingSwap !== null && pendingSwap.shiftId !== s.id
-                          }
-                          className="w-full h-8 rounded-lg border border-neutral-200 bg-neutral-50 text-neutral-600 text-xs font-medium hover:bg-neutral-100 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
+                          className="flex-1 h-8 rounded-lg bg-[#2a9d8f] text-white text-xs font-semibold hover:bg-teal-700 transition-colors cursor-pointer border-none"
                         >
-                          <RefreshCcw className="size-3" />
-                          Byt vagt
+                          Bekræft vagt
                         </button>
-                      )}
+                        <button
+                          onClick={async () => {
+                            try {
+                              await postClubNightOptOut(shift.id);
+                              const updated = await getClubNights();
+                              setNights(updated);
+                              toast.success("Framelding registreret");
+                            } catch {
+                              toast.error("Noget gik galt. Prøv igen.");
+                            }
+                          }}
+                          className="flex-1 h-8 rounded-lg bg-white border border-[#e63946]/40 text-[#e63946] text-xs font-semibold hover:bg-[#e63946]/5 transition-colors cursor-pointer"
+                        >
+                          Meld fra
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
-                <button
-                  onClick={() => setShowAllShifts(false)}
-                  className="mt-auto text-xs text-neutral-500 hover:underline text-left font-medium cursor-pointer bg-transparent border-none p-0"
-                >
-                  ← Vis kun næste vagt
-                </button>
-              </>
+              </div>
+            )}
+
+            {/* Next shift / All shifts — only for Vagter and Admins */}
+            {(user?.roles.includes("Vagt") ||
+              user?.roles.includes("Administrator")) && (
+              <div className="bg-white rounded-xl border-l-4 border-[#e63946] p-6 flex flex-col gap-4 shadow-sm w-full min-w-0">
+                <div className="flex flex-col gap-2">
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-2">
+                      <AlarmClock className="size-5 text-[#e63946] shrink-0" />
+                      <h2 className="font-semibold text-base text-neutral-900">
+                        {showAllShifts ? "Mine vagter" : "Min næste vagt"}
+                      </h2>
+                    </div>
+                  </div>
+                  <p className="text-xs text-neutral-500">
+                    {showAllShifts ? `${shifts.length} vagter i alt` : ""}
+                  </p>
+                </div>
+
+                {!showAllShifts ? (
+                  <>
+                    {nextShift ? (
+                      <div className="flex flex-col gap-3">
+                        <div className="bg-neutral-100 rounded-lg flex p-3 items-center gap-3">
+                          <div className="rounded-lg bg-[#e63946] text-white flex flex-col justify-center items-center w-14 h-14 shrink-0">
+                            <span className="font-medium uppercase text-[0.625rem] leading-none">
+                              {new Date(nextShift.date).toLocaleDateString(
+                                "da-DK",
+                                {
+                                  weekday: "short",
+                                },
+                              )}
+                            </span>
+                            <span className="font-bold text-xl leading-tight">
+                              {new Date(nextShift.date).getDate()}
+                            </span>
+                            <span className="font-medium uppercase text-[0.625rem] leading-none opacity-80">
+                              {new Date(nextShift.date).toLocaleDateString(
+                                "da-DK",
+                                { month: "short" },
+                              )}
+                            </span>
+                          </div>
+                          <div className="flex flex-col gap-1">
+                            <span className="font-semibold text-sm text-neutral-900">
+                              {nextShift.name}
+                            </span>
+                            <span className="text-neutral-500 text-xs">
+                              {new Date(nextShift.date).toLocaleDateString(
+                                "da-DK",
+                                {
+                                  day: "numeric",
+                                  month: "long",
+                                  year: "numeric",
+                                },
+                              )}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex flex-col gap-2 text-sm text-neutral-900">
+                          <div className="flex items-center gap-2">
+                            <Clock className="size-4 text-neutral-500 shrink-0" />
+                            <span>
+                              {nextShift.time_from} - {nextShift.time_to}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <MapPin className="size-4 text-neutral-500 shrink-0" />
+                            <span>{nextShift.location}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-neutral-400 py-4 text-center">
+                        Ingen kommende vagter
+                      </p>
+                    )}
+                    {nextShift && (
+                      <div className="flex gap-2">
+                        {pendingSwap?.shiftId === nextShift.id ? (
+                          <Button
+                            variant="outline"
+                            className="flex-1 gap-2 border-red-300 text-[#e63946] hover:bg-red-50"
+                            onClick={cancelSwap}
+                          >
+                            <RefreshCcw className="size-4" />
+                            Annuller bytte
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="outline"
+                            className="flex-1 gap-2"
+                            onClick={() => {
+                              if (!nextShift) return;
+                              setSwapTargetShift(nextShift);
+                              setShowSwapModal(true);
+                            }}
+                            disabled={
+                              pendingSwap !== null &&
+                              pendingSwap.shiftId !== nextShift.id
+                            }
+                          >
+                            <RefreshCcw className="size-4" />
+                            Byt vagt
+                          </Button>
+                        )}
+                      </div>
+                    )}
+                    <button
+                      onClick={() => setShowAllShifts(true)}
+                      className="mt-auto text-xs text-[#e63946] hover:underline text-left font-medium cursor-pointer bg-transparent border-none p-0"
+                    >
+                      Se alle mine vagter →
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex flex-col gap-2">
+                      {shifts.length === 0 && (
+                        <p className="text-sm text-neutral-400 py-4 text-center">
+                          Ingen kommende vagter
+                        </p>
+                      )}
+                      {shifts.map((s) => (
+                        <div
+                          key={s.id}
+                          className="rounded-lg flex flex-col gap-2 p-3 border bg-white border-neutral-200"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="rounded-lg bg-[#e63946] text-white flex flex-col justify-center items-center w-14 h-14 shrink-0">
+                              <span className="font-medium uppercase text-[0.55rem] leading-none">
+                                {new Date(s.date).toLocaleDateString("da-DK", {
+                                  weekday: "short",
+                                })}
+                              </span>
+                              <span className="font-bold text-lg leading-tight">
+                                {new Date(s.date).getDate()}
+                              </span>
+                              <span className="font-medium uppercase text-[0.55rem] leading-none opacity-80">
+                                {new Date(s.date).toLocaleDateString("da-DK", {
+                                  month: "short",
+                                })}
+                              </span>
+                            </div>
+                            <div className="flex flex-col gap-0.5 flex-1 min-w-0">
+                              <span className="font-semibold text-sm text-neutral-900 truncate">
+                                {s.name}
+                              </span>
+                              <div className="flex items-center gap-2 text-xs text-neutral-500">
+                                <span className="flex items-center gap-1">
+                                  <Clock className="size-3" />
+                                  {s.time_from} - {s.time_to}
+                                </span>
+                                <span className="flex items-center gap-1">
+                                  <MapPin className="size-3" />
+                                  {s.location}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                          {pendingSwap?.shiftId === s.id ? (
+                            <button
+                              onClick={cancelSwap}
+                              className="w-full h-8 rounded-lg border border-red-200 bg-red-50 text-[#e63946] text-xs font-medium hover:bg-red-100 transition-colors cursor-pointer"
+                            >
+                              Annuller vagtbytte
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => {
+                                setSwapTargetShift(s);
+                                setShowSwapModal(true);
+                              }}
+                              disabled={
+                                pendingSwap !== null &&
+                                pendingSwap.shiftId !== s.id
+                              }
+                              className="w-full h-8 rounded-lg border border-neutral-200 bg-neutral-50 text-neutral-600 text-xs font-medium hover:bg-neutral-100 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
+                            >
+                              <RefreshCcw className="size-3" />
+                              Byt vagt
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    <button
+                      onClick={() => setShowAllShifts(false)}
+                      className="mt-auto text-xs text-neutral-500 hover:underline text-left font-medium cursor-pointer bg-transparent border-none p-0"
+                    >
+                      ← Vis kun næste vagt
+                    </button>
+                  </>
+                )}
+              </div>
             )}
           </div>
-        </div>
+        )}
         {/* end left column flex-col wrapper */}
 
         {/* Right: Events */}

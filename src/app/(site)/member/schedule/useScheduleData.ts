@@ -42,14 +42,14 @@ export function useScheduleData(isAdmin: boolean) {
       .catch(console.error);
     if (isAdmin) {
       getScheduleReviews().then(setReviews).catch(console.error);
-    } else {
+    } else if (user?.roles.includes("Vagt")) {
       getMyScheduleReview()
         .then((r) => {
           if (r) setReviews([r]);
         })
         .catch(console.error);
     }
-  }, [isAdmin]);
+  }, [isAdmin, user]);
 
   // For vagter: which nights are newer than their last review?
   const myReview = user

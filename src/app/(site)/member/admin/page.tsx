@@ -32,7 +32,7 @@ const ROLE_STYLES: Record<Role, string> = {
 const SUPERUSER_EMAIL = "REDACTED";
 
 export default function AdminPage() {
-  useRequireAuth("Administrator");
+  const { authorized } = useRequireAuth(["Administrator"]);
   const [members, setMembers] = useState<ApiMember[]>([]);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"alle" | Role | "banned">("alle");
@@ -108,6 +108,7 @@ export default function AdminPage() {
     banned: members.filter((m) => m.banned).length,
   };
 
+  if (!authorized) return null;
   return (
     <main className="bg-neutral-100 min-h-[calc(100vh-3.5rem)] p-4 sm:p-8 flex flex-col gap-6 sm:gap-8">
       {/* Confirm ban dialog */}

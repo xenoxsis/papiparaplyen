@@ -32,7 +32,8 @@ export function useChannelSSE(
 
     function connect() {
       if (unmounted) return;
-      const url = `${BASE}/api/channels/${channelId}/stream`;
+      const token = localStorage.getItem("auth_token") ?? "";
+      const url = `${BASE}/api/channels/${channelId}/stream?token=${encodeURIComponent(token)}`;
       es = new EventSource(url);
 
       es.onopen = () => {

@@ -15,7 +15,6 @@ import { ClubNightModal } from "@/components/ClubNightModal";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { useAuth } from "@/lib/auth-context";
 import { useRequireAuth } from "@/lib/useRequireAuth";
 import {
   deleteClubNight,
@@ -32,8 +31,12 @@ import { VagterPanel } from "./VagterPanel";
 import { AssignModal } from "./AssignModal";
 
 export default function SchedulePage() {
-  useRequireAuth();
-  const { user } = useAuth();
+  const { user, authorized } = useRequireAuth([
+    "Administrator",
+    "Vagt",
+    "Tilskuer",
+  ]);
+
   const isAdmin = user?.roles.includes("Administrator") ?? false;
   const isTilskuer = !isAdmin && (user?.roles.includes("Tilskuer") ?? false);
 
@@ -96,6 +99,7 @@ export default function SchedulePage() {
   }
 
   // ── Render ───────────────────────────────────────────────────────────────
+  if (!authorized) return null;
   return (
     <main className="bg-neutral-100 min-h-[calc(100vh-3.5rem)] p-4 sm:p-8 flex flex-col gap-6 sm:gap-8">
       {/* Add club night modal */}
