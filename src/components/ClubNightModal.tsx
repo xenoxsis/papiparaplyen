@@ -6,8 +6,35 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { getMembers, type ApiMember } from "@/lib/api";
 
+// ── Default times (configure here at build time) ─────────────────────────────
+const DEFAULT_TIMES: Record<"sunday" | "other", { from: string; to: string }> =
+  {
+    sunday: { from: "10:00", to: "18:00" },
+    other: { from: "18:00", to: "23:00" },
+  };
+
+const DAY_NAMES = [
+  "Søndag",
+  "Mandag",
+  "Tirsdag",
+  "Onsdag",
+  "Torsdag",
+  "Fredag",
+  "Lørdag",
+];
+
 function today() {
   return new Date().toISOString().split("T")[0];
+}
+
+function defaultTimesForDate(dateStr: string) {
+  const day = new Date(dateStr).getDay(); // 0 = Sunday
+  return day === 0 ? DEFAULT_TIMES.sunday : DEFAULT_TIMES.other;
+}
+
+function dayNameForDate(dateStr: string) {
+  if (!dateStr) return "";
+  return DAY_NAMES[new Date(dateStr).getDay()];
 }
 
 export function ClubNightModal({
@@ -30,8 +57,10 @@ export function ClubNightModal({
 }) {
   const [name, setName] = useState("Klubaften");
   const [date, setDate] = useState(today());
-  const [timeFrom, setTimeFrom] = useState("18:00");
-  const [timeTo, setTimeTo] = useState("23:00");
+  const [timeFrom, setTimeFrom] = useState(
+    () => defaultTimesForDate(today()).from,
+  );
+  const [timeTo, setTimeTo] = useState(() => defaultTimesForDate(today()).to);
   const [location, setLocation] = useState("Cafe Paraplyen");
   const [vagtId, setVagtId] = useState<string>("none");
   const [vagter, setVagter] = useState<ApiMember[]>([]);
@@ -118,9 +147,18 @@ export function ClubNightModal({
               type="date"
               value={date}
               min={today()}
-              onChange={(e) => setDate(e.target.value)}
+              onChange={(e) => {
+                const d = e.target.value;
+                setDate(d);
+                const defaults = defaultTimesForDate(d);
+                setTimeFrom(defaults.from);
+                setTimeTo(defaults.to);
+              }}
               required
             />
+            {date && (
+              <p className="text-xs text-neutral-500">{dayNameForDate(date)}</p>
+            )}
             {isDuplicate && (
               <p className="text-xs text-[#e63946] flex items-center gap-1">
                 <CalendarDays className="size-3.5 shrink-0" />

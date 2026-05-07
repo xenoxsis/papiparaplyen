@@ -12,7 +12,9 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
+export const revalidate = 60;
+
+const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
 type ClubNight = {
   id: number;

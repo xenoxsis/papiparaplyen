@@ -661,7 +661,7 @@ export default function SchedulePage() {
                         <div className="text-neutral-500 text-xs leading-4 flex items-center gap-3">
                           <span className="flex items-center gap-1">
                             <Clock className="size-3" />
-                            {night.time_from}
+                            {night.time_from} – {night.time_to}
                           </span>
                           <span className="flex items-center gap-1">
                             <MapPin className="size-3" />
