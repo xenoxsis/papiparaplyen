@@ -48,6 +48,7 @@ function GroupChatItem({
   badgeColor,
   lastMsg,
   lastTime,
+  unread,
   onClick,
 }: {
   active: boolean;
@@ -57,6 +58,7 @@ function GroupChatItem({
   badgeColor: string;
   lastMsg: string;
   lastTime: string;
+  unread?: boolean;
   onClick: () => void;
 }) {
   return (
@@ -69,11 +71,14 @@ function GroupChatItem({
       onClick={onClick}
     >
       <div
-        className={`w-9 h-9 rounded-full text-white flex items-center justify-center shrink-0 ${
+        className={`relative w-9 h-9 rounded-full text-white flex items-center justify-center shrink-0 ${
           color === "red" ? "bg-[#e63946]" : "bg-[#2a9d8f]"
         }`}
       >
         <Users className="size-4" />
+        {unread && (
+          <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-[#e63946] border-2 border-white" />
+        )}
       </div>
       <div className="flex flex-col flex-1 min-w-0">
         <div className="flex justify-between items-center">
@@ -112,6 +117,7 @@ export default function ProfilePage() {
   const [channels, setChannels] = useState<ApiChannel[]>([]);
   const [messages, setMessages] = useState<ApiMessage[]>([]);
   const [allMessages, setAllMessages] = useState<ApiMessage[]>([]);
+  const [lastSeenIds, setLastSeenIds] = useState<Record<number, number>>({});
   const [msgBody, setMsgBody] = useState("");
   const [channelSearch, setChannelSearch] = useState("");
   const [showChannelSearch, setShowChannelSearch] = useState(false);
@@ -143,13 +149,34 @@ export default function ProfilePage() {
       .then(async (chs) => {
         setChannels(chs);
         const all = await Promise.all(chs.map((c) => getMessages(c.id)));
-        setAllMessages(all.flat());
+        const flat = all.flat();
+        setAllMessages(flat);
+        // Seed lastSeenIds so existing messages don't show as unread on first load
+        const seed: Record<number, number> = {};
+        for (const msg of flat) {
+          if ((seed[msg.channel_id] ?? 0) < msg.id)
+            seed[msg.channel_id] = msg.id;
+        }
+        setLastSeenIds(seed);
       })
       .catch(console.error);
     if (user) {
       getMemberShifts(user.id).then(setShifts).catch(console.error);
     }
   }, [user]);
+
+  // Mark active channel as seen whenever we switch to it or new messages arrive
+  useEffect(() => {
+    const latestId = Math.max(
+      0,
+      ...allMessages
+        .filter((m) => m.channel_id === activeChannelId)
+        .map((m) => m.id),
+    );
+    if (latestId > 0) {
+      setLastSeenIds((prev) => ({ ...prev, [activeChannelId]: latestId }));
+    }
+  }, [activeChannelId, allMessages]);
 
   useEffect(() => {
     getMessages(activeChannelId)
@@ -1091,24 +1118,42 @@ export default function ProfilePage() {
               </div>
             ) : (
               <div className="flex flex-col p-2 gap-1 overflow-y-auto flex-1">
-                {channels.map((ch) => (
-                  <GroupChatItem
-                    key={ch.id}
-                    active={activeChannelId === ch.id}
-                    name={ch.name}
-                    color={ch.type === "all_members" ? "red" : "teal"}
-                    badgeLabel={ch.type === "all_members" ? "Fælles" : "Vagter"}
-                    badgeColor={ch.type === "all_members" ? "red" : "teal"}
-                    lastMsg=""
-                    lastTime=""
-                    onClick={() => {
-                      setActiveChannelId(ch.id);
-                      setShowChannelSearch(false);
-                      setChannelSearch("");
-                      setShowChannelDrawer(false);
-                    }}
-                  />
-                ))}
+                {channels.map((ch) => {
+                  const latestId = Math.max(
+                    0,
+                    ...allMessages
+                      .filter((m) => m.channel_id === ch.id)
+                      .map((m) => m.id),
+                  );
+                  const unread =
+                    ch.id !== activeChannelId &&
+                    latestId > (lastSeenIds[ch.id] ?? 0);
+                  return (
+                    <GroupChatItem
+                      key={ch.id}
+                      active={activeChannelId === ch.id}
+                      name={ch.name}
+                      color={ch.type === "all_members" ? "red" : "teal"}
+                      badgeLabel={
+                        ch.type === "all_members" ? "Fælles" : "Vagter"
+                      }
+                      badgeColor={ch.type === "all_members" ? "red" : "teal"}
+                      lastMsg=""
+                      lastTime=""
+                      unread={unread}
+                      onClick={() => {
+                        setLastSeenIds((prev) => ({
+                          ...prev,
+                          [ch.id]: latestId,
+                        }));
+                        setActiveChannelId(ch.id);
+                        setShowChannelSearch(false);
+                        setChannelSearch("");
+                        setShowChannelDrawer(false);
+                      }}
+                    />
+                  );
+                })}
               </div>
             )}
           </div>
