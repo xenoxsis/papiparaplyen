@@ -16,10 +16,29 @@ import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/lib/auth-context";
-import { postRegister } from "@/lib/api";
+import { postRegister, forgotPassword } from "@/lib/api";
 
 export default function LoginPage() {
   const [tab, setTab] = useState<"login" | "register">("login");
+
+  // Forgot password state
+  const [showForgot, setShowForgot] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotLoading, setForgotLoading] = useState(false);
+  const [forgotDone, setForgotDone] = useState(false);
+
+  async function handleForgot(e: React.FormEvent) {
+    e.preventDefault();
+    setForgotLoading(true);
+    try {
+      await forgotPassword(forgotEmail.trim());
+    } catch {
+      // always show success to prevent enumeration
+    } finally {
+      setForgotLoading(false);
+      setForgotDone(true);
+    }
+  }
 
   // Login state
   const [showPassword, setShowPassword] = useState(false);
@@ -112,22 +131,24 @@ export default function LoginPage() {
         </div>
 
         {/* Tabs */}
-        <div className="flex rounded-lg border border-neutral-200 overflow-hidden">
-          <button
-            onClick={() => setTab("login")}
-            className={`flex-1 py-2 text-sm font-medium transition-colors cursor-pointer ${tab === "login" ? "bg-neutral-900 text-white" : "bg-white text-neutral-500 hover:bg-neutral-50"}`}
-          >
-            Log ind
-          </button>
-          <button
-            onClick={() => setTab("register")}
-            className={`flex-1 py-2 text-sm font-medium transition-colors cursor-pointer ${tab === "register" ? "bg-neutral-900 text-white" : "bg-white text-neutral-500 hover:bg-neutral-50"}`}
-          >
-            Bliv medlem
-          </button>
-        </div>
+        {!showForgot && (
+          <div className="flex rounded-lg border border-neutral-200 overflow-hidden">
+            <button
+              onClick={() => setTab("login")}
+              className={`flex-1 py-2 text-sm font-medium transition-colors cursor-pointer ${tab === "login" ? "bg-neutral-900 text-white" : "bg-white text-neutral-500 hover:bg-neutral-50"}`}
+            >
+              Log ind
+            </button>
+            <button
+              onClick={() => setTab("register")}
+              className={`flex-1 py-2 text-sm font-medium transition-colors cursor-pointer ${tab === "register" ? "bg-neutral-900 text-white" : "bg-white text-neutral-500 hover:bg-neutral-50"}`}
+            >
+              Bliv medlem
+            </button>
+          </div>
+        )}
 
-        {tab === "login" ? (
+        {!showForgot && tab === "login" ? (
           <form className="flex flex-col gap-4" onSubmit={handleLogin}>
             <div className="flex flex-col gap-2">
               <label
@@ -193,8 +214,19 @@ export default function LoginPage() {
               <LogIn className="size-4" />
               Log ind
             </Button>
+            <button
+              type="button"
+              onClick={() => {
+                setShowForgot(true);
+                setForgotDone(false);
+                setForgotEmail("");
+              }}
+              className="text-xs text-neutral-500 hover:text-neutral-700 underline bg-transparent border-none cursor-pointer text-center"
+            >
+              Glemt adgangskode?
+            </button>
           </form>
-        ) : (
+        ) : !showForgot && tab === "register" ? (
           <form className="flex flex-col gap-4" onSubmit={handleRegister}>
             <div className="flex flex-col gap-2">
               <label
@@ -306,7 +338,63 @@ export default function LoginPage() {
               {regLoading ? "Opretter konto…" : "Opret konto"}
             </Button>
           </form>
-        )}
+        ) : null}
+
+        {/* Forgot password form */}
+        {showForgot &&
+          (forgotDone ? (
+            <div className="flex flex-col gap-4 text-center">
+              <p className="text-sm text-neutral-700">
+                Hvis e-mailen er registreret, har vi sendt et link til at
+                nulstille din adgangskode. Tjek din indbakke.
+              </p>
+              <button
+                type="button"
+                onClick={() => setShowForgot(false)}
+                className="text-xs text-neutral-500 hover:text-neutral-700 underline bg-transparent border-none cursor-pointer"
+              >
+                ← Tilbage til login
+              </button>
+            </div>
+          ) : (
+            <form className="flex flex-col gap-4" onSubmit={handleForgot}>
+              <div className="flex flex-col gap-2">
+                <label
+                  className="font-medium text-sm text-neutral-900"
+                  htmlFor="forgot-email"
+                >
+                  E-mail
+                </label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-neutral-500 pointer-events-none" />
+                  <Input
+                    id="forgot-email"
+                    type="email"
+                    placeholder="din@email.dk"
+                    autoComplete="email"
+                    className="pl-9"
+                    value={forgotEmail}
+                    onChange={(e) => setForgotEmail(e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
+              <Button
+                type="submit"
+                disabled={forgotLoading}
+                className="w-full bg-red-500 hover:bg-red-600 text-white gap-2"
+              >
+                {forgotLoading ? "Sender…" : "Send nulstillingslink"}
+              </Button>
+              <button
+                type="button"
+                onClick={() => setShowForgot(false)}
+                className="text-xs text-neutral-500 hover:text-neutral-700 underline bg-transparent border-none cursor-pointer text-center"
+              >
+                ← Tilbage til login
+              </button>
+            </form>
+          ))}
 
         {/* OAuth */}
         <div className="flex flex-col gap-3">

@@ -184,3 +184,69 @@ export const postRegister = (name: string, email: string, password: string) =>
     method: "POST",
     body: JSON.stringify({ name, email, password }),
   });
+
+export const patchMe = (name: string) =>
+  api<{ id: number; name: string; initials: string }>("/api/auth/me", {
+    method: "PATCH",
+    body: JSON.stringify({ name }),
+  });
+
+export const changePassword = (currentPassword: string, newPassword: string) =>
+  api<{ ok: boolean }>("/api/auth/change-password", {
+    method: "POST",
+    body: JSON.stringify({ currentPassword, newPassword }),
+  });
+
+export const forgotPassword = (email: string) =>
+  api<{ ok: boolean }>("/api/auth/forgot-password", {
+    method: "POST",
+    body: JSON.stringify({ email }),
+  });
+
+export const resetPassword = (token: string, newPassword: string) =>
+  api<{ ok: boolean }>("/api/auth/reset-password", {
+    method: "POST",
+    body: JSON.stringify({ token, newPassword }),
+  });
+
+// ── Notifications ─────────────────────────────────────────────────────────────
+
+export type NotificationType =
+  | "swap_requested"
+  | "swap_accepted"
+  | "swap_cancelled"
+  | "shift_assigned"
+  | "nights_added"
+  | "mentioned";
+
+export type ApiNotification = {
+  id: number;
+  member_id: number;
+  type: NotificationType;
+  body: string;
+  link: string | null;
+  is_read: boolean;
+  created_at: string;
+};
+
+export const getNotifications = () =>
+  api<{ notifications: ApiNotification[]; unreadCount: number }>(
+    "/api/notifications",
+  );
+
+export const markNotificationRead = (id: number) =>
+  api<{ ok: boolean }>(`/api/notifications/${id}/read`, { method: "PATCH" });
+
+export const markAllNotificationsRead = () =>
+  api<{ ok: boolean }>("/api/notifications/read-all", { method: "PATCH" });
+
+// ── Channel Members ───────────────────────────────────────────────────────────
+
+export type ApiChannelMember = {
+  id: number;
+  name: string;
+  initials: string;
+};
+
+export const getChannelMembers = (channelId: number) =>
+  api<ApiChannelMember[]>(`/api/channels/${channelId}/members`);

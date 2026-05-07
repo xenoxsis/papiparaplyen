@@ -17,6 +17,8 @@ import {
   X,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
+import { useNotifications } from "@/lib/useNotifications";
+import NotificationBell from "@/components/NotificationBell";
 
 const navLinks = [
   { href: "/", label: "Hjem", icon: Home },
@@ -28,6 +30,8 @@ export default function Nav() {
   const pathname = usePathname();
   const router = useRouter();
   const { user, logout, pendingShiftCount } = useAuth();
+  const { notifications, unreadCount, markRead, markAllRead } =
+    useNotifications(user?.id ?? null);
   const [open, setOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -91,6 +95,15 @@ export default function Nav() {
         >
           {menuOpen ? <X className="size-5" /> : <Menu className="size-5" />}
         </button>
+
+        {user && (
+          <NotificationBell
+            notifications={notifications}
+            unreadCount={unreadCount}
+            onMarkRead={markRead}
+            onMarkAllRead={markAllRead}
+          />
+        )}
 
         {user ? (
           /* Logged in — avatar (desktop: clickable dropdown, mobile: display only) */

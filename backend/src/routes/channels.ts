@@ -1,40 +1,13 @@
 import { Router, Request, Response } from "express";
 import { getPool, sql } from "../db";
 import { requireAuth, verifyToken } from "../auth";
+import { broadcast, initSseResponse } from "../broadcaster";
+import {
+  createNotification,
+  createNotificationForMany,
+} from "../notifications";
 
 const router = Router();
-
-// ── SSE broadcaster ───────────────────────────────────────────────────────────
-// Maps channelId → set of active SSE response objects
-const sseClients = new Map<number, Set<Response>>();
-
-function registerClient(channelId: number, res: Response) {
-  if (!sseClients.has(channelId)) sseClients.set(channelId, new Set());
-  sseClients.get(channelId)!.add(res);
-}
-
-function unregisterClient(channelId: number, res: Response) {
-  sseClients.get(channelId)?.delete(res);
-}
-
-function broadcast(channelId: number, data: unknown) {
-  const clients = sseClients.get(channelId);
-  if (!clients || clients.size === 0) return;
-  const payload = `data: ${JSON.stringify(data)}\n\n`;
-  for (const res of clients) {
-    try {
-      res.write(payload);
-      // Flush immediately so the frame isn't held in a compression buffer
-      if (
-        typeof (res as unknown as { flush?: () => void }).flush === "function"
-      ) {
-        (res as unknown as { flush: () => void }).flush();
-      }
-    } catch {
-      // client disconnected mid-write — will be cleaned up via close event
-    }
-  }
-}
 
 // GET /api/channels/:id/stream  — SSE endpoint
 router.get("/:id/stream", async (req: Request, res: Response) => {
@@ -66,32 +39,8 @@ router.get("/:id/stream", async (req: Request, res: Response) => {
     }
   }
 
-  res.setHeader("Content-Type", "text/event-stream");
-  res.setHeader("Cache-Control", "no-cache");
-  res.setHeader("Connection", "keep-alive");
-  res.setHeader("X-Accel-Buffering", "no"); // disable nginx/IIS buffering
-  res.flushHeaders();
-
-  // Send an initial comment to confirm the connection
-  res.write(": connected\n\n");
-  if (typeof (res as unknown as { flush?: () => void }).flush === "function") {
-    (res as unknown as { flush: () => void }).flush();
-  }
-
-  registerClient(channelId, res);
-
-  // Heartbeat every 25 s to keep the connection alive through proxies
-  const heartbeat = setInterval(() => {
-    try {
-      res.write(": heartbeat\n\n");
-    } catch {
-      clearInterval(heartbeat);
-    }
-  }, 25_000);
-
-  req.on("close", () => {
-    clearInterval(heartbeat);
-    unregisterClient(channelId, res);
+  initSseResponse(channelId, res, () => {
+    /* cleanup handled inside */
   });
 });
 
@@ -113,6 +62,41 @@ router.get("/", requireAuth, async (_req, res) => {
     : result.recordset.filter((c: { type: string }) => c.type !== "vagter");
 
   res.json(channels);
+});
+
+// GET /api/channels/:id/members  — list members in a channel
+router.get("/:id/members", requireAuth, async (req, res) => {
+  const pool = await getPool();
+  const channelId = Number(req.params.id);
+
+  // Role-gate vagter channel
+  const chanResult = await pool
+    .request()
+    .input("channelId", sql.Int, channelId)
+    .query("SELECT type FROM dbo.channels WHERE id = @channelId");
+  const channelType: string | undefined = chanResult.recordset[0]?.type;
+  if (channelType === "vagter") {
+    const jwt = res.locals.jwt as { roles: string[] };
+    const allowed =
+      jwt.roles.includes("Administrator") ||
+      jwt.roles.includes("Vagt") ||
+      jwt.roles.includes("Tilskuer");
+    if (!allowed) {
+      res.status(403).json({ error: "Forbidden" });
+      return;
+    }
+  }
+
+  const result = await pool.request().input("channelId", sql.Int, channelId)
+    .query(`
+      SELECT m.id, m.name, m.initials
+      FROM dbo.members m
+      LEFT JOIN dbo.users u ON u.member_id = m.id
+      WHERE ISNULL(u.banned, 0) = 0
+      ORDER BY m.name
+    `);
+
+  res.json(result.recordset);
 });
 
 // GET /api/channels/:id/messages
@@ -189,6 +173,49 @@ router.post("/:id/messages", requireAuth, async (req, res) => {
     `);
 
   broadcast(channelId, { event: "message", data: row.recordset[0] });
+
+  // Parse @[Name](memberId) mentions and notify each mentioned member
+  const mentionPattern = /@\[([^\]]+)\]\((\d+)\)/g;
+  const mentionedIds = new Set<number>();
+  let match: RegExpExecArray | null;
+  while ((match = mentionPattern.exec(req.body.body ?? "")) !== null) {
+    const mentionedId = Number(match[2]);
+    const senderId: number | null = req.body.sender_id ?? null;
+    if (mentionedId && mentionedId !== senderId) {
+      mentionedIds.add(mentionedId);
+    }
+  }
+  if (mentionedIds.size > 0) {
+    const senderName: string = row.recordset[0]?.sender_name ?? "Nogen";
+    await createNotificationForMany(
+      Array.from(mentionedIds),
+      "mentioned",
+      `${senderName} nævnte dig i en besked`,
+      "/member/profile",
+    );
+  }
+
+  // Notify channel members about the new swap request (excluding sender)
+  if (isSwap) {
+    const senderId: number | null = req.body.sender_id ?? null;
+    const nightName: string = row.recordset[0]?.shift_night_name ?? "en aften";
+    const membersResult = await pool
+      .request()
+      .input("channelId", sql.Int, channelId)
+      .query(
+        "SELECT member_id FROM dbo.channel_members WHERE channel_id = @channelId",
+      );
+    const recipientIds: number[] = membersResult.recordset
+      .map((r: { member_id: number }) => r.member_id)
+      .filter((id: number) => id !== senderId);
+    await createNotificationForMany(
+      recipientIds,
+      "swap_requested",
+      `Ny vagtbytning tilgængelig`,
+      "/member/schedule",
+    );
+  }
+
   return res.status(201).json(row.recordset[0]);
 });
 
@@ -285,6 +312,39 @@ router.patch(
     }
 
     broadcast(channelId, { event: "message", data: row.recordset[0] });
+
+    // Notify the original sender that their swap was accepted
+    if (req.body.swap_status === "taken") {
+      const { sender_id: senderId, taken_by_name: takerName } =
+        row.recordset[0] ?? {};
+      if (senderId) {
+        await createNotification(
+          senderId,
+          "swap_accepted",
+          `Din vagtbytning blev accepteret${takerName ? ` af ${takerName}` : ""}`,
+          "/member/schedule",
+        );
+      }
+    } else if (req.body.swap_status === "cancelled") {
+      // Notify channel members that a swap was cancelled
+      const { sender_id: senderId } = row.recordset[0] ?? {};
+      const membersResult = await pool
+        .request()
+        .input("channelId", sql.Int, channelId)
+        .query(
+          "SELECT member_id FROM dbo.channel_members WHERE channel_id = @channelId",
+        );
+      const recipientIds: number[] = membersResult.recordset
+        .map((r: { member_id: number }) => r.member_id)
+        .filter((id: number) => id !== senderId);
+      await createNotificationForMany(
+        recipientIds,
+        "swap_cancelled",
+        "En vagtbytning er blevet annulleret",
+        "/member/schedule",
+      );
+    }
+
     return res.json(row.recordset[0]);
   },
 );

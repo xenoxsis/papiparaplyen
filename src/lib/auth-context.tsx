@@ -22,6 +22,7 @@ type AuthContextType = {
   login: (email: string, password: string) => Promise<boolean>;
   loginWithData: (user: User, token: string) => void;
   logout: () => void;
+  updateUser: (partial: Partial<User>) => void;
   pendingShiftCount: number;
   setPendingShiftCount: (count: number) => void;
 };
@@ -71,6 +72,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem("auth_token");
   }
 
+  function updateUser(partial: Partial<User>) {
+    setUser((prev) => {
+      if (!prev) return prev;
+      const next = { ...prev, ...partial };
+      localStorage.setItem("auth_user", JSON.stringify(next));
+      return next;
+    });
+  }
+
   return (
     <AuthContext.Provider
       value={{
@@ -79,6 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         login,
         loginWithData,
         logout,
+        updateUser,
         pendingShiftCount,
         setPendingShiftCount,
       }}

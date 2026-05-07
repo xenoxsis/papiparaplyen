@@ -1,7 +1,13 @@
 import bcrypt from "bcrypt";
+import crypto from "crypto";
 import { Router } from "express";
 import { getPool, sql } from "../db";
-import { signToken, getMemberRoles } from "../auth";
+import { signToken, getMemberRoles, requireAuth } from "../auth";
+import {
+  sendEmail,
+  resetPasswordEmailHtml,
+  oauthAccountEmailHtml,
+} from "../email";
 
 const SALT_ROUNDS = 12;
 
@@ -127,6 +133,193 @@ router.post("/register", async (req, res) => {
     await transaction.rollback();
     throw err;
   }
+});
+
+// PATCH /api/auth/me — update own display name
+router.patch("/me", requireAuth, async (req, res) => {
+  const { name } = req.body ?? {};
+  if (!name || typeof name !== "string" || !name.trim()) {
+    return res.status(400).json({ error: "name is required" });
+  }
+
+  const trimmedName = name.trim();
+  const parts = trimmedName.split(/\s+/);
+  const initials =
+    parts.length >= 2
+      ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+      : parts[0].slice(0, 2).toUpperCase();
+
+  const pool = await getPool();
+  const memberId: number = res.locals.jwt.memberId;
+
+  await pool
+    .request()
+    .input("memberId", sql.Int, memberId)
+    .input("name", sql.NVarChar, trimmedName)
+    .input("initials", sql.NVarChar, initials)
+    .query(
+      "UPDATE dbo.members SET name = @name, initials = @initials WHERE id = @memberId",
+    );
+
+  return res.json({ id: memberId, name: trimmedName, initials });
+});
+
+// POST /api/auth/change-password — change own password
+router.post("/change-password", requireAuth, async (req, res) => {
+  const { currentPassword, newPassword } = req.body ?? {};
+  if (!currentPassword || !newPassword) {
+    return res
+      .status(400)
+      .json({ error: "currentPassword and newPassword are required" });
+  }
+  if ((newPassword as string).length < 6) {
+    return res
+      .status(400)
+      .json({ error: "newPassword must be at least 6 characters" });
+  }
+
+  const pool = await getPool();
+  const memberId: number = res.locals.jwt.memberId;
+
+  const userResult = await pool
+    .request()
+    .input("memberId", sql.Int, memberId)
+    .query(
+      "SELECT id, password, provider FROM dbo.users WHERE member_id = @memberId",
+    );
+
+  if (userResult.recordset.length === 0) {
+    return res.status(404).json({ error: "User not found" });
+  }
+
+  const row = userResult.recordset[0];
+  if (row.provider !== "local") {
+    return res.status(400).json({
+      error: `Din konto bruger ${row.provider === "google" ? "Google" : "Facebook"} login og har ingen adgangskode`,
+    });
+  }
+
+  const match = await bcrypt.compare(currentPassword as string, row.password);
+  if (!match) {
+    return res.status(401).json({ error: "Forkert nuværende adgangskode" });
+  }
+
+  const hashed = await bcrypt.hash(newPassword as string, SALT_ROUNDS);
+  await pool
+    .request()
+    .input("userId", sql.Int, row.id)
+    .input("password", sql.NVarChar, hashed)
+    .query("UPDATE dbo.users SET password = @password WHERE id = @userId");
+
+  return res.json({ ok: true });
+});
+
+// POST /api/auth/forgot-password
+router.post("/forgot-password", async (req, res) => {
+  const { email } = req.body ?? {};
+  // Always return ok to prevent user enumeration
+  res.json({ ok: true });
+
+  if (!email || typeof email !== "string") return;
+
+  const pool = await getPool();
+  const normalizedEmail = (email as string).trim().toLowerCase();
+
+  const result = await pool
+    .request()
+    .input("email", sql.NVarChar, normalizedEmail).query(`
+      SELECT m.id, m.email, u.provider
+      FROM dbo.members m
+      JOIN dbo.users u ON u.member_id = m.id
+      WHERE m.email = @email
+    `);
+
+  if (result.recordset.length === 0) return;
+  const row = result.recordset[0];
+
+  const FRONTEND_URL = process.env.FRONTEND_URL ?? "http://localhost:3000";
+
+  if (row.provider !== "local") {
+    await sendEmail(
+      normalizedEmail,
+      "Adgangskode nulstilling — Pap i Paraplyen",
+      oauthAccountEmailHtml(row.provider),
+    ).catch(console.error);
+    return;
+  }
+
+  const token = crypto.randomBytes(32).toString("hex");
+  const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+  await pool
+    .request()
+    .input("token", sql.NVarChar(64), token)
+    .input("memberId", sql.Int, row.id)
+    .input("expiresAt", sql.DateTime2, expiresAt).query(`
+      INSERT INTO dbo.password_reset_tokens (token, member_id, expires_at, used)
+      VALUES (@token, @memberId, @expiresAt, 0)
+    `);
+
+  const resetUrl = `${FRONTEND_URL}/reset-password?token=${token}`;
+  await sendEmail(
+    normalizedEmail,
+    "Nulstil din adgangskode — Pap i Paraplyen",
+    resetPasswordEmailHtml(resetUrl),
+  ).catch(console.error);
+});
+
+// POST /api/auth/reset-password
+router.post("/reset-password", async (req, res) => {
+  const { token, newPassword } = req.body ?? {};
+  if (!token || !newPassword) {
+    return res
+      .status(400)
+      .json({ error: "token and newPassword are required" });
+  }
+  if ((newPassword as string).length < 6) {
+    return res
+      .status(400)
+      .json({ error: "Adgangskode skal være mindst 6 tegn" });
+  }
+
+  const pool = await getPool();
+
+  const tokenResult = await pool
+    .request()
+    .input("token", sql.NVarChar(64), token).query(`
+      SELECT id, member_id, expires_at, used
+      FROM dbo.password_reset_tokens
+      WHERE token = @token
+    `);
+
+  if (tokenResult.recordset.length === 0) {
+    return res.status(400).json({ error: "Ugyldigt nulstillingslink" });
+  }
+
+  const row = tokenResult.recordset[0];
+  if (row.used) {
+    return res.status(400).json({ error: "Dette link er allerede brugt" });
+  }
+  if (new Date(row.expires_at) < new Date()) {
+    return res.status(400).json({ error: "Nulstillingslinket er udløbet" });
+  }
+
+  const hashed = await bcrypt.hash(newPassword as string, SALT_ROUNDS);
+
+  await pool
+    .request()
+    .input("memberId", sql.Int, row.member_id)
+    .input("password", sql.NVarChar, hashed)
+    .query(
+      "UPDATE dbo.users SET password = @password WHERE member_id = @memberId",
+    );
+
+  await pool
+    .request()
+    .input("id", sql.Int, row.id)
+    .query("UPDATE dbo.password_reset_tokens SET used = 1 WHERE id = @id");
+
+  return res.json({ ok: true });
 });
 
 export default router;

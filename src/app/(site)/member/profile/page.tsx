@@ -11,6 +11,7 @@ import {
   Clock,
   MapPin,
   MessagesSquare,
+  Pencil,
   RefreshCcw,
   Search,
   Send,
@@ -27,18 +28,23 @@ import {
   getMessages,
   getMemberShifts,
   getMyScheduleReview,
+  getChannelMembers,
   postClubNight,
   postMessage,
   patchMessage,
   patchClubNight,
   postClubNightConfirm,
   postClubNightOptOut,
+  patchMe,
+  changePassword,
   type ApiClubNight,
   type ApiChannel,
   type ApiMessage,
   type ApiScheduleReview,
+  type ApiChannelMember,
 } from "@/lib/api";
 import { useChannelSSE } from "@/lib/useChannelSSE";
+import { renderMessageBody } from "@/lib/renderMentions";
 
 function GroupChatItem({
   active,
@@ -108,7 +114,7 @@ function GroupChatItem({
 
 export default function ProfilePage() {
   const { authorized } = useRequireAuth();
-  const { user, setPendingShiftCount } = useAuth();
+  const { user, setPendingShiftCount, updateUser } = useAuth();
   const [activeChannelId, setActiveChannelId] = useState<number>(1);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showAllShifts, setShowAllShifts] = useState(false);
@@ -119,6 +125,10 @@ export default function ProfilePage() {
   const [allMessages, setAllMessages] = useState<ApiMessage[]>([]);
   const [lastSeenIds, setLastSeenIds] = useState<Record<number, number>>({});
   const [msgBody, setMsgBody] = useState("");
+  const [channelMembers, setChannelMembers] = useState<ApiChannelMember[]>([]);
+  const [mentionQuery, setMentionQuery] = useState<string | null>(null);
+  const [mentionIndex, setMentionIndex] = useState(0);
+  const inputRef = useRef<HTMLInputElement>(null);
   const [channelSearch, setChannelSearch] = useState("");
   const [showChannelSearch, setShowChannelSearch] = useState(false);
   const [showChannelDrawer, setShowChannelDrawer] = useState(false);
@@ -141,6 +151,60 @@ export default function ProfilePage() {
   const [highlightMessageId, setHighlightMessageId] = useState<number | null>(
     null,
   );
+
+  // Edit profile modal state
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editTab, setEditTab] = useState<"name" | "password">("name");
+  const [editName, setEditName] = useState("");
+  const [editCurrentPw, setEditCurrentPw] = useState("");
+  const [editNewPw, setEditNewPw] = useState("");
+  const [editConfirmPw, setEditConfirmPw] = useState("");
+  const [editSaving, setEditSaving] = useState(false);
+
+  function openEditModal() {
+    setEditName(user?.name ?? "");
+    setEditCurrentPw("");
+    setEditNewPw("");
+    setEditConfirmPw("");
+    setEditTab("name");
+    setShowEditModal(true);
+  }
+
+  async function handleSaveName() {
+    if (!editName.trim()) return;
+    setEditSaving(true);
+    try {
+      const result = await patchMe(editName.trim());
+      updateUser({ name: result.name, initials: result.initials });
+      toast.success("Navn opdateret");
+      setShowEditModal(false);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Noget gik galt");
+    } finally {
+      setEditSaving(false);
+    }
+  }
+
+  async function handleSavePassword() {
+    if (editNewPw.length < 6) {
+      toast.error("Adgangskode skal være mindst 6 tegn");
+      return;
+    }
+    if (editNewPw !== editConfirmPw) {
+      toast.error("Adgangskoderne matcher ikke");
+      return;
+    }
+    setEditSaving(true);
+    try {
+      await changePassword(editCurrentPw, editNewPw);
+      toast.success("Adgangskode ændret");
+      setShowEditModal(false);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Noget gik galt");
+    } finally {
+      setEditSaving(false);
+    }
+  }
 
   useEffect(() => {
     getClubNights().then(setNights).catch(console.error);
@@ -184,6 +248,10 @@ export default function ProfilePage() {
         scrollOnNextRender.current = true;
         setMessages(msgs);
       })
+      .catch(console.error);
+    // Fetch channel members for @mention autocomplete
+    getChannelMembers(activeChannelId)
+      .then(setChannelMembers)
       .catch(console.error);
   }, [activeChannelId]);
 
@@ -330,9 +398,53 @@ export default function ProfilePage() {
         prev.some((m) => m.id === msg.id) ? prev : [...prev, msg],
       );
       setMsgBody("");
+      setMentionQuery(null);
     } catch (err) {
       console.error(err);
     }
+  }
+
+  // Derived: filtered mention results from current query
+  const mentionResults = useMemo(() => {
+    if (mentionQuery === null) return [];
+    const q = mentionQuery.toLowerCase();
+    return channelMembers
+      .filter(
+        (m) =>
+          m.name.toLowerCase().includes(q) ||
+          m.initials.toLowerCase().includes(q),
+      )
+      .slice(0, 6);
+  }, [mentionQuery, channelMembers]);
+
+  function handleInputChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const value = e.target.value;
+    setMsgBody(value);
+    const cursor = e.target.selectionStart ?? value.length;
+    const textBeforeCursor = value.slice(0, cursor);
+    const mentionMatch = textBeforeCursor.match(/@([^@\s]*)$/);
+    if (mentionMatch) {
+      setMentionQuery(mentionMatch[1]);
+      setMentionIndex(0);
+    } else {
+      setMentionQuery(null);
+    }
+  }
+
+  function selectMention(member: ApiChannelMember) {
+    const cursor = inputRef.current?.selectionStart ?? msgBody.length;
+    const textBeforeCursor = msgBody.slice(0, cursor);
+    const mentionMatch = textBeforeCursor.match(/@([^@\s]*)$/);
+    if (!mentionMatch) return;
+    const start = cursor - mentionMatch[0].length;
+    const replacement = `@[${member.name}](${member.id}) `;
+    const newBody =
+      msgBody.slice(0, start) + replacement + msgBody.slice(cursor);
+    setMsgBody(newBody);
+    setMentionQuery(null);
+    setMentionIndex(0);
+    // Restore focus after react re-render
+    setTimeout(() => inputRef.current?.focus(), 0);
   }
 
   async function requestSwap() {
@@ -560,6 +672,14 @@ export default function ProfilePage() {
           </span>
           <span className="text-white/60 text-xs">Klubaftener</span>
         </div>
+        <div className="hidden sm:block w-px h-10 bg-white/20" />
+        <button
+          onClick={openEditModal}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/20 text-white/70 hover:bg-white/10 hover:text-white transition-colors text-xs font-medium cursor-pointer"
+        >
+          <Pencil className="size-3.5" />
+          Rediger profil
+        </button>
       </MemberHero>
 
       {/* Unreviewed nights banner — for vagter */}
@@ -1330,7 +1450,9 @@ export default function ProfilePage() {
                                   </p>
                                 )}
                                 <p className="text-xs text-neutral-600 leading-snug">
-                                  {msg.body}
+                                  {user
+                                    ? renderMessageBody(msg.body, user.id)
+                                    : msg.body}
                                 </p>
                                 {msg.swap_status === "pending" && (
                                   <>
@@ -1372,7 +1494,9 @@ export default function ProfilePage() {
                                 )}
                                 {msg.swap_status === "cancelled" && (
                                   <span className="text-[0.65rem] text-neutral-400 italic">
-                                    {msg.body}
+                                    {user
+                                      ? renderMessageBody(msg.body, user.id)
+                                      : msg.body}
                                   </span>
                                 )}
                               </div>
@@ -1392,7 +1516,9 @@ export default function ProfilePage() {
                                 <div
                                   className={`px-4 py-2 text-sm text-white rounded-[1rem_1rem_0.25rem_1rem] ${outgoingColor}`}
                                 >
-                                  {msg.body}
+                                  {user
+                                    ? renderMessageBody(msg.body, user.id)
+                                    : msg.body}
                                 </div>
                                 <span className="text-[0.625rem] text-neutral-500 pr-2">
                                   {timeStr}
@@ -1419,7 +1545,9 @@ export default function ProfilePage() {
                                   {msg.sender_name}
                                 </span>
                                 <div className="px-4 py-2 text-sm bg-white border border-neutral-200 rounded-[1rem_1rem_1rem_0.25rem]">
-                                  {msg.body}
+                                  {user
+                                    ? renderMessageBody(msg.body, user.id)
+                                    : msg.body}
                                 </div>
                               </div>
                             </div>
@@ -1443,18 +1571,78 @@ export default function ProfilePage() {
               <button className="inline-flex items-center justify-center w-8 h-8 rounded-md border-none bg-transparent text-neutral-500 hover:bg-neutral-100 transition-colors cursor-pointer">
                 <Smile className="size-4" />
               </button> */}
-              <input
-                className="flex-1 h-10 border border-neutral-200 rounded-lg px-3 text-sm outline-none font-[inherit] bg-transparent placeholder:text-neutral-400 focus:border-neutral-900"
-                placeholder={`Skriv til ${activeChannel?.name?.toLowerCase() ?? "gruppen"}…`}
-                value={msgBody}
-                onChange={(e) => setMsgBody(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    sendMessage();
-                  }
-                }}
-              />
+              <div className="flex-1 relative">
+                {mentionQuery !== null && mentionResults.length > 0 && (
+                  <div className="absolute bottom-full left-0 right-0 mb-1 bg-white border border-neutral-200 rounded-xl shadow-lg overflow-hidden z-50">
+                    {mentionResults.map((member, i) => (
+                      <button
+                        key={member.id}
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          selectMention(member);
+                        }}
+                        className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left transition-colors border-none bg-transparent cursor-pointer ${
+                          i === mentionIndex
+                            ? "bg-neutral-100"
+                            : "hover:bg-neutral-50"
+                        }`}
+                      >
+                        <div className="w-6 h-6 rounded-full bg-[#e63946] text-white flex items-center justify-center text-[0.55rem] font-bold shrink-0">
+                          {member.initials}
+                        </div>
+                        <span className="font-medium text-neutral-900">
+                          {member.name}
+                        </span>
+                        <span className="text-neutral-400 text-xs ml-auto">
+                          {member.initials}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <input
+                  ref={inputRef}
+                  className="w-full h-10 border border-neutral-200 rounded-lg px-3 text-sm outline-none font-[inherit] bg-transparent placeholder:text-neutral-400 focus:border-neutral-900"
+                  placeholder={`Skriv til ${
+                    activeChannel?.name?.toLowerCase() ?? "gruppen"
+                  }…`}
+                  value={msgBody}
+                  onChange={handleInputChange}
+                  onKeyDown={(e) => {
+                    // Autocomplete keyboard nav
+                    if (mentionQuery !== null && mentionResults.length > 0) {
+                      if (e.key === "ArrowDown") {
+                        e.preventDefault();
+                        setMentionIndex((i) => (i + 1) % mentionResults.length);
+                        return;
+                      }
+                      if (e.key === "ArrowUp") {
+                        e.preventDefault();
+                        setMentionIndex(
+                          (i) =>
+                            (i - 1 + mentionResults.length) %
+                            mentionResults.length,
+                        );
+                        return;
+                      }
+                      if (e.key === "Enter" || e.key === "Tab") {
+                        e.preventDefault();
+                        selectMention(mentionResults[mentionIndex]);
+                        return;
+                      }
+                      if (e.key === "Escape") {
+                        setMentionQuery(null);
+                        return;
+                      }
+                    }
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      sendMessage();
+                    }
+                  }}
+                  onBlur={() => setTimeout(() => setMentionQuery(null), 150)}
+                />
+              </div>
               <button
                 onClick={sendMessage}
                 className={`inline-flex items-center justify-center w-10 h-10 rounded-lg text-white transition-colors border-none cursor-pointer shrink-0 ${
@@ -1469,6 +1657,122 @@ export default function ProfilePage() {
           </div>
         </div>
       </div>
+
+      {/* Edit profile modal */}
+      {showEditModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm flex flex-col overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-100">
+              <h2 className="font-semibold text-neutral-900">Rediger profil</h2>
+              <button
+                onClick={() => setShowEditModal(false)}
+                className="text-neutral-400 hover:text-neutral-600 transition-colors cursor-pointer bg-transparent border-none p-1"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Tabs */}
+            <div className="flex border-b border-neutral-100">
+              <button
+                onClick={() => setEditTab("name")}
+                className={`flex-1 py-2.5 text-sm font-medium transition-colors cursor-pointer border-none bg-transparent ${editTab === "name" ? "text-neutral-900 border-b-2 border-neutral-900" : "text-neutral-500 hover:text-neutral-700"}`}
+              >
+                Navn
+              </button>
+              <button
+                onClick={() => setEditTab("password")}
+                className={`flex-1 py-2.5 text-sm font-medium transition-colors cursor-pointer border-none bg-transparent ${editTab === "password" ? "text-neutral-900 border-b-2 border-neutral-900" : "text-neutral-500 hover:text-neutral-700"}`}
+              >
+                Adgangskode
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="p-5 flex flex-col gap-4">
+              {editTab === "name" ? (
+                <>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-medium text-neutral-700">
+                      Fulde navn
+                    </label>
+                    <input
+                      type="text"
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      className="h-9 rounded-lg border border-neutral-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                      placeholder="Dit navn"
+                      onKeyDown={(e) => e.key === "Enter" && handleSaveName()}
+                    />
+                  </div>
+                  <button
+                    onClick={handleSaveName}
+                    disabled={editSaving || !editName.trim()}
+                    className="h-9 rounded-lg bg-neutral-900 text-white text-sm font-medium hover:bg-neutral-700 transition-colors cursor-pointer border-none disabled:opacity-50"
+                  >
+                    {editSaving ? "Gemmer…" : "Gem navn"}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-medium text-neutral-700">
+                      Nuværende adgangskode
+                    </label>
+                    <input
+                      type="password"
+                      value={editCurrentPw}
+                      onChange={(e) => setEditCurrentPw(e.target.value)}
+                      className="h-9 rounded-lg border border-neutral-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                      placeholder="••••••••"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-medium text-neutral-700">
+                      Ny adgangskode
+                    </label>
+                    <input
+                      type="password"
+                      value={editNewPw}
+                      onChange={(e) => setEditNewPw(e.target.value)}
+                      className="h-9 rounded-lg border border-neutral-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                      placeholder="Mindst 6 tegn"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-medium text-neutral-700">
+                      Gentag ny adgangskode
+                    </label>
+                    <input
+                      type="password"
+                      value={editConfirmPw}
+                      onChange={(e) => setEditConfirmPw(e.target.value)}
+                      className="h-9 rounded-lg border border-neutral-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                      placeholder="••••••••"
+                      onKeyDown={(e) =>
+                        e.key === "Enter" && handleSavePassword()
+                      }
+                    />
+                  </div>
+                  <button
+                    onClick={handleSavePassword}
+                    disabled={
+                      editSaving ||
+                      !editCurrentPw ||
+                      !editNewPw ||
+                      !editConfirmPw
+                    }
+                    className="h-9 rounded-lg bg-neutral-900 text-white text-sm font-medium hover:bg-neutral-700 transition-colors cursor-pointer border-none disabled:opacity-50"
+                  >
+                    {editSaving ? "Gemmer…" : "Skift adgangskode"}
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

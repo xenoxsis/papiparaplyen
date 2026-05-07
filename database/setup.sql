@@ -8,6 +8,7 @@
 -- ---------------------------------------------------------------
 -- Drop tables in reverse dependency order
 -- ---------------------------------------------------------------
+IF OBJECT_ID('dbo.notifications',         'U') IS NOT NULL DROP TABLE dbo.notifications;
 IF OBJECT_ID('dbo.messages',              'U') IS NOT NULL DROP TABLE dbo.messages;
 IF OBJECT_ID('dbo.channel_members',       'U') IS NOT NULL DROP TABLE dbo.channel_members;
 IF OBJECT_ID('dbo.channels',              'U') IS NOT NULL DROP TABLE dbo.channels;
@@ -29,8 +30,9 @@ CREATE TABLE dbo.members (
     initials    NVARCHAR(10)  NOT NULL,
     email       NVARCHAR(255) NOT NULL,
     joined_date DATE          NOT NULL,
-    CONSTRAINT PK_members       PRIMARY KEY (id),
-    CONSTRAINT UQ_members_email UNIQUE      (email)
+    CONSTRAINT PK_members          PRIMARY KEY (id),
+    CONSTRAINT UQ_members_email    UNIQUE      (email),
+    CONSTRAINT UQ_members_initials UNIQUE      (initials)
 );
 GO
 
@@ -131,6 +133,15 @@ CREATE TABLE dbo.channels (
     type NVARCHAR(50)  NOT NULL,
     CONSTRAINT PK_channels PRIMARY KEY (id)
 );
+
+-- Password reset tokens
+CREATE TABLE dbo.password_reset_tokens (
+    id          INT IDENTITY PRIMARY KEY,
+    token       NVARCHAR(64)  NOT NULL UNIQUE,
+    member_id   INT           NOT NULL REFERENCES dbo.members(id),
+    expires_at  DATETIME2     NOT NULL,
+    used        BIT           NOT NULL DEFAULT 0
+);
 GO
 
 -- ---------------------------------------------------------------
@@ -161,6 +172,22 @@ CREATE TABLE dbo.messages (
     CONSTRAINT PK_messages         PRIMARY KEY (id),
     CONSTRAINT FK_messages_channel FOREIGN KEY (channel_id) REFERENCES dbo.channels (id),
     CONSTRAINT FK_messages_sender  FOREIGN KEY (sender_id)  REFERENCES dbo.members  (id)
+);
+GO
+
+-- ---------------------------------------------------------------
+-- notifications
+-- ---------------------------------------------------------------
+CREATE TABLE dbo.notifications (
+    id          INT            NOT NULL IDENTITY(1,1),
+    member_id   INT            NOT NULL,
+    type        NVARCHAR(50)   NOT NULL,
+    body        NVARCHAR(500)  NOT NULL,
+    link        NVARCHAR(255)  NULL,
+    is_read     BIT            NOT NULL DEFAULT 0,
+    created_at  DATETIME2      NOT NULL DEFAULT SYSUTCDATETIME(),
+    CONSTRAINT PK_notifications        PRIMARY KEY (id),
+    CONSTRAINT FK_notifications_member FOREIGN KEY (member_id) REFERENCES dbo.members (id)
 );
 GO
 

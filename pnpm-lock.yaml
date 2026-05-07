@@ -96,6 +96,9 @@ importers:
       mssql:
         specifier: ^12.5.2
         version: 12.5.2(@azure/core-client@1.10.1)
+      nodemailer:
+        specifier: ^8.0.7
+        version: 8.0.7
       passport:
         specifier: ^0.7.0
         version: 0.7.0
@@ -124,6 +127,9 @@ importers:
       '@types/node':
         specifier: ^20.0.0
         version: 20.19.27
+      '@types/nodemailer':
+        specifier: ^8.0.0
+        version: 8.0.0
       '@types/passport':
         specifier: ^1.0.17
         version: 1.0.17
@@ -2242,6 +2248,12 @@ packages:
     resolution: {integrity: sha1-1RMz93lTpeTnHTta76g+xSl/u4A=}
     dependencies:
       undici-types: 6.21.0
+
+  /@types/nodemailer@8.0.0:
+    resolution: {integrity: sha512-fyf8jWULsCo0d0BuoQ75i6IeoHs47qcqxWc7yUdUcV0pOZGjUTTOvwdG1PRXUDqN/8A64yQdQdnA2pZgcdi+cA==}
+    dependencies:
+      '@types/node': 20.19.27
+    dev: true
 
   /@types/oauth@0.9.6:
     resolution: {integrity: sha512-H9TRCVKBNOhZZmyHLqFt9drPM9l+ShWiqqJijU1B8P3DX3ub84NjxDuy+Hjrz+fEca5Kwip3qPMKNyiLgNJtIA==}
@@ -4942,6 +4954,11 @@ packages:
 
   /node-releases@2.0.27:
     resolution: {integrity: sha1-7tylGSBc8g9lD2HVawcNsREjHk4=}
+
+  /nodemailer@8.0.7:
+    resolution: {integrity: sha512-pkjE4mkBzQjdJT4/UmlKl3pX0rC9fZmjh7c6C9o7lv66Ac6w9WCnzPzhbPNxwZAzlF4mdq4CSWB5+FbK6FWCow==}
+    engines: {node: '>=6.0.0'}
+    dev: false
 
   /nopt@5.0.0:
     resolution: {integrity: sha512-Tbj67rffqceeLpcRXrT7vKAN8CwfPeIBgM7E6iBkmKLV7bEMwpGgYLGv0jACUsECaa/vuxP0IjEont6umdMgtQ==}

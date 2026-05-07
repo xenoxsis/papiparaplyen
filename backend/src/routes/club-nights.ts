@@ -1,6 +1,10 @@
 import { Router } from "express";
 import { getPool, sql } from "../db";
 import { callerId, isAdmin, requireAdmin, requireAuth } from "../auth";
+import {
+  createNotification,
+  createNotificationForMany,
+} from "../notifications";
 
 const router = Router();
 
@@ -132,7 +136,26 @@ router.post("/", requireAuth, async (req, res) => {
     `);
 
   const newId: number = insertResult.recordset[0].id;
-  return res.status(201).json(await fetchNightWithOptOuts(pool, newId));
+  const night = await fetchNightWithOptOuts(pool, newId);
+
+  // Notify all Vagt members about the new club night
+  const vagtMembers = await pool.request().query(`
+    SELECT DISTINCT mr.member_id
+    FROM dbo.member_roles mr
+    JOIN dbo.roles r ON r.id = mr.role_id
+    WHERE r.name IN (N'Vagt', N'Administrator')
+  `);
+  const vagtMemberIds: number[] = vagtMembers.recordset.map(
+    (r: { member_id: number }) => r.member_id,
+  );
+  await createNotificationForMany(
+    vagtMemberIds,
+    "nights_added",
+    `Ny klubaften tilføjet: ${night.name}`,
+    "/member/schedule",
+  );
+
+  return res.status(201).json(night);
 });
 
 // PATCH /api/club-nights/:id  — update vagt_member_id / vagt_confirmed
@@ -191,7 +214,28 @@ router.patch("/:id", requireAuth, async (req, res) => {
       `);
   }
 
-  return res.json(await fetchNightWithOptOuts(pool, nightId));
+  const updatedNight = await fetchNightWithOptOuts(pool, nightId);
+
+  // Notify the newly assigned vagt (only if vagt changed to a real member)
+  const previousVagt = nightCheck.recordset[0].vagt_member_id;
+  const newVagt =
+    "vagt_member_id" in req.body
+      ? (req.body.vagt_member_id ?? null)
+      : undefined;
+  if (
+    typeof newVagt === "number" &&
+    newVagt !== null &&
+    newVagt !== previousVagt
+  ) {
+    await createNotification(
+      newVagt,
+      "shift_assigned",
+      `Du er blevet tildelt vagten: ${updatedNight.name}`,
+      "/member/schedule",
+    );
+  }
+
+  return res.json(updatedNight);
 });
 
 // POST /api/club-nights/:id/confirm
