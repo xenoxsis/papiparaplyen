@@ -149,7 +149,8 @@ export default function Nav() {
                     </>
                   )}
                   {!user.roles.includes("Administrator") &&
-                    user.roles.includes("Vagt") && (
+                    (user.roles.includes("Vagt") ||
+                      user.roles.includes("Tilskuer")) && (
                       <Link
                         href="/member/schedule"
                         onClick={() => setOpen(false)}
@@ -226,7 +227,8 @@ export default function Nav() {
                 Medlemsområde
               </Link>
               {(user.roles.includes("Administrator") ||
-                user.roles.includes("Vagt")) && (
+                user.roles.includes("Vagt") ||
+                user.roles.includes("Tilskuer")) && (
                 <Link
                   href="/member/schedule"
                   onClick={() => setMenuOpen(false)}

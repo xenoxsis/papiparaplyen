@@ -12,7 +12,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 
-export const revalidate = 60;
+export const dynamic = "force-dynamic";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
@@ -33,7 +33,7 @@ type ClubNight = {
 async function getUpcomingNights(): Promise<ClubNight[]> {
   try {
     const res = await fetch(`${API}/api/club-nights`, {
-      next: { revalidate: 60 },
+      cache: "no-store",
     });
     if (!res.ok) return [];
     const all: ClubNight[] = await res.json();

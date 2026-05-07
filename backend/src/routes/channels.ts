@@ -1,8 +1,73 @@
-import { Router } from "express";
+import { Router, Request, Response } from "express";
 import { getPool, sql } from "../db";
 import { requireAuth } from "../auth";
 
 const router = Router();
+
+// ── SSE broadcaster ───────────────────────────────────────────────────────────
+// Maps channelId → set of active SSE response objects
+const sseClients = new Map<number, Set<Response>>();
+
+function registerClient(channelId: number, res: Response) {
+  if (!sseClients.has(channelId)) sseClients.set(channelId, new Set());
+  sseClients.get(channelId)!.add(res);
+}
+
+function unregisterClient(channelId: number, res: Response) {
+  sseClients.get(channelId)?.delete(res);
+}
+
+function broadcast(channelId: number, data: unknown) {
+  const clients = sseClients.get(channelId);
+  if (!clients || clients.size === 0) return;
+  const payload = `data: ${JSON.stringify(data)}\n\n`;
+  for (const res of clients) {
+    try {
+      res.write(payload);
+      // Flush immediately so the frame isn't held in a compression buffer
+      if (
+        typeof (res as unknown as { flush?: () => void }).flush === "function"
+      ) {
+        (res as unknown as { flush: () => void }).flush();
+      }
+    } catch {
+      // client disconnected mid-write — will be cleaned up via close event
+    }
+  }
+}
+
+// GET /api/channels/:id/stream  — SSE endpoint
+router.get("/:id/stream", (req: Request, res: Response) => {
+  const channelId = Number(req.params.id);
+
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.setHeader("X-Accel-Buffering", "no"); // disable nginx/IIS buffering
+  res.flushHeaders();
+
+  // Send an initial comment to confirm the connection
+  res.write(": connected\n\n");
+  if (typeof (res as unknown as { flush?: () => void }).flush === "function") {
+    (res as unknown as { flush: () => void }).flush();
+  }
+
+  registerClient(channelId, res);
+
+  // Heartbeat every 25 s to keep the connection alive through proxies
+  const heartbeat = setInterval(() => {
+    try {
+      res.write(": heartbeat\n\n");
+    } catch {
+      clearInterval(heartbeat);
+    }
+  }, 25_000);
+
+  req.on("close", () => {
+    clearInterval(heartbeat);
+    unregisterClient(channelId, res);
+  });
+});
 
 // GET /api/channels
 router.get("/", async (_req, res) => {
@@ -68,6 +133,7 @@ router.post("/:id/messages", requireAuth, async (req, res) => {
       WHERE m.id = @id
     `);
 
+  broadcast(channelId, { event: "message", data: row.recordset[0] });
   return res.status(201).json(row.recordset[0]);
 });
 
@@ -163,6 +229,7 @@ router.patch(
       }
     }
 
+    broadcast(channelId, { event: "message", data: row.recordset[0] });
     return res.json(row.recordset[0]);
   },
 );

@@ -38,6 +38,7 @@ import {
   type ApiMessage,
   type ApiScheduleReview,
 } from "@/lib/api";
+import { useChannelSSE } from "@/lib/useChannelSSE";
 
 function GroupChatItem({
   active,
@@ -157,11 +158,44 @@ export default function ProfilePage() {
         setMessages(msgs);
       })
       .catch(console.error);
+  }, [activeChannelId]);
+
+  // SSE: push new/updated messages for the active channel in real time
+  const { connected: sseConnected } = useChannelSSE(activeChannelId, (msg) => {
+    setMessages((prev) => {
+      const idx = prev.findIndex((m) => m.id === msg.id);
+      if (idx !== -1) {
+        // Update existing message (e.g. swap accepted)
+        const next = [...prev];
+        next[idx] = msg;
+        return next;
+      }
+      // New message — append and trigger scroll
+      scrollOnNextRender.current = true;
+      return [...prev, msg];
+    });
+    // Keep allMessages in sync for unread badges / swap detection
+    setAllMessages((prev) => {
+      const idx = prev.findIndex((m) => m.id === msg.id);
+      if (idx !== -1) {
+        const next = [...prev];
+        next[idx] = msg;
+        return next;
+      }
+      return [...prev, msg];
+    });
+  });
+
+  // Fallback poll for the active channel — only runs when SSE is not connected
+  useEffect(() => {
+    if (sseConnected) return;
     const id = setInterval(() => {
-      getMessages(activeChannelId).then(setMessages).catch(console.error);
+      getMessages(activeChannelId)
+        .then((msgs) => setMessages(msgs))
+        .catch(console.error);
     }, 3000);
     return () => clearInterval(id);
-  }, [activeChannelId]);
+  }, [activeChannelId, sseConnected]);
 
   useEffect(() => {
     if (channels.length === 0) return;
@@ -265,7 +299,9 @@ export default function ProfilePage() {
     try {
       const msg = await postMessage(activeChannelId, user.id, msgBody.trim());
       scrollOnNextRender.current = true;
-      setMessages((prev) => [...prev, msg]);
+      setMessages((prev) =>
+        prev.some((m) => m.id === msg.id) ? prev : [...prev, msg],
+      );
       setMsgBody("");
     } catch (err) {
       console.error(err);
@@ -282,14 +318,18 @@ export default function ProfilePage() {
           `Kan nogen tage min vagt til ${swapTargetShift.name}?`,
         { type: "shift_swap", shift_night_id: swapTargetShift.id },
       );
-      setAllMessages((prev) => [...prev, msg]);
+      setAllMessages((prev) =>
+        prev.some((m) => m.id === msg.id) ? prev : [...prev, msg],
+      );
       setShowSwapModal(false);
       setSwapModalMessage("");
       setSwapTargetShift(null);
       // If already on channel 2, push the message in and scroll
       if (activeChannelId === 2) {
         scrollOnNextRender.current = true;
-        setMessages((prev) => [...prev, msg]);
+        setMessages((prev) =>
+          prev.some((m) => m.id === msg.id) ? prev : [...prev, msg],
+        );
       }
     } catch (err) {
       console.error(err);
