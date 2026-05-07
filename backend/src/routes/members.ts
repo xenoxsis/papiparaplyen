@@ -138,7 +138,7 @@ router.put("/:id/roles", requireAuth, async (req, res) => {
     await transaction.request().input("memberId", sql.Int, memberId).query(`
         DELETE mr FROM dbo.member_roles mr
         JOIN dbo.roles r ON r.id = mr.role_id
-        WHERE mr.member_id = @memberId AND r.name IN ('Vagt','Administrator')
+        WHERE mr.member_id = @memberId AND r.name IN ('Vagt','Administrator','Tilskuer')
       `);
 
     // Add new role rows

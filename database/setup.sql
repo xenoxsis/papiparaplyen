@@ -169,7 +169,7 @@ GO
 -- =============================================================
 
 -- Roles (fixed lookup values – inserted with explicit IDs)
-INSERT INTO dbo.roles (id, name) VALUES (1, N'Vagt'), (2, N'Administrator'), (3, N'Medlem');
+INSERT INTO dbo.roles (id, name) VALUES (1, N'Vagt'), (2, N'Administrator'), (3, N'Medlem'), (4, N'Tilskuer');
 GO
 
 -- Channels

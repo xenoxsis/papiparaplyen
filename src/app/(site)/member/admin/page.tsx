@@ -21,11 +21,12 @@ import {
 } from "@/lib/api";
 import { useRequireAuth } from "@/lib/useRequireAuth";
 
-type Role = "Vagt" | "Administrator";
+type Role = "Vagt" | "Administrator" | "Tilskuer";
 
 const ROLE_STYLES: Record<Role, string> = {
   Vagt: "bg-[#2a9d8f]/10 text-[#2a9d8f]",
   Administrator: "bg-[#f4a261]/15 text-[#d4751a]",
+  Tilskuer: "bg-blue-50 text-blue-600",
 };
 
 const SUPERUSER_EMAIL = "REDACTED";
@@ -45,9 +46,15 @@ export default function AdminPage() {
     const m = members.find((m) => m.id === id);
     if (!m) return;
     const hasRole = m.roles.includes(role);
+    const MUTUAL_EXCLUSIONS: Partial<Record<Role, Role>> = {
+      Vagt: "Tilskuer",
+      Tilskuer: "Vagt",
+    };
     const rolesForApi = (
-      hasRole ? m.roles.filter((r) => r !== role) : [...m.roles, role]
-    ).filter((r) => r === "Vagt" || r === "Administrator");
+      hasRole
+        ? m.roles.filter((r) => r !== role)
+        : [...m.roles.filter((r) => r !== MUTUAL_EXCLUSIONS[role]), role]
+    ).filter((r) => r === "Vagt" || r === "Administrator" || r === "Tilskuer");
     try {
       const updated = await putMemberRoles(id, rolesForApi);
       setMembers((prev) => prev.map((m) => (m.id === id ? updated : m)));
@@ -96,6 +103,8 @@ export default function AdminPage() {
     Administrator: members.filter(
       (m) => m.roles.includes("Administrator") && !m.banned,
     ).length,
+    Tilskuer: members.filter((m) => m.roles.includes("Tilskuer") && !m.banned)
+      .length,
     banned: members.filter((m) => m.banned).length,
   };
 
@@ -187,7 +196,9 @@ export default function AdminPage() {
 
         {/* Filter chips */}
         <div className="flex items-center gap-2 flex-wrap">
-          {(["alle", "Vagt", "Administrator", "banned"] as const).map((f) => (
+          {(
+            ["alle", "Vagt", "Tilskuer", "Administrator", "banned"] as const
+          ).map((f) => (
             <button
               key={f}
               onClick={() => setFilter(f)}
@@ -271,19 +282,21 @@ export default function AdminPage() {
                         <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-neutral-100 text-neutral-500 border border-transparent">
                           Medlem
                         </span>
-                        {(["Vagt", "Administrator"] as Role[]).map((r) => (
-                          <button
-                            key={r}
-                            onClick={() => toggleRole(m.id, r)}
-                            className={`text-[11px] font-medium px-2 py-0.5 rounded-full border transition-colors ${
-                              m.roles.includes(r)
-                                ? ROLE_STYLES[r] + " border-transparent"
-                                : "bg-white text-neutral-400 border-neutral-200 hover:border-neutral-400"
-                            }`}
-                          >
-                            {r}
-                          </button>
-                        ))}
+                        {(["Vagt", "Tilskuer", "Administrator"] as Role[]).map(
+                          (r) => (
+                            <button
+                              key={r}
+                              onClick={() => toggleRole(m.id, r)}
+                              className={`text-[11px] font-medium px-2 py-0.5 rounded-full border transition-colors ${
+                                m.roles.includes(r)
+                                  ? ROLE_STYLES[r] + " border-transparent"
+                                  : "bg-white text-neutral-400 border-neutral-200 hover:border-neutral-400"
+                              }`}
+                            >
+                              {r}
+                            </button>
+                          ),
+                        )}
                       </div>
                     )}
                   </td>
