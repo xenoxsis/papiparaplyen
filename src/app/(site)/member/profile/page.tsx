@@ -411,11 +411,12 @@ export default function ProfilePage() {
     return channelMembers
       .filter(
         (m) =>
-          m.name.toLowerCase().includes(q) ||
-          m.initials.toLowerCase().includes(q),
+          m.id !== user?.id &&
+          (m.name.toLowerCase().includes(q) ||
+            m.initials.toLowerCase().includes(q)),
       )
       .slice(0, 6);
-  }, [mentionQuery, channelMembers]);
+  }, [mentionQuery, channelMembers, user?.id]);
 
   function handleInputChange(e: React.ChangeEvent<HTMLInputElement>) {
     const value = e.target.value;
