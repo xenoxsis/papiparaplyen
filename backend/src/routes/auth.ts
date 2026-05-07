@@ -214,6 +214,56 @@ router.post("/change-password", requireAuth, async (req, res) => {
   return res.json({ ok: true });
 });
 
+// GET /api/auth/email-prefs — get own email notification preferences
+router.get("/email-prefs", requireAuth, async (_req, res) => {
+  const memberId: number = res.locals.jwt.memberId;
+  const pool = await getPool();
+  const result = await pool
+    .request()
+    .input("memberId", sql.Int, memberId)
+    .query(
+      "SELECT email_on_mention, email_on_nights, email_on_shift FROM dbo.users WHERE member_id = @memberId",
+    );
+  if (result.recordset.length === 0)
+    return res.status(404).json({ error: "Not found" });
+  const row = result.recordset[0];
+  return res.json({
+    email_on_mention:
+      row.email_on_mention === true || row.email_on_mention === 1,
+    email_on_nights: row.email_on_nights === true || row.email_on_nights === 1,
+    email_on_shift: row.email_on_shift === true || row.email_on_shift === 1,
+  });
+});
+
+// PATCH /api/auth/email-prefs — update own email notification preferences
+router.patch("/email-prefs", requireAuth, async (req, res) => {
+  const memberId: number = res.locals.jwt.memberId;
+  const pool = await getPool();
+  const updates: string[] = [];
+  const request = pool.request().input("memberId", sql.Int, memberId);
+
+  if (typeof req.body.email_on_mention === "boolean") {
+    request.input("emailOnMention", sql.Bit, req.body.email_on_mention ? 1 : 0);
+    updates.push("email_on_mention = @emailOnMention");
+  }
+  if (typeof req.body.email_on_nights === "boolean") {
+    request.input("emailOnNights", sql.Bit, req.body.email_on_nights ? 1 : 0);
+    updates.push("email_on_nights = @emailOnNights");
+  }
+  if (typeof req.body.email_on_shift === "boolean") {
+    request.input("emailOnShift", sql.Bit, req.body.email_on_shift ? 1 : 0);
+    updates.push("email_on_shift = @emailOnShift");
+  }
+
+  if (updates.length > 0) {
+    await request.query(
+      `UPDATE dbo.users SET ${updates.join(", ")} WHERE member_id = @memberId`,
+    );
+  }
+
+  return res.json({ ok: true });
+});
+
 // POST /api/auth/forgot-password
 router.post("/forgot-password", async (req, res) => {
   const { email } = req.body ?? {};

@@ -6,6 +6,7 @@ import {
   createNotification,
   createNotificationForMany,
 } from "../notifications";
+import { sendMentionEmail } from "../scheduleEmails";
 
 const router = Router();
 
@@ -187,12 +188,25 @@ router.post("/:id/messages", requireAuth, async (req, res) => {
   }
   if (mentionedIds.size > 0) {
     const senderName: string = row.recordset[0]?.sender_name ?? "Nogen";
+    // Fetch channel name for the mention email
+    const chanNameResult = await pool
+      .request()
+      .input("channelId", sql.Int, channelId)
+      .query("SELECT name FROM dbo.channels WHERE id = @channelId");
+    const channelName: string = chanNameResult.recordset[0]?.name ?? "kanalen";
+    const messageBody: string = req.body.body ?? "";
     await createNotificationForMany(
       Array.from(mentionedIds),
       "mentioned",
-      `${senderName} nævnte dig i en besked`,
+      `${senderName} n\u00e6vnte dig i en besked`,
       "/member/profile",
     );
+    // Send mention email to each mentioned member (respects email_on_mention pref)
+    for (const mentionedId of mentionedIds) {
+      sendMentionEmail(mentionedId, senderName, channelName, messageBody).catch(
+        (err) => console.error("[channels] mention email failed:", err),
+      );
+    }
   }
 
   // Notify channel members about the new swap request (excluding sender)

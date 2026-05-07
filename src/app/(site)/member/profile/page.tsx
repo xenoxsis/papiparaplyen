@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { toast } from "sonner";
 import {
@@ -42,6 +43,9 @@ import {
   type ApiMessage,
   type ApiScheduleReview,
   type ApiChannelMember,
+  getEmailPrefs,
+  patchEmailPrefs,
+  type ApiEmailPrefs,
 } from "@/lib/api";
 import { useChannelSSE } from "@/lib/useChannelSSE";
 import { renderMessageBody } from "@/lib/renderMentions";
@@ -129,6 +133,9 @@ export default function ProfilePage() {
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
   const [mentionIndex, setMentionIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  const mentionContainerRef = useRef<HTMLDivElement>(null);
+  const [mentionDropsDown, setMentionDropsDown] = useState(false);
+  const [dropdownRect, setDropdownRect] = useState<DOMRect | null>(null);
   const [channelSearch, setChannelSearch] = useState("");
   const [showChannelSearch, setShowChannelSearch] = useState(false);
   const [showChannelDrawer, setShowChannelDrawer] = useState(false);
@@ -154,7 +161,10 @@ export default function ProfilePage() {
 
   // Edit profile modal state
   const [showEditModal, setShowEditModal] = useState(false);
-  const [editTab, setEditTab] = useState<"name" | "password">("name");
+  const [editTab, setEditTab] = useState<"name" | "password" | "emails">(
+    "name",
+  );
+  const [emailPrefs, setEmailPrefs] = useState<ApiEmailPrefs | null>(null);
   const [editName, setEditName] = useState("");
   const [editCurrentPw, setEditCurrentPw] = useState("");
   const [editNewPw, setEditNewPw] = useState("");
@@ -168,6 +178,7 @@ export default function ProfilePage() {
     setEditConfirmPw("");
     setEditTab("name");
     setShowEditModal(true);
+    getEmailPrefs().then(setEmailPrefs).catch(console.error);
   }
 
   async function handleSaveName() {
@@ -418,6 +429,17 @@ export default function ProfilePage() {
       .slice(0, 6);
   }, [mentionQuery, channelMembers, user?.id]);
 
+  // When dropdown opens, check if there's room above; if not, open downward
+  useEffect(() => {
+    if (mentionQuery === null) return;
+    const el = mentionContainerRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const estimatedHeight = Math.min(mentionResults.length, 6) * 44 + 8;
+    setDropdownRect(rect);
+    setMentionDropsDown(rect.top < estimatedHeight);
+  }, [mentionQuery !== null, mentionResults.length]);
+
   function handleInputChange(e: React.ChangeEvent<HTMLInputElement>) {
     const value = e.target.value;
     setMsgBody(value);
@@ -659,7 +681,17 @@ export default function ProfilePage() {
       )}
 
       {/* Profile Hero */}
-      <MemberHero>
+      <MemberHero
+        action={
+          <button
+            onClick={openEditModal}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/20 text-white/70 hover:bg-white/10 hover:text-white transition-colors text-xs font-medium cursor-pointer"
+          >
+            <Pencil className="size-3.5" />
+            Rediger profil
+          </button>
+        }
+      >
         <div className="flex flex-col items-center">
           <span className="font-bold text-2xl text-[#f4a261]">
             {shifts.length}
@@ -674,13 +706,6 @@ export default function ProfilePage() {
           <span className="text-white/60 text-xs">Klubaftener</span>
         </div>
         <div className="hidden sm:block w-px h-10 bg-white/20" />
-        <button
-          onClick={openEditModal}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/20 text-white/70 hover:bg-white/10 hover:text-white transition-colors text-xs font-medium cursor-pointer"
-        >
-          <Pencil className="size-3.5" />
-          Rediger profil
-        </button>
       </MemberHero>
 
       {/* Unreviewed nights banner — for vagter */}
@@ -1572,35 +1597,56 @@ export default function ProfilePage() {
               <button className="inline-flex items-center justify-center w-8 h-8 rounded-md border-none bg-transparent text-neutral-500 hover:bg-neutral-100 transition-colors cursor-pointer">
                 <Smile className="size-4" />
               </button> */}
-              <div className="flex-1 relative">
-                {mentionQuery !== null && mentionResults.length > 0 && (
-                  <div className="absolute bottom-full left-0 right-0 mb-1 bg-white border border-neutral-200 rounded-xl shadow-lg overflow-hidden z-50">
-                    {mentionResults.map((member, i) => (
-                      <button
-                        key={member.id}
-                        onMouseDown={(e) => {
-                          e.preventDefault();
-                          selectMention(member);
-                        }}
-                        className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left transition-colors border-none bg-transparent cursor-pointer ${
-                          i === mentionIndex
-                            ? "bg-neutral-100"
-                            : "hover:bg-neutral-50"
-                        }`}
-                      >
-                        <div className="w-6 h-6 rounded-full bg-[#e63946] text-white flex items-center justify-center text-[0.55rem] font-bold shrink-0">
-                          {member.initials}
-                        </div>
-                        <span className="font-medium text-neutral-900">
-                          {member.name}
-                        </span>
-                        <span className="text-neutral-400 text-xs ml-auto">
-                          {member.initials}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                )}
+              <div className="flex-1 relative" ref={mentionContainerRef}>
+                {mentionQuery !== null &&
+                  mentionResults.length > 0 &&
+                  dropdownRect &&
+                  createPortal(
+                    <div
+                      style={{
+                        position: "fixed",
+                        left: dropdownRect.left,
+                        width: dropdownRect.width,
+                        ...(mentionDropsDown
+                          ? { top: dropdownRect.bottom + 4 }
+                          : {
+                              bottom: window.innerHeight - dropdownRect.top + 4,
+                            }),
+                        zIndex: 9999,
+                        background: "white",
+                        border: "1px solid #e5e7eb",
+                        borderRadius: 12,
+                        boxShadow: "0 4px 24px rgba(0,0,0,0.10)",
+                        overflow: "hidden",
+                      }}
+                    >
+                      {mentionResults.map((member, i) => (
+                        <button
+                          key={member.id}
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            selectMention(member);
+                          }}
+                          className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left transition-colors border-none bg-transparent cursor-pointer ${
+                            i === mentionIndex
+                              ? "bg-neutral-100"
+                              : "hover:bg-neutral-50"
+                          }`}
+                        >
+                          <div className="w-6 h-6 rounded-full bg-[#e63946] text-white flex items-center justify-center text-[0.55rem] font-bold shrink-0">
+                            {member.initials}
+                          </div>
+                          <span className="font-medium text-neutral-900">
+                            {member.name}
+                          </span>
+                          <span className="text-neutral-400 text-xs ml-auto">
+                            {member.initials}
+                          </span>
+                        </button>
+                      ))}
+                    </div>,
+                    document.body,
+                  )}
                 <input
                   ref={inputRef}
                   className="w-full h-10 border border-neutral-200 rounded-lg px-3 text-sm outline-none font-[inherit] bg-transparent placeholder:text-neutral-400 focus:border-neutral-900"
@@ -1688,11 +1734,81 @@ export default function ProfilePage() {
               >
                 Adgangskode
               </button>
+              <button
+                onClick={() => setEditTab("emails")}
+                className={`flex-1 py-2.5 text-sm font-medium transition-colors cursor-pointer border-none bg-transparent ${editTab === "emails" ? "text-neutral-900 border-b-2 border-neutral-900" : "text-neutral-500 hover:text-neutral-700"}`}
+              >
+                E-mails
+              </button>
             </div>
 
             {/* Content */}
             <div className="p-5 flex flex-col gap-4">
-              {editTab === "name" ? (
+              {editTab === "emails" ? (
+                <div className="flex flex-col gap-4">
+                  {(
+                    [
+                      "email_on_mention",
+                      "email_on_nights",
+                      "email_on_shift",
+                    ] as const
+                  ).map((key) => {
+                    const labels: Record<typeof key, string> = {
+                      email_on_mention: "E-mail når du @omtales",
+                      email_on_nights: "E-mail ved nye klubaftener",
+                      email_on_shift: "E-mail når du tildeles en vagt",
+                    };
+                    const enabled = emailPrefs?.[key] ?? true;
+                    return (
+                      <div
+                        key={key}
+                        className="flex items-center justify-between gap-3"
+                      >
+                        <span className="text-sm text-neutral-700">
+                          {labels[key]}
+                        </span>
+                        <button
+                          onClick={() => {
+                            const next = !enabled;
+                            setEmailPrefs((p) =>
+                              p ? { ...p, [key]: next } : p,
+                            );
+                            patchEmailPrefs({ [key]: next }).catch(
+                              console.error,
+                            );
+                          }}
+                          style={{
+                            position: "relative",
+                            width: 40,
+                            height: 24,
+                            borderRadius: 9999,
+                            border: "none",
+                            cursor: "pointer",
+                            backgroundColor: enabled ? "#171717" : "#e5e5e5",
+                            transition: "background-color 150ms",
+                            flexShrink: 0,
+                          }}
+                        >
+                          <span
+                            style={{
+                              position: "absolute",
+                              top: "50%",
+                              left: enabled ? 20 : 4,
+                              transform: "translateY(-50%)",
+                              width: 16,
+                              height: 16,
+                              borderRadius: 9999,
+                              backgroundColor: "white",
+                              boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+                              transition: "left 150ms",
+                            }}
+                          />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : editTab === "name" ? (
                 <>
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-medium text-neutral-700">

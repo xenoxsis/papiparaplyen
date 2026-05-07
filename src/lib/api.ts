@@ -240,6 +240,22 @@ export const markNotificationRead = (id: number) =>
 export const markAllNotificationsRead = () =>
   api<{ ok: boolean }>("/api/notifications/read-all", { method: "PATCH" });
 
+// ── Email preferences ───────────────────────────────────────────────────────────
+
+export type ApiEmailPrefs = {
+  email_on_mention: boolean;
+  email_on_nights: boolean;
+  email_on_shift: boolean;
+};
+
+export const getEmailPrefs = () => api<ApiEmailPrefs>("/api/auth/email-prefs");
+
+export const patchEmailPrefs = (prefs: Partial<ApiEmailPrefs>) =>
+  api<{ ok: boolean }>("/api/auth/email-prefs", {
+    method: "PATCH",
+    body: JSON.stringify(prefs),
+  });
+
 // ── Channel Members ───────────────────────────────────────────────────────────
 
 export type ApiChannelMember = {

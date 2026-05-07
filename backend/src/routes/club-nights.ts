@@ -5,6 +5,7 @@ import {
   createNotification,
   createNotificationForMany,
 } from "../notifications";
+import { queueNewNightEmail, sendShiftAssignedEmail } from "../scheduleEmails";
 
 const router = Router();
 
@@ -155,6 +156,15 @@ router.post("/", requireAuth, async (req, res) => {
     "/member/schedule",
   );
 
+  // Queue debounced digest email to all Vagter/Admins
+  queueNewNightEmail({
+    name: night.name,
+    date: night.date,
+    time_from: night.time_from,
+    time_to: night.time_to,
+    location: night.location,
+  });
+
   return res.status(201).json(night);
 });
 
@@ -232,6 +242,16 @@ router.patch("/:id", requireAuth, async (req, res) => {
       "shift_assigned",
       `Du er blevet tildelt vagten: ${updatedNight.name}`,
       "/member/schedule",
+    );
+    // Send assignment email (fire-and-forget — don't block the response)
+    sendShiftAssignedEmail(newVagt, {
+      name: updatedNight.name,
+      date: updatedNight.date,
+      time_from: updatedNight.time_from,
+      time_to: updatedNight.time_to,
+      location: updatedNight.location,
+    }).catch((err) =>
+      console.error("[scheduleEmails] shift-assigned send failed:", err),
     );
   }
 

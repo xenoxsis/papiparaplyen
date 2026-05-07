@@ -3,7 +3,13 @@
 import { ReactNode } from "react";
 import { useAuth } from "@/lib/auth-context";
 
-export function MemberHero({ children }: { children: ReactNode }) {
+export function MemberHero({
+  children,
+  action,
+}: {
+  children: ReactNode;
+  action?: ReactNode;
+}) {
   const { user } = useAuth();
   const name = user?.name ?? "Gæst";
   const initials = user?.initials ?? "?";
@@ -41,8 +47,12 @@ export function MemberHero({ children }: { children: ReactNode }) {
           </div>
         </div>
       </div>
+      {/* On mobile: action sits between name and counters */}
+      {action && <div className="sm:hidden">{action}</div>}
       <div className="flex items-center justify-center sm:justify-start gap-4 sm:gap-6 shrink-0 flex-wrap">
         {children}
+        {/* On desktop: action sits after the counters */}
+        {action && <div className="hidden sm:block">{action}</div>}
       </div>
     </div>
   );

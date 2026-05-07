@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import { getPool, sql } from "./db";
+import { touchPresence } from "./presence";
 
 if (!process.env.JWT_SECRET) {
   throw new Error("JWT_SECRET environment variable is required");
@@ -45,6 +46,7 @@ export function requireAuth(
     return;
   }
   res.locals.jwt = payload;
+  touchPresence(payload.memberId);
   next();
 }
 
