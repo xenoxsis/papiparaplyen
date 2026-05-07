@@ -35,6 +35,8 @@ export default function SchedulePage() {
   useRequireAuth();
   const { user } = useAuth();
   const isAdmin = user?.roles.includes("Administrator") ?? false;
+  const isTilskuer =
+    !isAdmin && (user?.roles.includes("Tilskuer") ?? false);
 
   // ── Data ─────────────────────────────────────────────────────────────────
   const {
@@ -369,7 +371,7 @@ export default function SchedulePage() {
 
           <CardContent className="flex p-0 flex-col gap-3">
             {/* Vagt review banner */}
-            {hasUnreviewedNights && (
+            {hasUnreviewedNights && !isTilskuer && (
               <div className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-lg border border-[#F4A261]/40 bg-[#F4A261]/10 p-3">
                 <div className="flex-1">
                   <p className="text-sm font-medium text-neutral-800">
