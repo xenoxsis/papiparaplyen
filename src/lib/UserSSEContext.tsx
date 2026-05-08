@@ -54,7 +54,11 @@ export function UserSSEProvider({
 
   const dispatch = useCallback((evt: UserSSEEvent) => {
     for (const h of handlers.current) {
-      try { h(evt); } catch { /* ignore handler errors */ }
+      try {
+        h(evt);
+      } catch {
+        /* ignore handler errors */
+      }
     }
   }, []);
 
@@ -72,13 +76,17 @@ export function UserSSEProvider({
       );
       esRef.current = es;
 
-      es.onopen = () => { retryDelay.current = 1_000; };
+      es.onopen = () => {
+        retryDelay.current = 1_000;
+      };
 
       es.onmessage = (e) => {
         try {
           const parsed = JSON.parse(e.data) as UserSSEEvent;
           if (parsed.event) dispatch(parsed);
-        } catch { /* ignore malformed frames */ }
+        } catch {
+          /* ignore malformed frames */
+        }
       };
 
       es.onerror = () => {
@@ -102,8 +110,12 @@ export function UserSSEProvider({
     };
   }, [userId, dispatch]);
 
-  const subscribe = useCallback((h: Handler) => { handlers.current.add(h); }, []);
-  const unsubscribe = useCallback((h: Handler) => { handlers.current.delete(h); }, []);
+  const subscribe = useCallback((h: Handler) => {
+    handlers.current.add(h);
+  }, []);
+  const unsubscribe = useCallback((h: Handler) => {
+    handlers.current.delete(h);
+  }, []);
 
   return (
     <UserSSEContext.Provider value={{ subscribe, unsubscribe }}>
