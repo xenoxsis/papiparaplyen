@@ -205,7 +205,7 @@ export default function LoginPage() {
               </div>
             </div>
             {loginError && (
-              <p className="text-sm text-[#e63946] text-center">{loginError}</p>
+              <p className="text-sm text-brand-red text-center">{loginError}</p>
             )}
             <Button
               type="submit"
@@ -327,7 +327,7 @@ export default function LoginPage() {
               </div>
             </div>
             {regError && (
-              <p className="text-sm text-[#e63946] text-center">{regError}</p>
+              <p className="text-sm text-brand-red text-center">{regError}</p>
             )}
             <Button
               type="submit"

@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useRequireAuth } from "@/lib/useRequireAuth";
+import { Modal } from "@/components/Modal";
 import {
   deleteClubNight,
   deleteClubNightOptOut,
@@ -145,34 +146,37 @@ export default function SchedulePage() {
             (v) => v.id === draft.confirmDialog!.newMemberId,
           );
           return (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-              <div className="bg-white rounded-xl shadow-xl w-full max-w-sm mx-4 p-6 flex flex-col gap-4">
-                <h2 className="font-semibold text-base text-neutral-900">
-                  Erstat vagt?
-                </h2>
-                <p className="text-sm text-neutral-500">
-                  <span className="font-semibold text-neutral-900">
-                    {current?.name}
-                  </span>{" "}
-                  er allerede tildelt. Vil du erstatte med{" "}
-                  <span className="font-semibold text-neutral-900">
-                    {newMember?.name}
-                  </span>
-                  ?
-                </p>
-                <div className="flex gap-2 justify-end">
-                  <Button variant="outline" onClick={draft.cancelConfirm}>
-                    Annuller
-                  </Button>
-                  <Button
-                    className="bg-[#E63946] hover:bg-red-600 text-white"
-                    onClick={draft.confirmReplace}
-                  >
-                    Erstat
-                  </Button>
-                </div>
+            <Modal
+              open={!!draft.confirmDialog}
+              onClose={draft.cancelConfirm}
+              maxWidth="max-w-sm"
+              panelClassName="p-6 flex flex-col gap-4"
+            >
+              <h2 className="font-semibold text-base text-neutral-900">
+                Erstat vagt?
+              </h2>
+              <p className="text-sm text-neutral-500">
+                <span className="font-semibold text-neutral-900">
+                  {current?.name}
+                </span>{" "}
+                er allerede tildelt. Vil du erstatte med{" "}
+                <span className="font-semibold text-neutral-900">
+                  {newMember?.name}
+                </span>
+                ?
+              </p>
+              <div className="flex gap-2 justify-end">
+                <Button variant="outline" onClick={draft.cancelConfirm}>
+                  Annuller
+                </Button>
+                <Button
+                  className="bg-brand-red hover:bg-red-600 text-white"
+                  onClick={draft.confirmReplace}
+                >
+                  Erstat
+                </Button>
               </div>
-            </div>
+            </Modal>
           );
         })()}
 
@@ -181,54 +185,57 @@ export default function SchedulePage() {
         (() => {
           const night = nights.find((n) => n.id === deleteConfirmId);
           return (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-              <div className="bg-white rounded-xl shadow-xl w-full max-w-sm mx-4 p-6 flex flex-col gap-4">
-                <h2 className="font-semibold text-base text-neutral-900">
-                  Slet klubaften?
-                </h2>
-                <p className="text-sm text-neutral-500">
-                  Er du sikker på at du vil slette{" "}
-                  <span className="font-semibold text-neutral-900">
-                    {night?.name}
-                  </span>
-                  ? Dette kan ikke fortrydes.
-                </p>
-                <div className="flex gap-2 justify-end">
-                  <Button
-                    variant="outline"
-                    onClick={() => setDeleteConfirmId(null)}
-                  >
-                    Annuller
-                  </Button>
-                  <Button
-                    className="bg-[#E63946] hover:bg-red-600 text-white"
-                    onClick={async () => {
-                      try {
-                        await deleteClubNight(deleteConfirmId);
-                        setNights((prev) =>
-                          prev.filter((n) => n.id !== deleteConfirmId),
-                        );
-                        draft.deletePending(deleteConfirmId);
-                      } catch (err) {
-                        console.error(err);
-                        toast.error("Noget gik galt. Prøv igen.");
-                      } finally {
-                        setDeleteConfirmId(null);
-                      }
-                    }}
-                  >
-                    Slet
-                  </Button>
-                </div>
+            <Modal
+              open={deleteConfirmId !== null}
+              onClose={() => setDeleteConfirmId(null)}
+              maxWidth="max-w-sm"
+              panelClassName="p-6 flex flex-col gap-4"
+            >
+              <h2 className="font-semibold text-base text-neutral-900">
+                Slet klubaften?
+              </h2>
+              <p className="text-sm text-neutral-500">
+                Er du sikker på at du vil slette{" "}
+                <span className="font-semibold text-neutral-900">
+                  {night?.name}
+                </span>
+                ? Dette kan ikke fortrydes.
+              </p>
+              <div className="flex gap-2 justify-end">
+                <Button
+                  variant="outline"
+                  onClick={() => setDeleteConfirmId(null)}
+                >
+                  Annuller
+                </Button>
+                <Button
+                  className="bg-brand-red hover:bg-red-600 text-white"
+                  onClick={async () => {
+                    try {
+                      await deleteClubNight(deleteConfirmId!);
+                      setNights((prev) =>
+                        prev.filter((n) => n.id !== deleteConfirmId),
+                      );
+                      draft.deletePending(deleteConfirmId!);
+                    } catch (err) {
+                      console.error(err);
+                      toast.error("Noget gik galt. Prøv igen.");
+                    } finally {
+                      setDeleteConfirmId(null);
+                    }
+                  }}
+                >
+                  Slet
+                </Button>
               </div>
-            </div>
+            </Modal>
           );
         })()}
 
       {/* Hero stats */}
       <MemberHero>
         <div className="flex flex-col items-center">
-          <span className="font-bold text-[#F4A261] text-2xl leading-8">
+          <span className="font-bold text-brand-orange text-2xl leading-8">
             {nights.length}
           </span>
           <span className="text-white/60 text-xs leading-4">
@@ -239,7 +246,7 @@ export default function SchedulePage() {
           <>
             <div className="hidden sm:block bg-white/20 w-px h-10" />
             <div className="flex flex-col items-center">
-              <span className="font-bold text-[#E63946] text-2xl leading-8">
+              <span className="font-bold text-brand-red text-2xl leading-8">
                 {missingCount}
               </span>
               <span className="text-white/60 text-xs leading-4">
@@ -248,7 +255,7 @@ export default function SchedulePage() {
             </div>
             <div className="hidden sm:block bg-white/20 w-px h-10" />
             <div className="flex flex-col items-center">
-              <span className="font-bold text-[#F4A261] text-2xl leading-8">
+              <span className="font-bold text-brand-orange text-2xl leading-8">
                 {awaitingConfirmCount}
               </span>
               <span className="text-white/60 text-xs leading-4">
@@ -257,7 +264,7 @@ export default function SchedulePage() {
             </div>
             <div className="hidden sm:block bg-white/20 w-px h-10" />
             <div className="flex flex-col items-center">
-              <span className="font-bold text-[#2A9D8F] text-2xl leading-8">
+              <span className="font-bold text-brand-teal text-2xl leading-8">
                 {vagter.length}
               </span>
               <span className="text-white/60 text-xs leading-4">
@@ -285,7 +292,7 @@ export default function SchedulePage() {
               </div>
               {isAdmin && (
                 <Button
-                  className="bg-[#E63946] text-white gap-2"
+                  className="bg-brand-red text-white gap-2"
                   onClick={() => setShowAddModal(true)}
                 >
                   <Plus className="size-4" />
@@ -318,7 +325,7 @@ export default function SchedulePage() {
                   Fortryd
                 </Button>
                 <Button
-                  className="bg-[#2A9D8F] hover:bg-teal-700 text-white gap-2"
+                  className="bg-brand-teal hover:bg-teal-700 text-white gap-2"
                   onClick={draft.saveChanges}
                   disabled={draft.saving}
                 >
@@ -331,8 +338,12 @@ export default function SchedulePage() {
             )}
 
             <div className="relative">
-              <Search className="size-4 top-1/2 -translate-y-1/2 text-neutral-500 absolute left-3" />
+              <Search
+                className="size-4 top-1/2 -translate-y-1/2 text-neutral-500 absolute left-3"
+                aria-hidden="true"
+              />
               <Input
+                aria-label="Søg efter klubaften"
                 placeholder="Søg efter klubaften…"
                 className="pl-9 h-9"
                 value={search}
@@ -349,7 +360,7 @@ export default function SchedulePage() {
                 }}
                 className={`flex items-center gap-1.5 text-xs font-medium rounded-full px-3 py-1 border cursor-pointer transition-colors ${
                   filterUnreviewed
-                    ? "bg-[#F4A261] border-[#F4A261] text-white"
+                    ? "bg-brand-orange border-brand-orange text-white"
                     : "bg-white border-neutral-200 text-neutral-600 hover:border-neutral-400"
                 }`}
               >
@@ -363,7 +374,7 @@ export default function SchedulePage() {
                   }}
                   className={`flex items-center gap-1.5 text-xs font-medium rounded-full px-3 py-1 border cursor-pointer transition-colors ${
                     filterMissingVagt
-                      ? "bg-[#E63946] border-[#E63946] text-white"
+                      ? "bg-brand-red border-brand-red text-white"
                       : "bg-white border-neutral-200 text-neutral-600 hover:border-neutral-400"
                   }`}
                 >
@@ -376,7 +387,7 @@ export default function SchedulePage() {
           <CardContent className="flex p-0 flex-col gap-3">
             {/* Vagt review banner */}
             {hasUnreviewedNights && !isTilskuer && (
-              <div className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-lg border border-[#F4A261]/40 bg-[#F4A261]/10 p-3">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-lg border border-brand-orange/40 bg-brand-orange/10 p-3">
                 <div className="flex-1">
                   <p className="text-sm font-medium text-neutral-800">
                     Der er nye aftener siden du sidst gennemgik skemaet
@@ -388,7 +399,7 @@ export default function SchedulePage() {
                 <button
                   onClick={submitReview}
                   disabled={submittingReview}
-                  className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#F4A261] text-white text-xs font-semibold hover:bg-orange-400 transition-colors cursor-pointer border-none disabled:opacity-60 w-full sm:w-auto justify-center"
+                  className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-orange text-white text-xs font-semibold hover:bg-orange-400 transition-colors cursor-pointer border-none disabled:opacity-60 w-full sm:w-auto justify-center"
                 >
                   <Check className="size-3.5" />
                   {submittingReview ? "Gemmer…" : "Jeg har gennemgået skemaet"}
@@ -465,7 +476,7 @@ export default function SchedulePage() {
             <Card className="p-6 gap-4 flex flex-col">
               <CardHeader className="p-0 gap-1 flex flex-col">
                 <div className="flex items-center gap-2">
-                  <UserCheck className="size-5 text-[#2A9D8F]" />
+                  <UserCheck className="size-5 text-brand-teal" />
                   <CardTitle className="text-base leading-6">
                     Skemaoversigt
                   </CardTitle>
@@ -490,18 +501,18 @@ export default function SchedulePage() {
                       key={m.id}
                       className="flex items-center gap-2 rounded-md px-2 py-2 border border-neutral-100 bg-white"
                     >
-                      <div className="w-7 h-7 rounded-full bg-[#E63946] text-white flex items-center justify-center text-[0.55rem] font-bold select-none shrink-0">
+                      <div className="w-7 h-7 rounded-full bg-brand-red text-white flex items-center justify-center text-[0.55rem] font-bold select-none shrink-0">
                         {m.initials}
                       </div>
                       <span className="text-xs font-medium text-neutral-800 flex-1 truncate">
                         {m.name}
                       </span>
                       {hasUnreviewed ? (
-                        <span className="text-[10px] text-[#E63946] font-medium whitespace-nowrap">
+                        <span className="text-[10px] text-brand-red font-medium whitespace-nowrap">
                           Ikke gennemgået
                         </span>
                       ) : (
-                        <span className="flex items-center gap-1 text-[10px] text-[#2A9D8F] font-medium whitespace-nowrap">
+                        <span className="flex items-center gap-1 text-[10px] text-brand-teal font-medium whitespace-nowrap">
                           <Check className="size-3" />
                           Gennemgået
                         </span>

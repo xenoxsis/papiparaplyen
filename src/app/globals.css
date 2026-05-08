@@ -4,6 +4,10 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
+  --color-brand-red: #e63946;
+  --color-brand-teal: #2a9d8f;
+  --color-brand-orange: #f4a261;
+  --color-brand-blue: #3d5a80;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);

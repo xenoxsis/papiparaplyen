@@ -18,11 +18,11 @@ export function MemberHero({
   const isVagt = user?.roles?.includes("Vagt");
 
   const roleBadge = isAdmin ? (
-    <span className="bg-[#f4a261] text-neutral-900 text-xs font-medium px-2 py-0.5 rounded-full">
+    <span className="bg-brand-orange text-neutral-900 text-xs font-medium px-2 py-0.5 rounded-full">
       Administrator
     </span>
   ) : isVagt ? (
-    <span className="bg-[#2a9d8f] text-white text-xs font-medium px-2 py-0.5 rounded-full">
+    <span className="bg-brand-teal text-white text-xs font-medium px-2 py-0.5 rounded-full">
       Vagt
     </span>
   ) : null;
@@ -32,7 +32,7 @@ export function MemberHero({
   return (
     <div className="bg-neutral-900 rounded-2xl text-white p-6 flex flex-col sm:flex-row justify-between items-center gap-4 sm:gap-6">
       <div className="flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left">
-        <div className="w-16 h-16 rounded-full border-2 border-[#e63946] bg-[#e63946] text-white flex items-center justify-center text-lg font-bold tracking-wider select-none shrink-0">
+        <div className="w-16 h-16 rounded-full border-2 border-brand-red bg-brand-red text-white flex items-center justify-center text-lg font-bold tracking-wider select-none shrink-0">
           {initials}
         </div>
         <div className="flex flex-col gap-1">

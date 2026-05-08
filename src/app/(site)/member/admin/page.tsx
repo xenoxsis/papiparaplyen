@@ -1,14 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import {
-  AlertTriangle,
-  UserX,
-  UserCheck,
-  Search,
-  Users,
-  X,
-} from "lucide-react";
+import { AlertTriangle, UserX, UserCheck, Search, Users } from "lucide-react";
 import { MemberHero } from "@/components/MemberHero";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -20,12 +13,13 @@ import {
   type ApiMember,
 } from "@/lib/api";
 import { useRequireAuth } from "@/lib/useRequireAuth";
+import { Modal } from "@/components/Modal";
 
 type Role = "Vagt" | "Administrator" | "Tilskuer";
 
 const ROLE_STYLES: Record<Role, string> = {
-  Vagt: "bg-[#2a9d8f]/10 text-[#2a9d8f]",
-  Administrator: "bg-[#f4a261]/15 text-[#d4751a]",
+  Vagt: "bg-brand-teal/10 text-brand-teal",
+  Administrator: "bg-brand-orange/15 text-[#d4751a]",
   Tilskuer: "bg-blue-50 text-blue-600",
 };
 
@@ -112,62 +106,57 @@ export default function AdminPage() {
   return (
     <main className="bg-neutral-100 min-h-[calc(100vh-3.5rem)] p-4 sm:p-8 flex flex-col gap-6 sm:gap-8">
       {/* Confirm ban dialog */}
-      {pendingBan && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 flex flex-col gap-4">
-            <div className="flex items-start justify-between gap-4">
-              <div className="w-10 h-10 rounded-full bg-[#e63946]/10 flex items-center justify-center shrink-0">
-                <AlertTriangle className="size-5 text-[#e63946]" />
-              </div>
-              <button
-                onClick={() => setPendingBan(null)}
-                className="text-neutral-400 hover:text-neutral-700 transition-colors mt-0.5"
-              >
-                <X className="size-4" />
-              </button>
-            </div>
-            <div className="flex flex-col gap-1">
-              <h2 className="font-semibold text-neutral-900">Udeluk medlem?</h2>
-              <p className="text-sm text-neutral-500">
-                Er du sikker på, at du vil udelukke{" "}
-                <span className="font-medium text-neutral-900">
-                  {pendingBan.name}
-                </span>
-                ? Medlemmet mister adgang til alle funktioner.
-              </p>
-            </div>
-            <div className="flex gap-2 justify-end">
-              <Button variant="outline" onClick={() => setPendingBan(null)}>
-                Annullér
-              </Button>
-              <Button
-                onClick={confirmBan}
-                className="bg-[#e63946] hover:bg-red-600 text-white gap-2"
-              >
-                <UserX className="size-4" />
-                Udeluk
-              </Button>
-            </div>
+      <Modal
+        open={pendingBan !== null}
+        onClose={() => setPendingBan(null)}
+        maxWidth="max-w-sm"
+        panelClassName="p-6 flex flex-col gap-4"
+      >
+        <div className="flex items-start gap-4">
+          <div className="w-10 h-10 rounded-full bg-brand-red/10 flex items-center justify-center shrink-0">
+            <AlertTriangle className="size-5 text-brand-red" />
           </div>
         </div>
-      )}
+        <div className="flex flex-col gap-1">
+          <h2 className="font-semibold text-neutral-900">Udeluk medlem?</h2>
+          <p className="text-sm text-neutral-500">
+            Er du sikker på, at du vil udelukke{" "}
+            <span className="font-medium text-neutral-900">
+              {pendingBan?.name}
+            </span>
+            ? Medlemmet mister adgang til alle funktioner.
+          </p>
+        </div>
+        <div className="flex gap-2 justify-end">
+          <Button variant="outline" onClick={() => setPendingBan(null)}>
+            Annullér
+          </Button>
+          <Button
+            onClick={confirmBan}
+            className="bg-brand-red hover:bg-red-600 text-white gap-2"
+          >
+            <UserX className="size-4" />
+            Udeluk
+          </Button>
+        </div>
+      </Modal>
       <MemberHero>
         <div className="flex flex-col items-center">
-          <span className="font-bold text-2xl text-[#f4a261]">
+          <span className="font-bold text-2xl text-brand-orange">
             {members.filter((m) => !m.banned).length}
           </span>
           <span className="text-white/60 text-xs">Aktive medlemmer</span>
         </div>
         <div className="hidden sm:block bg-white/20 w-px h-10" />
         <div className="flex flex-col items-center">
-          <span className="font-bold text-2xl text-[#2a9d8f]">
+          <span className="font-bold text-2xl text-brand-teal">
             {counts.Vagt}
           </span>
           <span className="text-white/60 text-xs">Vagter</span>
         </div>
         <div className="hidden sm:block bg-white/20 w-px h-10" />
         <div className="flex flex-col items-center">
-          <span className="font-bold text-[#e63946] text-2xl">
+          <span className="font-bold text-brand-red text-2xl">
             {counts.banned}
           </span>
           <span className="text-white/60 text-xs">Udelukkede</span>
@@ -187,6 +176,7 @@ export default function AdminPage() {
           <div className="relative w-full sm:w-72">
             <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
             <Input
+              aria-label="Søg navn eller e-mail"
               placeholder="Søg navn eller e-mail…"
               className="pl-9 h-9"
               value={search}
@@ -251,14 +241,14 @@ export default function AdminPage() {
                 >
                   <td className="py-3 pr-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-[#e63946] text-white flex items-center justify-center text-[0.6rem] font-bold shrink-0 select-none">
+                      <div className="w-8 h-8 rounded-full bg-brand-red text-white flex items-center justify-center text-[0.6rem] font-bold shrink-0 select-none">
                         {m.initials}
                       </div>
                       <span className="font-medium text-neutral-900">
                         {m.name}
                       </span>
                       {m.banned && (
-                        <Badge className="bg-[#e63946]/10 text-[#e63946] border-0 text-[10px]">
+                        <Badge className="bg-brand-red/10 text-brand-red border-0 text-[10px]">
                           Udelukket
                         </Badge>
                       )}
@@ -313,8 +303,8 @@ export default function AdminPage() {
                         onClick={() => handleBanClick(m)}
                         className={`gap-1.5 text-xs h-8 ${
                           m.banned
-                            ? "text-[#2a9d8f] border-[#2a9d8f]/30 hover:bg-[#2a9d8f]/5"
-                            : "text-[#e63946] border-[#e63946]/30 hover:bg-[#e63946]/5"
+                            ? "text-brand-teal border-brand-teal/30 hover:bg-brand-teal/5"
+                            : "text-brand-red border-brand-red/30 hover:bg-brand-red/5"
                         }`}
                       >
                         {m.banned ? (

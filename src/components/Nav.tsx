@@ -111,12 +111,12 @@ export default function Nav() {
             {/* Desktop: button with dropdown */}
             <button
               onClick={() => setOpen((v) => !v)}
-              className="hidden sm:flex w-9 h-9 rounded-full bg-[#e63946] text-white items-center justify-center text-[0.65rem] font-bold select-none cursor-pointer hover:ring-2 hover:ring-[#e63946]/40 transition-all"
+              className="hidden sm:flex w-9 h-9 rounded-full bg-brand-red text-white items-center justify-center text-[0.65rem] font-bold select-none cursor-pointer hover:ring-2 hover:ring-brand-red/40 transition-all"
             >
               {user.initials}
             </button>
             {/* Mobile: non-interactive avatar */}
-            <div className="sm:hidden w-9 h-9 rounded-full bg-[#e63946] text-white flex items-center justify-center text-[0.65rem] font-bold select-none">
+            <div className="sm:hidden w-9 h-9 rounded-full bg-brand-red text-white flex items-center justify-center text-[0.65rem] font-bold select-none">
               {user.initials}
             </div>
 
@@ -136,7 +136,7 @@ export default function Nav() {
                     <div className="relative">
                       <User className="size-4 text-neutral-500" />
                       {pendingShiftCount > 0 && (
-                        <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-[#e63946]" />
+                        <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-brand-red" />
                       )}
                     </div>
                     Medlemsområde
@@ -177,7 +177,7 @@ export default function Nav() {
                 <div className="p-1 border-t border-neutral-100">
                   <button
                     onClick={handleLogout}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-[#e63946] hover:bg-[#e63946]/5 transition-colors"
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-brand-red hover:bg-brand-red/5 transition-colors"
                   >
                     <LogOut className="size-4" />
                     Log ud
@@ -190,7 +190,7 @@ export default function Nav() {
           /* Logged out — Login button (desktop only; mobile menu has its own) */
           <Link
             href="/login"
-            className="hidden sm:flex items-center gap-1.5 bg-[#e63946] text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-red-600 transition-colors"
+            className="hidden sm:flex items-center gap-1.5 bg-brand-red text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-red-600 transition-colors"
           >
             <LogIn className="size-4" />
             Login
@@ -223,7 +223,7 @@ export default function Nav() {
             <Link
               href="/login"
               onClick={() => setMenuOpen(false)}
-              className="flex items-center gap-2 mt-1 bg-[#e63946] text-white text-sm font-medium px-3 py-2.5 rounded-lg hover:bg-red-600 transition-colors"
+              className="flex items-center gap-2 mt-1 bg-brand-red text-white text-sm font-medium px-3 py-2.5 rounded-lg hover:bg-red-600 transition-colors"
             >
               <LogIn className="size-4" />
               Login
@@ -263,7 +263,7 @@ export default function Nav() {
               )}
               <button
                 onClick={handleLogout}
-                className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm text-[#e63946] hover:bg-[#e63946]/5 transition-colors"
+                className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm text-brand-red hover:bg-brand-red/5 transition-colors"
               >
                 <LogOut className="size-4" />
                 Log ud

@@ -114,7 +114,7 @@ export function ClubNightModal({
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <CalendarDays className="size-5 text-[#e63946]" />
+            <CalendarDays className="size-5 text-brand-red" />
             <h2 className="font-semibold text-neutral-900">Tilføj klubaften</h2>
           </div>
           <button
@@ -160,13 +160,13 @@ export function ClubNightModal({
               <p className="text-xs text-neutral-500">{dayNameForDate(date)}</p>
             )}
             {isDuplicate && (
-              <p className="text-xs text-[#e63946] flex items-center gap-1">
+              <p className="text-xs text-brand-red flex items-center gap-1">
                 <CalendarDays className="size-3.5 shrink-0" />
                 Der er allerede en klubaften på denne dato.
               </p>
             )}
             {isPast && (
-              <p className="text-xs text-[#e63946] flex items-center gap-1">
+              <p className="text-xs text-brand-red flex items-center gap-1">
                 <CalendarDays className="size-3.5 shrink-0" />
                 Datoen kan ikke være i fortiden.
               </p>
@@ -239,7 +239,7 @@ export function ClubNightModal({
             <Button
               type="submit"
               disabled={isBlocked}
-              className="bg-[#e63946] hover:bg-red-600 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+              className="bg-brand-red hover:bg-red-600 text-white disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Tilføj klubaften
             </Button>

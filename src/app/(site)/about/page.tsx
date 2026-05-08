@@ -157,7 +157,7 @@ export default function AboutPage() {
                   className="bg-neutral-50 rounded-xl border border-neutral-200 p-6 flex flex-col items-center gap-3"
                 >
                   <Avatar className="size-20">
-                    <AvatarFallback className="bg-[#E63946] text-white text-lg font-bold">
+                    <AvatarFallback className="bg-brand-red text-white text-lg font-bold">
                       {m.initials}
                     </AvatarFallback>
                   </Avatar>
@@ -165,7 +165,7 @@ export default function AboutPage() {
                     <p className="font-semibold text-sm text-neutral-900">
                       {m.name}
                     </p>
-                    <span className="flex items-center gap-1 text-xs text-[#2a9d8f] font-medium bg-[#2a9d8f]/10 px-2 py-0.5 rounded-full">
+                    <span className="flex items-center gap-1 text-xs text-brand-teal font-medium bg-brand-teal/10 px-2 py-0.5 rounded-full">
                       <Shield className="size-3" />
                       Vagt
                     </span>

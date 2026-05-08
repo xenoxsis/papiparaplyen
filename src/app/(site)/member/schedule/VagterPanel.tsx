@@ -32,10 +32,10 @@ export function VagterPanel({
   );
 
   return (
-    <Card className="border-l-4 border-l-[#E63946] p-6 gap-4 hidden md:flex flex-col flex-1 min-h-0">
+    <Card className="border-l-4 border-l-brand-red p-6 gap-4 hidden md:flex flex-col flex-1 min-h-0">
       <CardHeader className="p-0 gap-2 flex flex-col">
         <div className="flex items-center gap-2">
-          <Users className="size-5 text-[#E63946]" />
+          <Users className="size-5 text-brand-red" />
           <CardTitle className="text-base leading-6">Vagter</CardTitle>
           <Badge variant="secondary" className="text-xs">
             {vagter.length}
@@ -49,6 +49,7 @@ export function VagterPanel({
         <div className="relative">
           <Search className="size-4 top-1/2 -translate-y-1/2 text-neutral-500 absolute left-3" />
           <Input
+            aria-label="Søg vagt"
             placeholder="Søg vagt…"
             className="pl-9 h-9"
             value={memberSearch}
@@ -69,7 +70,7 @@ export function VagterPanel({
               }`}
             >
               <GripVertical className="hidden sm:block size-4 text-neutral-300 shrink-0" />
-              <div className="w-9 h-9 rounded-full bg-[#E63946] text-white flex items-center justify-center text-[0.65rem] font-bold select-none shrink-0">
+              <div className="w-9 h-9 rounded-full bg-brand-red text-white flex items-center justify-center text-[0.65rem] font-bold select-none shrink-0">
                 {m.initials}
               </div>
               <div className="flex flex-col min-w-0">

@@ -1,42 +1,21 @@
-import {
-  Sparkles,
-  UserPlus,
-  Calendar,
-  Users,
-  ArrowRight,
-  Clock,
-  MapPin,
-} from "lucide-react";
+import { Sparkles, UserPlus, Calendar, Users, ArrowRight } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { NightCard } from "@/components/NightCard";
+import type { ApiClubNight } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
-type ClubNight = {
-  id: number;
-  number: number;
-  name: string;
-  date: string;
-  time_from: string;
-  time_to: string;
-  location: string;
-  vagt_member_id: number | null;
-  assigned_member_name: string | null;
-  assigned_member_initials: string | null;
-  vagt_confirmed: boolean;
-};
-
-async function getUpcomingNights(): Promise<ClubNight[]> {
+async function getUpcomingNights(): Promise<ApiClubNight[]> {
   try {
     const res = await fetch(`${API}/api/club-nights`, {
       cache: "no-store",
     });
     if (!res.ok) return [];
-    const all: ClubNight[] = await res.json();
+    const all: ApiClubNight[] = await res.json();
     const now = new Date();
     return all
       .filter((n) => {
@@ -181,60 +160,9 @@ export default async function Home() {
             </Button>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {nights.map((night, i) => {
-              const d = new Date(night.date);
-              const dateLabel = d.toLocaleDateString("da-DK", {
-                weekday: "long",
-                day: "numeric",
-                month: "long",
-              });
-              const hasVagt = night.vagt_member_id !== null;
-              const isNext = i === 0;
-
-              return (
-                <Card
-                  key={night.id}
-                  className={`border-t-4 flex flex-col ${isNext ? "border-t-[#E63946]" : "border-t-neutral-300"}`}
-                >
-                  <CardHeader className="flex flex-col gap-2">
-                    <span
-                      className={`font-semibold uppercase text-xs tracking-wider flex items-center gap-1 rounded-full px-2 py-0.5 w-fit ${isNext ? "bg-red-50 text-red-600" : "bg-neutral-100 text-neutral-500"}`}
-                    >
-                      <Calendar className="size-3" />
-                      {isNext ? "Næste aften" : `Klubaften #${night.number}`}
-                    </span>
-                    <h3 className="font-bold text-xl text-neutral-900 capitalize">
-                      {dateLabel}
-                    </h3>
-                    <p className="text-neutral-500 text-sm">{night.name}</p>
-                  </CardHeader>
-                  <CardContent className="flex flex-col gap-2 pt-0 pb-6">
-                    <div className="flex items-center gap-2 text-sm text-neutral-900">
-                      <Clock className="size-4 text-neutral-500 shrink-0" />
-                      {night.time_from} - {night.time_to}
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-neutral-900">
-                      <MapPin className="size-4 text-neutral-500 shrink-0" />
-                      {night.location}
-                    </div>
-                    {hasVagt ? (
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="w-6 h-6 rounded-full bg-[#2a9d8f] text-white text-[0.6rem] font-bold flex items-center justify-center shrink-0">
-                          {night.assigned_member_initials}
-                        </span>
-                        <span className="text-sm text-neutral-700">
-                          {night.assigned_member_name}
-                        </span>
-                      </div>
-                    ) : (
-                      <span className="text-xs text-[#E63946] font-medium mt-1">
-                        Ingen vagt tildelt endnu
-                      </span>
-                    )}
-                  </CardContent>
-                </Card>
-              );
-            })}
+            {nights.map((night, i) => (
+              <NightCard key={night.id} night={night} index={i} />
+            ))}
             {nights.length === 0 && (
               <p className="col-span-3 text-center text-neutral-400 py-8">
                 Ingen kommende klubaftener planlagt endnu

@@ -24,7 +24,7 @@ const typeIcon: Record<NotificationType, React.ReactNode> = {
   swap_requested: <Repeat2 className="size-4 text-blue-500 shrink-0" />,
   swap_accepted: <CheckCheck className="size-4 text-green-500 shrink-0" />,
   swap_cancelled: <X className="size-4 text-neutral-400 shrink-0" />,
-  shift_assigned: <Shield className="size-4 text-[#e63946] shrink-0" />,
+  shift_assigned: <Shield className="size-4 text-brand-red shrink-0" />,
   nights_added: <Clock className="size-4 text-orange-400 shrink-0" />,
   mentioned: <AtSign className="size-4 text-purple-500 shrink-0" />,
 };
@@ -75,7 +75,7 @@ export default function NotificationBell({
       >
         <Bell className="size-5" />
         {unreadCount > 0 && (
-          <span className="absolute top-1 right-1 min-w-[1rem] h-4 px-0.5 rounded-full bg-[#e63946] text-white text-[0.6rem] font-bold flex items-center justify-center leading-none">
+          <span className="absolute top-1 right-1 min-w-[1rem] h-4 px-0.5 rounded-full bg-brand-red text-white text-[0.6rem] font-bold flex items-center justify-center leading-none">
             {unreadCount > 99 ? "99+" : unreadCount}
           </span>
         )}
@@ -88,7 +88,7 @@ export default function NotificationBell({
             <span className="font-semibold text-sm text-neutral-900">
               Notifikationer
               {unreadCount > 0 && (
-                <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-[#e63946]/10 text-[#e63946] text-xs font-bold">
+                <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-brand-red/10 text-brand-red text-xs font-bold">
                   {unreadCount}
                 </span>
               )}
@@ -140,7 +140,7 @@ export default function NotificationBell({
                     </p>
                   </div>
                   {!n.is_read && (
-                    <span className="mt-1.5 w-2 h-2 rounded-full bg-[#e63946] shrink-0" />
+                    <span className="mt-1.5 w-2 h-2 rounded-full bg-brand-red shrink-0" />
                   )}
                 </button>
               ))

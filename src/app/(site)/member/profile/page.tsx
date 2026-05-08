@@ -1,26 +1,19 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import Link from "next/link";
 import { toast } from "sonner";
 import {
   AlarmClock,
   Bell,
   CalendarDays,
-  ChevronDown,
   Clock,
   MapPin,
-  MessagesSquare,
   Pencil,
-  RefreshCcw,
-  Search,
-  Send,
-  Users,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { MemberHero } from "@/components/MemberHero";
 import { ClubNightModal } from "@/components/ClubNightModal";
+import { DateBadge } from "@/components/DateBadge";
 import { useAuth } from "@/lib/auth-context";
 import { useRequireAuth } from "@/lib/useRequireAuth";
 import {
@@ -36,187 +29,62 @@ import {
   patchClubNight,
   postClubNightConfirm,
   postClubNightOptOut,
-  patchMe,
-  changePassword,
   type ApiClubNight,
   type ApiChannel,
   type ApiMessage,
   type ApiScheduleReview,
   type ApiChannelMember,
-  getEmailPrefs,
-  patchEmailPrefs,
-  type ApiEmailPrefs,
 } from "@/lib/api";
 import { useChannelSSE } from "@/lib/useChannelSSE";
-import { renderMessageBody } from "@/lib/renderMentions";
-
-function GroupChatItem({
-  active,
-  name,
-  color,
-  badgeLabel,
-  badgeColor,
-  lastMsg,
-  lastTime,
-  unread,
-  onClick,
-}: {
-  active: boolean;
-  name: string;
-  color: string;
-  badgeLabel: string;
-  badgeColor: string;
-  lastMsg: string;
-  lastTime: string;
-  unread?: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <div
-      className={`flex p-2 items-center gap-3 rounded-md cursor-pointer transition-colors border-b ${
-        color === "red"
-          ? `bg-red-50 border-red-100 ${active ? "bg-red-100" : "hover:bg-red-100"}`
-          : `bg-teal-50 border-teal-100 ${active ? "bg-teal-100" : "hover:bg-teal-100"}`
-      }`}
-      onClick={onClick}
-    >
-      <div
-        className={`relative w-9 h-9 rounded-full text-white flex items-center justify-center shrink-0 ${
-          color === "red" ? "bg-[#e63946]" : "bg-[#2a9d8f]"
-        }`}
-      >
-        <Users className="size-4" />
-        {unread && (
-          <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-[#e63946] border-2 border-white" />
-        )}
-      </div>
-      <div className="flex flex-col flex-1 min-w-0">
-        <div className="flex justify-between items-center">
-          <span
-            className={`text-sm text-neutral-900 truncate ${active ? "font-semibold" : "font-medium"}`}
-          >
-            {name}
-          </span>
-          <span className="text-neutral-500 text-[0.625rem] shrink-0 pl-1">
-            {lastTime}
-          </span>
-        </div>
-        <span className="text-neutral-500 text-xs truncate">{lastMsg}</span>
-      </div>
-      <span
-        className={`text-[0.6rem] font-semibold uppercase tracking-wider rounded-full px-1.5 py-0.5 whitespace-nowrap shrink-0 ${
-          badgeColor === "red"
-            ? "text-[#e63946] bg-red-100"
-            : "text-[#2a9d8f] bg-teal-100"
-        }`}
-      >
-        {badgeLabel}
-      </span>
-    </div>
-  );
-}
+import { ShiftsPanel } from "./ShiftsPanel";
+import { SwapModal } from "./SwapModal";
+import { SwapConfirmModal } from "./SwapConfirmModal";
+import { ChatPanel } from "./ChatPanel";
+import { EditProfileModal } from "./EditProfileModal";
 
 export default function ProfilePage() {
   const { authorized } = useRequireAuth();
-  const { user, setPendingShiftCount, updateUser } = useAuth();
+  const { user, setPendingShiftCount } = useAuth();
+
+  // ── Data state ────────────────────────────────────────────────────────────
   const [activeChannelId, setActiveChannelId] = useState<number>(1);
   const [showAddModal, setShowAddModal] = useState(false);
-  const [showAllShifts, setShowAllShifts] = useState(false);
   const [shifts, setShifts] = useState<ApiClubNight[]>([]);
   const [nights, setNights] = useState<ApiClubNight[]>([]);
   const [channels, setChannels] = useState<ApiChannel[]>([]);
   const [messages, setMessages] = useState<ApiMessage[]>([]);
   const [allMessages, setAllMessages] = useState<ApiMessage[]>([]);
   const [lastSeenIds, setLastSeenIds] = useState<Record<number, number>>({});
-  const [msgBody, setMsgBody] = useState("");
   const [channelMembers, setChannelMembers] = useState<ApiChannelMember[]>([]);
-  const [mentionQuery, setMentionQuery] = useState<string | null>(null);
-  const [mentionIndex, setMentionIndex] = useState(0);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const mentionContainerRef = useRef<HTMLDivElement>(null);
-  const [mentionDropsDown, setMentionDropsDown] = useState(false);
-  const [dropdownRect, setDropdownRect] = useState<DOMRect | null>(null);
-  const [channelSearch, setChannelSearch] = useState("");
-  const [showChannelSearch, setShowChannelSearch] = useState(false);
-  const [showChannelDrawer, setShowChannelDrawer] = useState(false);
   const [myReview, setMyReview] = useState<ApiScheduleReview | null>(null);
-  // Swap state
+
+  // ── Swap state ────────────────────────────────────────────────────────────
   const [showSwapModal, setShowSwapModal] = useState(false);
   const [swapTargetShift, setSwapTargetShift] = useState<ApiClubNight | null>(
     null,
   );
   const [swapModalMessage, setSwapModalMessage] = useState("");
   const [swapConfirmMsg, setSwapConfirmMsg] = useState<ApiMessage | null>(null);
-  const channelSearchRef = useRef<HTMLInputElement>(null);
-  const chatEndRef = useRef<HTMLDivElement>(null);
-  const messagesContainerRef = useRef<HTMLDivElement>(null);
-  const scrollOnNextRender = useRef(false);
-  const pendingScrollMsgId = useRef<number | null>(null);
-  const didHandleVagterParam = useRef(false);
+
+  // ── Deep link ─────────────────────────────────────────────────────────────
   const [vagterMsgId, setVagterMsgId] = useState<number | null>(null);
-  const [isScrolledUp, setIsScrolledUp] = useState(false);
+  const didHandleVagterParam = useRef(false);
+
+  // ── Highlight ─────────────────────────────────────────────────────────────
   const [highlightMessageId, setHighlightMessageId] = useState<number | null>(
     null,
   );
 
-  // Edit profile modal state
+  // ── Edit modal ────────────────────────────────────────────────────────────
   const [showEditModal, setShowEditModal] = useState(false);
-  const [editTab, setEditTab] = useState<"name" | "password" | "emails">(
-    "name",
-  );
-  const [emailPrefs, setEmailPrefs] = useState<ApiEmailPrefs | null>(null);
-  const [editName, setEditName] = useState("");
-  const [editCurrentPw, setEditCurrentPw] = useState("");
-  const [editNewPw, setEditNewPw] = useState("");
-  const [editConfirmPw, setEditConfirmPw] = useState("");
-  const [editSaving, setEditSaving] = useState(false);
 
-  function openEditModal() {
-    setEditName(user?.name ?? "");
-    setEditCurrentPw("");
-    setEditNewPw("");
-    setEditConfirmPw("");
-    setEditTab("name");
-    setShowEditModal(true);
-    getEmailPrefs().then(setEmailPrefs).catch(console.error);
-  }
+  // ── Scroll refs (shared with ChatPanel) ──────────────────────────────────
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const chatEndRef = useRef<HTMLDivElement>(null);
+  const scrollOnNextRender = useRef(false);
+  const pendingScrollMsgId = useRef<number | null>(null);
 
-  async function handleSaveName() {
-    if (!editName.trim()) return;
-    setEditSaving(true);
-    try {
-      const result = await patchMe(editName.trim());
-      updateUser({ name: result.name, initials: result.initials });
-      toast.success("Navn opdateret");
-      setShowEditModal(false);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Noget gik galt");
-    } finally {
-      setEditSaving(false);
-    }
-  }
-
-  async function handleSavePassword() {
-    if (editNewPw.length < 6) {
-      toast.error("Adgangskode skal være mindst 6 tegn");
-      return;
-    }
-    if (editNewPw !== editConfirmPw) {
-      toast.error("Adgangskoderne matcher ikke");
-      return;
-    }
-    setEditSaving(true);
-    try {
-      await changePassword(editCurrentPw, editNewPw);
-      toast.success("Adgangskode ændret");
-      setShowEditModal(false);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Noget gik galt");
-    } finally {
-      setEditSaving(false);
-    }
-  }
-
+  // ── Initial data fetch ────────────────────────────────────────────────────
   useEffect(() => {
     getClubNights().then(setNights).catch(console.error);
     getMyScheduleReview().then(setMyReview).catch(console.error);
@@ -226,7 +94,6 @@ export default function ProfilePage() {
         const all = await Promise.all(chs.map((c) => getMessages(c.id)));
         const flat = all.flat();
         setAllMessages(flat);
-        // Seed lastSeenIds so existing messages don't show as unread on first load
         const seed: Record<number, number> = {};
         for (const msg of flat) {
           if ((seed[msg.channel_id] ?? 0) < msg.id)
@@ -235,12 +102,10 @@ export default function ProfilePage() {
         setLastSeenIds(seed);
       })
       .catch(console.error);
-    if (user) {
-      getMemberShifts(user.id).then(setShifts).catch(console.error);
-    }
+    if (user) getMemberShifts(user.id).then(setShifts).catch(console.error);
   }, [user]);
 
-  // Mark active channel as seen whenever we switch to it or new messages arrive
+  // Mark active channel seen
   useEffect(() => {
     const latestId = Math.max(
       0,
@@ -248,11 +113,11 @@ export default function ProfilePage() {
         .filter((m) => m.channel_id === activeChannelId)
         .map((m) => m.id),
     );
-    if (latestId > 0) {
+    if (latestId > 0)
       setLastSeenIds((prev) => ({ ...prev, [activeChannelId]: latestId }));
-    }
   }, [activeChannelId, allMessages]);
 
+  // Fetch messages + members for active channel
   useEffect(() => {
     getMessages(activeChannelId)
       .then((msgs) => {
@@ -260,27 +125,23 @@ export default function ProfilePage() {
         setMessages(msgs);
       })
       .catch(console.error);
-    // Fetch channel members for @mention autocomplete
     getChannelMembers(activeChannelId)
       .then(setChannelMembers)
       .catch(console.error);
   }, [activeChannelId]);
 
-  // SSE: push new/updated messages for the active channel in real time
+  // SSE real-time updates
   const { connected: sseConnected } = useChannelSSE(activeChannelId, (msg) => {
     setMessages((prev) => {
       const idx = prev.findIndex((m) => m.id === msg.id);
       if (idx !== -1) {
-        // Update existing message (e.g. swap accepted)
         const next = [...prev];
         next[idx] = msg;
         return next;
       }
-      // New message — append and trigger scroll
       scrollOnNextRender.current = true;
       return [...prev, msg];
     });
-    // Keep allMessages in sync for unread badges / swap detection
     setAllMessages((prev) => {
       const idx = prev.findIndex((m) => m.id === msg.id);
       if (idx !== -1) {
@@ -292,17 +153,17 @@ export default function ProfilePage() {
     });
   });
 
-  // Fallback poll for the active channel — only runs when SSE is not connected
+  // Fallback poll (SSE disconnected)
   useEffect(() => {
     if (sseConnected) return;
-    const id = setInterval(() => {
-      getMessages(activeChannelId)
-        .then((msgs) => setMessages(msgs))
-        .catch(console.error);
-    }, 3000);
+    const id = setInterval(
+      () => getMessages(activeChannelId).then(setMessages).catch(console.error),
+      3000,
+    );
     return () => clearInterval(id);
   }, [activeChannelId, sseConnected]);
 
+  // 15-second all-channels poll
   useEffect(() => {
     if (channels.length === 0) return;
     const id = setInterval(() => {
@@ -313,14 +174,14 @@ export default function ProfilePage() {
     return () => clearInterval(id);
   }, [channels]);
 
-  // Read ?vagter= param from URL (avoids useSearchParams Suspense requirement)
+  // Read ?vagter= param
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const id = Number(params.get("vagter")) || null;
     if (id) setVagterMsgId(id);
   }, []);
 
-  // Handle ?vagter=<id> query param — navigate to that message in Vagter channel
+  // Handle ?vagter= deep link
   useEffect(() => {
     if (
       !vagterMsgId ||
@@ -346,7 +207,7 @@ export default function ProfilePage() {
     }
   }, [allMessages, vagterMsgId, activeChannelId]);
 
-  // When the user's own swap request is accepted by someone, refresh nights
+  // Auto-refresh after swap taken
   useEffect(() => {
     if (!user) return;
     const myTakenSwap = allMessages.find(
@@ -362,21 +223,7 @@ export default function ProfilePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allMessages]);
 
-  // Derived: pending swap the current user has requested
-  const pendingSwap = useMemo(() => {
-    if (!user) return null;
-    const m = allMessages.find(
-      (msg) =>
-        msg.type === "shift_swap" &&
-        msg.swap_status === "pending" &&
-        msg.sender_id === user.id,
-    );
-    if (m && m.shift_night_id !== undefined) {
-      return { shiftId: m.shift_night_id, messageId: m.id };
-    }
-    return null;
-  }, [allMessages, user]);
-
+  // Scroll effect for new messages / deep link
   useEffect(() => {
     if (pendingScrollMsgId.current !== null) {
       const el = messagesContainerRef.current?.querySelector(
@@ -393,81 +240,52 @@ export default function ProfilePage() {
     }
     if (scrollOnNextRender.current) {
       const container = messagesContainerRef.current;
-      if (container) {
-        container.scrollTop = container.scrollHeight;
-      }
+      if (container) container.scrollTop = container.scrollHeight;
       scrollOnNextRender.current = false;
     }
   }, [messages]);
 
-  async function sendMessage() {
-    if (!msgBody.trim() || !user) return;
-    try {
-      const msg = await postMessage(activeChannelId, user.id, msgBody.trim());
-      scrollOnNextRender.current = true;
-      setMessages((prev) =>
-        prev.some((m) => m.id === msg.id) ? prev : [...prev, msg],
-      );
-      setMsgBody("");
-      setMentionQuery(null);
-    } catch (err) {
-      console.error(err);
-    }
-  }
+  // ── Derived state ─────────────────────────────────────────────────────────
+  const pendingSwap = useMemo(() => {
+    if (!user) return null;
+    const m = allMessages.find(
+      (msg) =>
+        msg.type === "shift_swap" &&
+        msg.swap_status === "pending" &&
+        msg.sender_id === user.id,
+    );
+    if (m && m.shift_night_id !== undefined)
+      return { shiftId: m.shift_night_id, messageId: m.id };
+    return null;
+  }, [allMessages, user]);
 
-  // Derived: filtered mention results from current query
-  const mentionResults = useMemo(() => {
-    if (mentionQuery === null) return [];
-    const q = mentionQuery.toLowerCase();
-    return channelMembers
-      .filter(
-        (m) =>
-          m.id !== user?.id &&
-          (m.name.toLowerCase().includes(q) ||
-            m.initials.toLowerCase().includes(q)),
+  const today = new Date().toISOString().slice(0, 10);
+  const confirmedNightsCount = nights.filter((n) => n.vagt_confirmed).length;
+  const isVagt = user?.roles.includes("Vagt") ?? false;
+  const hasUnreviewedNights =
+    isVagt &&
+    nights.some((n) => !myReview || n.created_at > myReview.reviewed_at);
+  const pendingShiftsForMe = user
+    ? nights.filter(
+        (n) =>
+          n.vagt_member_id === user.id && !n.vagt_confirmed && n.date >= today,
       )
-      .slice(0, 6);
-  }, [mentionQuery, channelMembers, user?.id]);
+    : [];
+  const isVagtOrAdmin =
+    user?.roles.includes("Vagt") || user?.roles.includes("Administrator");
 
-  // When dropdown opens, check if there's room above; if not, open downward
   useEffect(() => {
-    if (mentionQuery === null) return;
-    const el = mentionContainerRef.current;
-    if (!el) return;
-    const rect = el.getBoundingClientRect();
-    const estimatedHeight = Math.min(mentionResults.length, 6) * 44 + 8;
-    setDropdownRect(rect);
-    setMentionDropsDown(rect.top < estimatedHeight);
-  }, [mentionQuery !== null, mentionResults.length]);
+    setPendingShiftCount(pendingShiftsForMe.length);
+  }, [pendingShiftsForMe.length, setPendingShiftCount]);
 
-  function handleInputChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const value = e.target.value;
-    setMsgBody(value);
-    const cursor = e.target.selectionStart ?? value.length;
-    const textBeforeCursor = value.slice(0, cursor);
-    const mentionMatch = textBeforeCursor.match(/@([^@\s]*)$/);
-    if (mentionMatch) {
-      setMentionQuery(mentionMatch[1]);
-      setMentionIndex(0);
-    } else {
-      setMentionQuery(null);
-    }
-  }
-
-  function selectMention(member: ApiChannelMember) {
-    const cursor = inputRef.current?.selectionStart ?? msgBody.length;
-    const textBeforeCursor = msgBody.slice(0, cursor);
-    const mentionMatch = textBeforeCursor.match(/@([^@\s]*)$/);
-    if (!mentionMatch) return;
-    const start = cursor - mentionMatch[0].length;
-    const replacement = `@[${member.name}](${member.id}) `;
-    const newBody =
-      msgBody.slice(0, start) + replacement + msgBody.slice(cursor);
-    setMsgBody(newBody);
-    setMentionQuery(null);
-    setMentionIndex(0);
-    // Restore focus after react re-render
-    setTimeout(() => inputRef.current?.focus(), 0);
+  // ── Handlers ──────────────────────────────────────────────────────────────
+  async function handleSendMessage(body: string) {
+    if (!user) return;
+    const msg = await postMessage(activeChannelId, user.id, body);
+    scrollOnNextRender.current = true;
+    setMessages((prev) =>
+      prev.some((m) => m.id === msg.id) ? prev : [...prev, msg],
+    );
   }
 
   async function requestSwap() {
@@ -486,7 +304,6 @@ export default function ProfilePage() {
       setShowSwapModal(false);
       setSwapModalMessage("");
       setSwapTargetShift(null);
-      // If already on channel 2, push the message in and scroll
       if (activeChannelId === 2) {
         scrollOnNextRender.current = true;
         setMessages((prev) =>
@@ -505,7 +322,6 @@ export default function ProfilePage() {
         body: `Annulleret af ${user.name}`,
         swap_status: "cancelled",
       });
-      // Refresh channel 2 messages
       getMessages(2).then((msgs) => {
         setAllMessages((prev) => [
           ...prev.filter((m) => m.channel_id !== 2),
@@ -522,17 +338,14 @@ export default function ProfilePage() {
     if (!user || !swapConfirmMsg || swapConfirmMsg.shift_night_id === undefined)
       return;
     try {
-      // Assign the shift first — this may 409 if the user is opted out
       await patchClubNight(swapConfirmMsg.shift_night_id, {
         vagt_member_id: user.id,
       });
-      // Only update the message if the shift assignment succeeded
       await patchMessage(2, swapConfirmMsg.id, {
         swap_status: "taken",
         taken_by_member_id: user.id,
       });
       setSwapConfirmMsg(null);
-      // Refresh nights, shifts + channel 2 messages
       getClubNights().then(setNights).catch(console.error);
       getMemberShifts(user.id).then(setShifts).catch(console.error);
       getMessages(2).then((msgs) => {
@@ -543,43 +356,54 @@ export default function ProfilePage() {
         if (activeChannelId === 2) setMessages(msgs);
       });
     } catch (err: unknown) {
-      const msg =
-        err instanceof Error ? err.message : "Noget gik galt. Prøv igen.";
-      toast.error(msg);
+      toast.error(
+        err instanceof Error ? err.message : "Noget gik galt. Prøv igen.",
+      );
     }
   }
 
-  const nextShift = shifts[0] ?? null;
-  const activeChannel = channels.find((c) => c.id === activeChannelId);
+  async function handleConfirmShift(shiftId: number) {
+    try {
+      await postClubNightConfirm(shiftId);
+      const updated = await getClubNights();
+      setNights(updated);
+      getMemberShifts(user!.id).then(setShifts).catch(console.error);
+      toast.success("Vagt bekræftet!");
+    } catch {
+      toast.error("Noget gik galt. Prøv igen.");
+    }
+  }
 
-  // Nights assigned to me but not yet confirmed (visible only to the assigned vagt)
-  const today = new Date().toISOString().slice(0, 10);
-  const confirmedNightsCount = nights.filter((n) => n.vagt_confirmed).length;
-  const isVagt = user?.roles.includes("Vagt") ?? false;
-  const hasUnreviewedNights =
-    isVagt &&
-    nights.some((n) => !myReview || n.created_at > myReview.reviewed_at);
-  const pendingShiftsForMe = user
-    ? nights.filter(
-        (n) =>
-          n.vagt_member_id === user.id && !n.vagt_confirmed && n.date >= today,
-      )
-    : [];
+  async function handleOptOut(shiftId: number) {
+    try {
+      await postClubNightOptOut(shiftId);
+      const updated = await getClubNights();
+      setNights(updated);
+      toast.success("Framelding registreret");
+    } catch {
+      toast.error("Noget gik galt. Prøv igen.");
+    }
+  }
 
-  useEffect(() => {
-    setPendingShiftCount(pendingShiftsForMe.length);
-  }, [pendingShiftsForMe.length, setPendingShiftCount]);
-
-  const messageSearchResults =
-    channelSearch.trim().length > 1
-      ? allMessages.filter((m) =>
-          m.body.toLowerCase().includes(channelSearch.toLowerCase()),
-        )
-      : [];
+  async function handleConfirmAllShifts() {
+    try {
+      await Promise.all(
+        pendingShiftsForMe.map((s) => postClubNightConfirm(s.id)),
+      );
+      const updated = await getClubNights();
+      setNights(updated);
+      getMemberShifts(user!.id).then(setShifts).catch(console.error);
+      toast.success("Alle vagter bekræftet!");
+    } catch {
+      toast.error("Noget gik galt. Prøv igen.");
+    }
+  }
 
   if (!authorized) return null;
+
   return (
     <main className="bg-neutral-100 min-h-[calc(100vh-3.5rem)] p-4 sm:p-8 flex flex-col gap-6 sm:gap-8">
+      {/* Add night modal */}
       {showAddModal && (
         <ClubNightModal
           nextNumber={
@@ -609,82 +433,32 @@ export default function ProfilePage() {
         />
       )}
 
-      {/* Swap modal */}
-      {showSwapModal && swapTargetShift && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 p-6 flex flex-col gap-4">
-            <h2 className="font-semibold text-base text-neutral-900">
-              Anmod om vagtbytte
-            </h2>
-            <p className="text-sm text-neutral-500">
-              {swapTargetShift.name} —{" "}
-              {new Date(swapTargetShift.date).toLocaleDateString("da-DK", {
-                day: "numeric",
-                month: "long",
-                year: "numeric",
-              })}
-            </p>
-            <textarea
-              className="w-full h-28 border border-neutral-200 rounded-lg px-3 py-2 text-sm outline-none font-[inherit] resize-none placeholder:text-neutral-400 focus:border-neutral-400"
-              placeholder="Skriv en besked til de andre vagter (valgfrit)…"
-              value={swapModalMessage}
-              onChange={(e) => setSwapModalMessage(e.target.value)}
-              autoFocus
-            />
-            <div className="flex gap-2 justify-end">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setShowSwapModal(false);
-                  setSwapModalMessage("");
-                  setSwapTargetShift(null);
-                }}
-              >
-                Annuller
-              </Button>
-              <Button
-                className="bg-[#e63946] hover:bg-red-600 text-white"
-                onClick={requestSwap}
-              >
-                Send anmodning
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Swap modals */}
+      <SwapModal
+        open={showSwapModal && swapTargetShift !== null}
+        onClose={() => {
+          setShowSwapModal(false);
+          setSwapModalMessage("");
+          setSwapTargetShift(null);
+        }}
+        shift={swapTargetShift}
+        message={swapModalMessage}
+        setMessage={setSwapModalMessage}
+        onSubmit={requestSwap}
+      />
 
-      {/* Take confirmation */}
-      {swapConfirmMsg && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm mx-4 p-6 flex flex-col gap-4">
-            <h2 className="font-semibold text-base text-neutral-900">
-              Tag vagten?
-            </h2>
-            <p className="text-sm text-neutral-500">
-              {nights.find((n) => n.id === swapConfirmMsg.shift_night_id)
-                ?.name ?? "Denne vagt"}{" "}
-              flyttes til dig.
-            </p>
-            <div className="flex gap-2 justify-end">
-              <Button variant="outline" onClick={() => setSwapConfirmMsg(null)}>
-                Fortryd
-              </Button>
-              <Button
-                className="bg-[#2a9d8f] hover:bg-teal-700 text-white"
-                onClick={confirmTakeSwap}
-              >
-                Bekræft
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      <SwapConfirmModal
+        msg={swapConfirmMsg}
+        nights={nights}
+        onClose={() => setSwapConfirmMsg(null)}
+        onConfirm={confirmTakeSwap}
+      />
 
-      {/* Profile Hero */}
+      {/* Profile hero */}
       <MemberHero
         action={
           <button
-            onClick={openEditModal}
+            onClick={() => setShowEditModal(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/20 text-white/70 hover:bg-white/10 hover:text-white transition-colors text-xs font-medium cursor-pointer"
           >
             <Pencil className="size-3.5" />
@@ -693,14 +467,14 @@ export default function ProfilePage() {
         }
       >
         <div className="flex flex-col items-center">
-          <span className="font-bold text-2xl text-[#f4a261]">
+          <span className="font-bold text-2xl text-brand-orange">
             {shifts.length}
           </span>
           <span className="text-white/60 text-xs">Vagter</span>
         </div>
         <div className="hidden sm:block w-px h-10 bg-white/20" />
         <div className="flex flex-col items-center">
-          <span className="font-bold text-2xl text-[#2a9d8f]">
+          <span className="font-bold text-2xl text-brand-teal">
             {confirmedNightsCount}
           </span>
           <span className="text-white/60 text-xs">Klubaftener</span>
@@ -708,11 +482,11 @@ export default function ProfilePage() {
         <div className="hidden sm:block w-px h-10 bg-white/20" />
       </MemberHero>
 
-      {/* Unreviewed nights banner — for vagter */}
+      {/* Unreviewed nights banner */}
       {hasUnreviewedNights && (
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl border border-[#F4A261]/40 bg-[#F4A261]/10 p-4">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl border border-brand-orange/40 bg-brand-orange/10 p-4">
           <div className="flex items-start gap-3 flex-1">
-            <Bell className="size-5 text-[#F4A261] shrink-0 mt-0.5" />
+            <Bell className="size-5 text-brand-orange shrink-0 mt-0.5" />
             <div className="flex flex-col gap-0.5">
               <p className="text-sm font-semibold text-neutral-900">
                 Der er nye aftener siden du sidst gennemgik skemaet
@@ -724,7 +498,7 @@ export default function ProfilePage() {
           </div>
           <Link
             href="/member/schedule"
-            className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#F4A261] text-white text-xs font-semibold hover:bg-orange-400 transition-colors w-full sm:w-auto justify-center"
+            className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-orange text-white text-xs font-semibold hover:bg-orange-400 transition-colors w-full sm:w-auto justify-center"
           >
             <CalendarDays className="size-3.5" />
             Gå til vagtplan
@@ -732,335 +506,28 @@ export default function ProfilePage() {
         </div>
       )}
 
-      {/* Two-column grid — left column only shown for Vagter/Admins */}
+      {/* Two-column grid */}
       <div
-        className={`grid grid-cols-1 gap-6 ${user?.roles.includes("Vagt") || user?.roles.includes("Administrator") ? "md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]" : ""}`}
+        className={`grid grid-cols-1 gap-6 ${isVagtOrAdmin ? "md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]" : ""}`}
       >
-        {/* Left: Pending confirmation + Next shift — Vagter/Admins only */}
-        {(user?.roles.includes("Vagt") ||
-          user?.roles.includes("Administrator")) && (
-          <div className="flex flex-col gap-4">
-            {/* Pending shifts panel */}
-            {pendingShiftsForMe.length > 0 && (
-              <div className="bg-white rounded-xl border-l-4 border-[#F4A261] p-6 flex flex-col gap-4 shadow-sm w-full min-w-0">
-                <div className="flex items-center gap-2">
-                  <AlarmClock className="size-5 text-[#F4A261] shrink-0" />
-                  <h2 className="font-semibold text-base text-neutral-900">
-                    Afventende vagter
-                  </h2>
-                  <span className="ml-auto text-xs font-semibold bg-[#F4A261]/15 text-[#F4A261] rounded-full px-2 py-0.5">
-                    {pendingShiftsForMe.length}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between gap-2 -mt-2">
-                  <p className="text-xs text-neutral-500">
-                    Du er tildelt disse vagter - bekræft at du kan, eller meld
-                    fra
-                  </p>
-                  {pendingShiftsForMe.length > 1 && (
-                    <button
-                      onClick={async () => {
-                        try {
-                          await Promise.all(
-                            pendingShiftsForMe.map((s) =>
-                              postClubNightConfirm(s.id),
-                            ),
-                          );
-                          const updated = await getClubNights();
-                          setNights(updated);
-                          getMemberShifts(user!.id)
-                            .then(setShifts)
-                            .catch(console.error);
-                          toast.success("Alle vagter bekræftet!");
-                        } catch {
-                          toast.error("Noget gik galt. Prøv igen.");
-                        }
-                      }}
-                      className="shrink-0 text-xs font-semibold px-3 py-1 rounded-lg bg-[#2a9d8f] text-white hover:bg-teal-700 transition-colors cursor-pointer border-none"
-                    >
-                      Bekræft alle
-                    </button>
-                  )}
-                </div>
-                <div className="flex flex-col gap-3">
-                  {pendingShiftsForMe.map((shift) => (
-                    <div
-                      key={shift.id}
-                      className="rounded-lg border border-neutral-200 bg-neutral-50 p-3 flex flex-col gap-2"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="rounded-lg bg-[#F4A261] text-white flex flex-col justify-center items-center w-14 h-14 shrink-0">
-                          <span className="font-medium uppercase text-[0.55rem] leading-none">
-                            {new Date(shift.date).toLocaleDateString("da-DK", {
-                              weekday: "short",
-                            })}
-                          </span>
-                          <span className="font-bold text-lg leading-tight">
-                            {new Date(shift.date).getDate()}
-                          </span>
-                          <span className="font-medium uppercase text-[0.55rem] leading-none opacity-80">
-                            {new Date(shift.date).toLocaleDateString("da-DK", {
-                              month: "short",
-                            })}
-                          </span>
-                        </div>
-                        <div className="flex flex-col gap-0.5 flex-1 min-w-0">
-                          <span className="font-semibold text-sm text-neutral-900 truncate">
-                            {shift.name}
-                          </span>
-                          <div className="flex items-center gap-2 text-xs text-neutral-500">
-                            <span className="flex items-center gap-1">
-                              <Clock className="size-3" />
-                              {shift.time_from} - {shift.time_to}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1 text-xs text-neutral-500">
-                        <MapPin className="size-3" />
-                        {shift.location}
-                      </div>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={async () => {
-                            try {
-                              await postClubNightConfirm(shift.id);
-                              const updated = await getClubNights();
-                              setNights(updated);
-                              getMemberShifts(user!.id)
-                                .then(setShifts)
-                                .catch(console.error);
-                              toast.success("Vagt bekræftet!");
-                            } catch {
-                              toast.error("Noget gik galt. Prøv igen.");
-                            }
-                          }}
-                          className="flex-1 h-8 rounded-lg bg-[#2a9d8f] text-white text-xs font-semibold hover:bg-teal-700 transition-colors cursor-pointer border-none"
-                        >
-                          Bekræft vagt
-                        </button>
-                        <button
-                          onClick={async () => {
-                            try {
-                              await postClubNightOptOut(shift.id);
-                              const updated = await getClubNights();
-                              setNights(updated);
-                              toast.success("Framelding registreret");
-                            } catch {
-                              toast.error("Noget gik galt. Prøv igen.");
-                            }
-                          }}
-                          className="flex-1 h-8 rounded-lg bg-white border border-[#e63946]/40 text-[#e63946] text-xs font-semibold hover:bg-[#e63946]/5 transition-colors cursor-pointer"
-                        >
-                          Meld fra
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Next shift / All shifts — only for Vagter and Admins */}
-            {(user?.roles.includes("Vagt") ||
-              user?.roles.includes("Administrator")) && (
-              <div className="bg-white rounded-xl border-l-4 border-[#e63946] p-6 flex flex-col gap-4 shadow-sm w-full min-w-0">
-                <div className="flex flex-col gap-2">
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-2">
-                      <AlarmClock className="size-5 text-[#e63946] shrink-0" />
-                      <h2 className="font-semibold text-base text-neutral-900">
-                        {showAllShifts ? "Mine vagter" : "Min næste vagt"}
-                      </h2>
-                    </div>
-                  </div>
-                  <p className="text-xs text-neutral-500">
-                    {showAllShifts ? `${shifts.length} vagter i alt` : ""}
-                  </p>
-                </div>
-
-                {!showAllShifts ? (
-                  <>
-                    {nextShift ? (
-                      <div className="flex flex-col gap-3">
-                        <div className="bg-neutral-100 rounded-lg flex p-3 items-center gap-3">
-                          <div className="rounded-lg bg-[#e63946] text-white flex flex-col justify-center items-center w-14 h-14 shrink-0">
-                            <span className="font-medium uppercase text-[0.625rem] leading-none">
-                              {new Date(nextShift.date).toLocaleDateString(
-                                "da-DK",
-                                {
-                                  weekday: "short",
-                                },
-                              )}
-                            </span>
-                            <span className="font-bold text-xl leading-tight">
-                              {new Date(nextShift.date).getDate()}
-                            </span>
-                            <span className="font-medium uppercase text-[0.625rem] leading-none opacity-80">
-                              {new Date(nextShift.date).toLocaleDateString(
-                                "da-DK",
-                                { month: "short" },
-                              )}
-                            </span>
-                          </div>
-                          <div className="flex flex-col gap-1">
-                            <span className="font-semibold text-sm text-neutral-900">
-                              {nextShift.name}
-                            </span>
-                            <span className="text-neutral-500 text-xs">
-                              {new Date(nextShift.date).toLocaleDateString(
-                                "da-DK",
-                                {
-                                  day: "numeric",
-                                  month: "long",
-                                  year: "numeric",
-                                },
-                              )}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="flex flex-col gap-2 text-sm text-neutral-900">
-                          <div className="flex items-center gap-2">
-                            <Clock className="size-4 text-neutral-500 shrink-0" />
-                            <span>
-                              {nextShift.time_from} - {nextShift.time_to}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <MapPin className="size-4 text-neutral-500 shrink-0" />
-                            <span>{nextShift.location}</span>
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      <p className="text-sm text-neutral-400 py-4 text-center">
-                        Ingen kommende vagter
-                      </p>
-                    )}
-                    {nextShift && (
-                      <div className="flex gap-2">
-                        {pendingSwap?.shiftId === nextShift.id ? (
-                          <Button
-                            variant="outline"
-                            className="flex-1 gap-2 border-red-300 text-[#e63946] hover:bg-red-50"
-                            onClick={cancelSwap}
-                          >
-                            <RefreshCcw className="size-4" />
-                            Annuller bytte
-                          </Button>
-                        ) : (
-                          <Button
-                            variant="outline"
-                            className="flex-1 gap-2"
-                            onClick={() => {
-                              if (!nextShift) return;
-                              setSwapTargetShift(nextShift);
-                              setShowSwapModal(true);
-                            }}
-                            disabled={
-                              pendingSwap !== null &&
-                              pendingSwap.shiftId !== nextShift.id
-                            }
-                          >
-                            <RefreshCcw className="size-4" />
-                            Byt vagt
-                          </Button>
-                        )}
-                      </div>
-                    )}
-                    <button
-                      onClick={() => setShowAllShifts(true)}
-                      className="mt-auto text-xs text-[#e63946] hover:underline text-left font-medium cursor-pointer bg-transparent border-none p-0"
-                    >
-                      Se alle mine vagter →
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <div className="flex flex-col gap-2">
-                      {shifts.length === 0 && (
-                        <p className="text-sm text-neutral-400 py-4 text-center">
-                          Ingen kommende vagter
-                        </p>
-                      )}
-                      {shifts.map((s) => (
-                        <div
-                          key={s.id}
-                          className="rounded-lg flex flex-col gap-2 p-3 border bg-white border-neutral-200"
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="rounded-lg bg-[#e63946] text-white flex flex-col justify-center items-center w-14 h-14 shrink-0">
-                              <span className="font-medium uppercase text-[0.55rem] leading-none">
-                                {new Date(s.date).toLocaleDateString("da-DK", {
-                                  weekday: "short",
-                                })}
-                              </span>
-                              <span className="font-bold text-lg leading-tight">
-                                {new Date(s.date).getDate()}
-                              </span>
-                              <span className="font-medium uppercase text-[0.55rem] leading-none opacity-80">
-                                {new Date(s.date).toLocaleDateString("da-DK", {
-                                  month: "short",
-                                })}
-                              </span>
-                            </div>
-                            <div className="flex flex-col gap-0.5 flex-1 min-w-0">
-                              <span className="font-semibold text-sm text-neutral-900 truncate">
-                                {s.name}
-                              </span>
-                              <div className="flex items-center gap-2 text-xs text-neutral-500">
-                                <span className="flex items-center gap-1">
-                                  <Clock className="size-3" />
-                                  {s.time_from} - {s.time_to}
-                                </span>
-                                <span className="flex items-center gap-1">
-                                  <MapPin className="size-3" />
-                                  {s.location}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                          {pendingSwap?.shiftId === s.id ? (
-                            <button
-                              onClick={cancelSwap}
-                              className="w-full h-8 rounded-lg border border-red-200 bg-red-50 text-[#e63946] text-xs font-medium hover:bg-red-100 transition-colors cursor-pointer"
-                            >
-                              Annuller vagtbytte
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => {
-                                setSwapTargetShift(s);
-                                setShowSwapModal(true);
-                              }}
-                              disabled={
-                                pendingSwap !== null &&
-                                pendingSwap.shiftId !== s.id
-                              }
-                              className="w-full h-8 rounded-lg border border-neutral-200 bg-neutral-50 text-neutral-600 text-xs font-medium hover:bg-neutral-100 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
-                            >
-                              <RefreshCcw className="size-3" />
-                              Byt vagt
-                            </button>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                    <button
-                      onClick={() => setShowAllShifts(false)}
-                      className="mt-auto text-xs text-neutral-500 hover:underline text-left font-medium cursor-pointer bg-transparent border-none p-0"
-                    >
-                      ← Vis kun næste vagt
-                    </button>
-                  </>
-                )}
-              </div>
-            )}
-          </div>
+        {/* Left: Shifts panel — Vagt/Admin only */}
+        {isVagtOrAdmin && (
+          <ShiftsPanel
+            shifts={shifts}
+            pendingShiftsForMe={pendingShiftsForMe}
+            pendingSwap={pendingSwap}
+            onConfirmShift={handleConfirmShift}
+            onOptOut={handleOptOut}
+            onConfirmAllShifts={handleConfirmAllShifts}
+            onRequestSwap={(shift) => {
+              setSwapTargetShift(shift);
+              setShowSwapModal(true);
+            }}
+            onCancelSwap={cancelSwap}
+          />
         )}
-        {/* end left column flex-col wrapper */}
 
-        {/* Right: Events */}
+        {/* Right: Club nights list */}
         <div className="bg-white rounded-xl border border-black/6 p-6 flex flex-col gap-4 shadow-sm">
           <div className="flex flex-col gap-2">
             <div className="flex justify-between items-center">
@@ -1086,34 +553,20 @@ export default function ProfilePage() {
             {nights
               .filter((n) => n.vagt_confirmed)
               .map((evt) => {
-                const d = new Date(evt.date);
                 const isMyShift = evt.vagt_member_id === user?.id;
                 const hasOtherVagt = evt.vagt_member_id !== null && !isMyShift;
+                const colorClass = isMyShift
+                  ? "bg-brand-teal"
+                  : hasOtherVagt
+                    ? "bg-brand-orange"
+                    : "bg-brand-red";
 
                 return (
                   <div
                     key={evt.id}
                     className="border border-neutral-200 rounded-lg flex p-3 items-center gap-4"
                   >
-                    <div
-                      className={`rounded-lg text-white flex flex-col justify-center items-center w-14 h-14 shrink-0 ${
-                        isMyShift
-                          ? "bg-[#2a9d8f]"
-                          : hasOtherVagt
-                            ? "bg-[#f4a261]"
-                            : "bg-[#e63946]"
-                      }`}
-                    >
-                      <span className="font-medium uppercase text-[0.625rem] leading-none">
-                        {d.toLocaleDateString("da-DK", { weekday: "short" })}
-                      </span>
-                      <span className="font-bold text-lg leading-tight">
-                        {d.getDate()}
-                      </span>
-                      <span className="font-medium uppercase text-[0.625rem] leading-none opacity-80">
-                        {d.toLocaleDateString("da-DK", { month: "short" })}
-                      </span>
-                    </div>
+                    <DateBadge date={evt.date} colorClass={colorClass} />
                     <div className="flex flex-col flex-1 min-w-0 gap-0.5">
                       <span className="font-semibold text-sm text-neutral-900 truncate">
                         {evt.name}
@@ -1130,7 +583,7 @@ export default function ProfilePage() {
                       </div>
                     </div>
                     {isMyShift ? (
-                      <span className="text-xs font-medium px-2 py-0.5 rounded-full whitespace-nowrap bg-[#2a9d8f]/10 text-[#2a9d8f] shrink-0">
+                      <span className="text-xs font-medium px-2 py-0.5 rounded-full whitespace-nowrap bg-brand-teal/10 text-brand-teal shrink-0">
                         Din vagt
                       </span>
                     ) : hasOtherVagt ? (
@@ -1138,7 +591,7 @@ export default function ProfilePage() {
                         {evt.assigned_member_name}
                       </span>
                     ) : (
-                      <span className="text-xs font-medium px-2 py-0.5 rounded-full whitespace-nowrap bg-[#e63946]/10 text-[#e63946] shrink-0">
+                      <span className="text-xs font-medium px-2 py-0.5 rounded-full whitespace-nowrap bg-brand-red/10 text-brand-red shrink-0">
                         Ingen vagt
                       </span>
                     )}
@@ -1149,747 +602,33 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      {/* Chat Card */}
-      <div className="bg-white rounded-xl border border-black/6 p-6 flex flex-col gap-4 shadow-sm">
-        <div className="flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <MessagesSquare className="size-5 text-neutral-900 shrink-0" />
-            <h2 className="font-semibold text-base text-neutral-900">
-              Medlemschat
-            </h2>
-          </div>
-          <button
-            onClick={() => {
-              setShowChannelSearch((v) => !v);
-              setChannelSearch("");
-              setTimeout(() => channelSearchRef.current?.focus(), 50);
-            }}
-            className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-sm transition-colors cursor-pointer border-none font-[inherit] ${
-              showChannelSearch
-                ? "bg-neutral-100 text-neutral-900"
-                : "bg-transparent text-neutral-500 hover:bg-neutral-100"
-            }`}
-          >
-            <Search className="size-4" />
-            Søg samtale
-          </button>
-        </div>
-
-        <div className="relative grid grid-cols-1 md:grid-cols-[1fr_2fr] gap-4 h-105">
-          {/* Contact list — drawer on mobile, sidebar on md+ */}
-          {/* Mobile backdrop */}
-          {showChannelDrawer && (
-            <div
-              className="md:hidden absolute inset-0 z-10 bg-black/30 rounded-lg"
-              onClick={() => setShowChannelDrawer(false)}
-            />
-          )}
-          <div
-            className={`flex flex-col overflow-hidden border border-neutral-200 rounded-lg
-            md:flex
-            ${
-              showChannelDrawer
-                ? "absolute inset-y-0 left-0 z-20 w-72 bg-white shadow-xl"
-                : "hidden md:flex"
-            }`}
-          >
-            {showChannelSearch && (
-              <div className="p-2 border-b border-neutral-100">
-                <div className="relative">
-                  <Search className="size-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
-                  <input
-                    ref={channelSearchRef}
-                    value={channelSearch}
-                    onChange={(e) => setChannelSearch(e.target.value)}
-                    placeholder="Søg i beskeder…"
-                    className="w-full h-8 pl-8 pr-3 text-xs rounded-md border border-neutral-200 outline-none bg-transparent placeholder:text-neutral-400 focus:border-neutral-400 font-[inherit]"
-                  />
-                </div>
-              </div>
-            )}
-            {showChannelSearch && channelSearch.trim().length > 1 ? (
-              <div className="flex flex-col overflow-y-auto flex-1">
-                {messageSearchResults.length === 0 && (
-                  <p className="text-xs text-neutral-400 text-center py-4">
-                    Ingen beskeder fundet
-                  </p>
-                )}
-                {messageSearchResults.map((msg) => {
-                  const ch = channels.find((c) => c.id === msg.channel_id);
-                  const isActive = activeChannelId === msg.channel_id;
-                  const color =
-                    ch?.type === "all_members" ? "#e63946" : "#2a9d8f";
-                  const query = channelSearch.toLowerCase();
-                  const bodyLower = msg.body.toLowerCase();
-                  const idx = bodyLower.indexOf(query);
-                  const before = msg.body.slice(0, idx);
-                  const match = msg.body.slice(idx, idx + channelSearch.length);
-                  const after = msg.body.slice(idx + channelSearch.length);
-                  return (
-                    <button
-                      key={msg.id}
-                      onClick={() => {
-                        setShowChannelSearch(false);
-                        setChannelSearch("");
-                        setShowChannelDrawer(false);
-                        if (msg.channel_id !== activeChannelId) {
-                          pendingScrollMsgId.current = msg.id;
-                          setActiveChannelId(msg.channel_id);
-                        } else {
-                          const el =
-                            messagesContainerRef.current?.querySelector(
-                              `[data-msg-id="${msg.id}"]`,
-                            ) as HTMLElement | null;
-                          if (el) {
-                            el.scrollIntoView({ block: "center" });
-                            setHighlightMessageId(msg.id);
-                            setTimeout(() => setHighlightMessageId(null), 2000);
-                          }
-                        }
-                      }}
-                      className={`text-left flex flex-col gap-0.5 px-3 py-2 border-b border-neutral-100 hover:bg-neutral-50 transition-colors ${
-                        isActive ? "bg-neutral-50" : ""
-                      }`}
-                    >
-                      <div className="flex items-center gap-1.5">
-                        <span
-                          className="text-[0.6rem] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-full"
-                          style={{ color, background: color + "18" }}
-                        >
-                          {ch?.name}
-                        </span>
-                        <span className="text-[0.6rem] text-neutral-400">
-                          {msg.sender_name}
-                        </span>
-                      </div>
-                      <p className="text-xs text-neutral-600 leading-4 line-clamp-2">
-                        {before}
-                        <mark className="bg-yellow-200 text-neutral-900 rounded-sm px-0">
-                          {match}
-                        </mark>
-                        {after}
-                      </p>
-                    </button>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="flex flex-col p-2 gap-1 overflow-y-auto flex-1">
-                {channels.map((ch) => {
-                  const latestId = Math.max(
-                    0,
-                    ...allMessages
-                      .filter((m) => m.channel_id === ch.id)
-                      .map((m) => m.id),
-                  );
-                  const unread =
-                    ch.id !== activeChannelId &&
-                    latestId > (lastSeenIds[ch.id] ?? 0);
-                  return (
-                    <GroupChatItem
-                      key={ch.id}
-                      active={activeChannelId === ch.id}
-                      name={ch.name}
-                      color={ch.type === "all_members" ? "red" : "teal"}
-                      badgeLabel={
-                        ch.type === "all_members" ? "Fælles" : "Vagter"
-                      }
-                      badgeColor={ch.type === "all_members" ? "red" : "teal"}
-                      lastMsg=""
-                      lastTime=""
-                      unread={unread}
-                      onClick={() => {
-                        setLastSeenIds((prev) => ({
-                          ...prev,
-                          [ch.id]: latestId,
-                        }));
-                        setActiveChannelId(ch.id);
-                        setShowChannelSearch(false);
-                        setChannelSearch("");
-                        setShowChannelDrawer(false);
-                      }}
-                    />
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* Chat window */}
-          <div className="border border-neutral-200 rounded-lg flex flex-col overflow-hidden">
-            <div className="border-b border-neutral-200 flex p-3 justify-between items-center shrink-0">
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={() => setShowChannelDrawer(true)}
-                  className="md:hidden flex items-center gap-1.5 px-2.5 h-8 rounded-md border border-neutral-200 bg-white text-neutral-600 text-xs font-medium hover:bg-neutral-50 transition-colors cursor-pointer shrink-0"
-                  aria-label="Åbn samtaler"
-                >
-                  <MessagesSquare className="size-3.5" />
-                  Samtaler
-                </button>
-                <div
-                  className={`w-10 h-10 rounded-full text-white flex items-center justify-center shrink-0 ${
-                    activeChannel?.type === "all_members"
-                      ? "bg-[#e63946]"
-                      : "bg-[#2a9d8f]"
-                  }`}
-                >
-                  <Users className="size-[1.1rem]" />
-                </div>
-                <div className="flex flex-col">
-                  <span className="font-semibold text-sm text-neutral-900">
-                    {activeChannel?.name}
-                  </span>
-                  <span
-                    className={`text-xs ${
-                      activeChannel?.type === "all_members"
-                        ? "text-[#e63946]"
-                        : "text-[#2a9d8f]"
-                    }`}
-                  >
-                    {activeChannel?.type === "all_members"
-                      ? "Fælles kanal"
-                      : "Kun for vagter"}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div className="relative flex flex-col flex-1 overflow-hidden">
-              {isScrolledUp && (
-                <button
-                  onClick={() => {
-                    const el = messagesContainerRef.current;
-                    if (el) el.scrollTop = el.scrollHeight;
-                  }}
-                  className="absolute bottom-4 right-4 z-10 flex items-center justify-center w-8 h-8 rounded-full bg-white border border-neutral-200 shadow-md text-neutral-600 hover:bg-neutral-50 transition-colors cursor-pointer"
-                >
-                  <ChevronDown className="size-4" />
-                </button>
-              )}
-              <div
-                ref={messagesContainerRef}
-                onScroll={() => {
-                  const el = messagesContainerRef.current;
-                  if (!el) return;
-                  setIsScrolledUp(
-                    el.scrollHeight - el.scrollTop - el.clientHeight > 80,
-                  );
-                }}
-                className="bg-neutral-50/40 flex p-4 flex-col flex-1 gap-3 overflow-y-auto"
-              >
-                {(() => {
-                  const today = new Date();
-                  today.setHours(0, 0, 0, 0);
-                  const yesterday = new Date(today);
-                  yesterday.setDate(yesterday.getDate() - 1);
-
-                  function dayLabel(date: Date) {
-                    const d = new Date(date);
-                    d.setHours(0, 0, 0, 0);
-                    if (d.getTime() === today.getTime()) return "I dag";
-                    if (d.getTime() === yesterday.getTime()) return "I går";
-                    return d.toLocaleDateString("da-DK", {
-                      day: "numeric",
-                      month: "long",
-                      year: "numeric",
-                    });
-                  }
-
-                  const groups: { label: string; msgs: typeof messages }[] = [];
-                  for (const msg of messages) {
-                    const label = dayLabel(new Date(msg.sent_at));
-                    const last = groups[groups.length - 1];
-                    if (last && last.label === label) {
-                      last.msgs.push(msg);
-                    } else {
-                      groups.push({ label, msgs: [msg] });
-                    }
-                  }
-
-                  const accentColor =
-                    activeChannel?.type === "all_members"
-                      ? "bg-[#e63946]"
-                      : "bg-[#2a9d8f]";
-                  const outgoingColor = "bg-[#3d5a80]";
-
-                  return groups.map((group) => (
-                    <div key={group.label} className="flex flex-col gap-3">
-                      <div className="flex justify-center">
-                        <span className="bg-white border border-neutral-200 rounded-full px-2 py-0.5 text-[0.625rem] text-neutral-500">
-                          {group.label}
-                        </span>
-                      </div>
-                      {group.msgs.map((msg) => {
-                        const outgoing = msg.sender_id === user?.id;
-                        const timeStr = new Date(
-                          msg.sent_at,
-                        ).toLocaleTimeString("da-DK", {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        });
-
-                        // ── Swap card ──────────────────────────────────────────
-                        if (msg.type === "shift_swap") {
-                          const swapNight = nights.find(
-                            (n) => n.id === msg.shift_night_id,
-                          );
-                          const userOptedOut =
-                            !!user &&
-                            !!swapNight &&
-                            swapNight.opted_out_members.some(
-                              (o) => o.id === user.id,
-                            );
-                          const canTake =
-                            !outgoing &&
-                            msg.swap_status === "pending" &&
-                            !userOptedOut &&
-                            (user?.roles.includes("Vagt") ||
-                              user?.roles.includes("Administrator"));
-                          return (
-                            <div
-                              key={msg.id}
-                              data-msg-id={msg.id}
-                              className={`flex ${outgoing ? "justify-end" : ""} rounded-xl transition-colors duration-700 ${highlightMessageId === msg.id ? "bg-yellow-50" : ""}`}
-                            >
-                              <div className="border border-neutral-200 bg-white rounded-xl p-3 flex flex-col gap-2 max-w-xs w-full shadow-sm">
-                                <div className="flex items-center gap-2">
-                                  <RefreshCcw className="size-3.5 text-[#2a9d8f] shrink-0" />
-                                  <span className="text-[0.65rem] font-semibold text-neutral-500 uppercase tracking-wide">
-                                    Vagtbytte
-                                  </span>
-                                  <span className="ml-auto text-[0.6rem] text-neutral-400">
-                                    {timeStr}
-                                  </span>
-                                </div>
-                                {swapNight && (
-                                  <p className="text-xs font-semibold text-neutral-800 leading-snug">
-                                    {swapNight.name}
-                                    <span className="font-normal text-neutral-500 ml-1">
-                                      {new Date(
-                                        swapNight.date,
-                                      ).toLocaleDateString("da-DK", {
-                                        day: "numeric",
-                                        month: "short",
-                                      })}
-                                    </span>
-                                  </p>
-                                )}
-                                <p className="text-xs text-neutral-600 leading-snug">
-                                  {user
-                                    ? renderMessageBody(msg.body, user.id)
-                                    : msg.body}
-                                </p>
-                                {msg.swap_status === "pending" && (
-                                  <>
-                                    {!outgoing && (
-                                      <span className="text-[0.6rem] text-neutral-400">
-                                        {msg.sender_name}
-                                      </span>
-                                    )}
-                                    {canTake ? (
-                                      <button
-                                        onClick={() => setSwapConfirmMsg(msg)}
-                                        className="mt-1 w-full h-8 rounded-lg bg-[#2a9d8f] text-white text-xs font-semibold hover:bg-teal-700 transition-colors cursor-pointer border-none"
-                                      >
-                                        Tag vagt
-                                      </button>
-                                    ) : userOptedOut ? (
-                                      <div className="mt-1 flex flex-col gap-1">
-                                        <button
-                                          disabled
-                                          className="w-full h-8 rounded-lg bg-neutral-100 text-neutral-400 text-xs font-semibold border border-neutral-200 cursor-not-allowed"
-                                        >
-                                          Tag vagt
-                                        </button>
-                                        <span className="text-[0.6rem] text-neutral-400 italic text-center">
-                                          Du har meldt fra denne aften
-                                        </span>
-                                      </div>
-                                    ) : outgoing ? (
-                                      <span className="text-[0.65rem] text-neutral-400 italic">
-                                        Afventer svar…
-                                      </span>
-                                    ) : null}
-                                  </>
-                                )}
-                                {msg.swap_status === "taken" && (
-                                  <span className="text-[0.65rem] font-semibold text-[#2a9d8f]">
-                                    ✓ Taget af {msg.taken_by_name}
-                                  </span>
-                                )}
-                                {msg.swap_status === "cancelled" && (
-                                  <span className="text-[0.65rem] text-neutral-400 italic">
-                                    {user
-                                      ? renderMessageBody(msg.body, user.id)
-                                      : msg.body}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        }
-
-                        // ── Normal bubble ──────────────────────────────────────
-                        if (outgoing) {
-                          return (
-                            <div
-                              key={msg.id}
-                              data-msg-id={msg.id}
-                              className={`flex justify-end items-end rounded-xl px-1 transition-colors duration-700 ${highlightMessageId === msg.id ? "bg-yellow-50" : ""}`}
-                            >
-                              <div className="flex flex-col items-end gap-1 max-w-md">
-                                <div
-                                  className={`px-4 py-2 text-sm text-white rounded-[1rem_1rem_0.25rem_1rem] ${outgoingColor}`}
-                                >
-                                  {user
-                                    ? renderMessageBody(msg.body, user.id)
-                                    : msg.body}
-                                </div>
-                                <span className="text-[0.625rem] text-neutral-500 pr-2">
-                                  {timeStr}
-                                </span>
-                              </div>
-                            </div>
-                          );
-                        }
-
-                        return (
-                          <div
-                            key={msg.id}
-                            data-msg-id={msg.id}
-                            className={`flex flex-col gap-0.5 rounded-xl px-1 transition-colors duration-700 ${highlightMessageId === msg.id ? "bg-yellow-50" : ""}`}
-                          >
-                            <div className="flex items-end gap-2">
-                              <div
-                                className={`w-7 h-7 rounded-full text-white flex items-center justify-center text-[0.55rem] font-bold shrink-0 select-none ${accentColor}`}
-                              >
-                                {msg.sender_initials}
-                              </div>
-                              <div className="flex flex-col gap-0.5 max-w-md">
-                                <span className="text-[0.65rem] font-semibold text-neutral-600 pl-1">
-                                  {msg.sender_name}
-                                </span>
-                                <div className="px-4 py-2 text-sm bg-white border border-neutral-200 rounded-[1rem_1rem_1rem_0.25rem]">
-                                  {user
-                                    ? renderMessageBody(msg.body, user.id)
-                                    : msg.body}
-                                </div>
-                              </div>
-                            </div>
-                            <span className="text-[0.625rem] text-neutral-500 pl-9">
-                              {timeStr}
-                            </span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ));
-                })()}
-                <div ref={chatEndRef} />
-              </div>
-            </div>
-
-            <div className="border-t border-neutral-200 flex p-3 items-center gap-2 shrink-0">
-              {/* <button className="inline-flex items-center justify-center w-8 h-8 rounded-md border-none bg-transparent text-neutral-500 hover:bg-neutral-100 transition-colors cursor-pointer">
-                <Paperclip className="size-4" />
-              </button>
-              <button className="inline-flex items-center justify-center w-8 h-8 rounded-md border-none bg-transparent text-neutral-500 hover:bg-neutral-100 transition-colors cursor-pointer">
-                <Smile className="size-4" />
-              </button> */}
-              <div className="flex-1 relative" ref={mentionContainerRef}>
-                {mentionQuery !== null &&
-                  mentionResults.length > 0 &&
-                  dropdownRect &&
-                  createPortal(
-                    <div
-                      style={{
-                        position: "fixed",
-                        left: dropdownRect.left,
-                        width: dropdownRect.width,
-                        ...(mentionDropsDown
-                          ? { top: dropdownRect.bottom + 4 }
-                          : {
-                              bottom: window.innerHeight - dropdownRect.top + 4,
-                            }),
-                        zIndex: 9999,
-                        background: "white",
-                        border: "1px solid #e5e7eb",
-                        borderRadius: 12,
-                        boxShadow: "0 4px 24px rgba(0,0,0,0.10)",
-                        overflow: "hidden",
-                      }}
-                    >
-                      {mentionResults.map((member, i) => (
-                        <button
-                          key={member.id}
-                          onMouseDown={(e) => {
-                            e.preventDefault();
-                            selectMention(member);
-                          }}
-                          className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left transition-colors border-none bg-transparent cursor-pointer ${
-                            i === mentionIndex
-                              ? "bg-neutral-100"
-                              : "hover:bg-neutral-50"
-                          }`}
-                        >
-                          <div className="w-6 h-6 rounded-full bg-[#e63946] text-white flex items-center justify-center text-[0.55rem] font-bold shrink-0">
-                            {member.initials}
-                          </div>
-                          <span className="font-medium text-neutral-900">
-                            {member.name}
-                          </span>
-                          <span className="text-neutral-400 text-xs ml-auto">
-                            {member.initials}
-                          </span>
-                        </button>
-                      ))}
-                    </div>,
-                    document.body,
-                  )}
-                <input
-                  ref={inputRef}
-                  className="w-full h-10 border border-neutral-200 rounded-lg px-3 text-sm outline-none font-[inherit] bg-transparent placeholder:text-neutral-400 focus:border-neutral-900"
-                  placeholder={`Skriv til ${
-                    activeChannel?.name?.toLowerCase() ?? "gruppen"
-                  }…`}
-                  value={msgBody}
-                  onChange={handleInputChange}
-                  onKeyDown={(e) => {
-                    // Autocomplete keyboard nav
-                    if (mentionQuery !== null && mentionResults.length > 0) {
-                      if (e.key === "ArrowDown") {
-                        e.preventDefault();
-                        setMentionIndex((i) => (i + 1) % mentionResults.length);
-                        return;
-                      }
-                      if (e.key === "ArrowUp") {
-                        e.preventDefault();
-                        setMentionIndex(
-                          (i) =>
-                            (i - 1 + mentionResults.length) %
-                            mentionResults.length,
-                        );
-                        return;
-                      }
-                      if (e.key === "Enter" || e.key === "Tab") {
-                        e.preventDefault();
-                        selectMention(mentionResults[mentionIndex]);
-                        return;
-                      }
-                      if (e.key === "Escape") {
-                        setMentionQuery(null);
-                        return;
-                      }
-                    }
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
-                      sendMessage();
-                    }
-                  }}
-                  onBlur={() => setTimeout(() => setMentionQuery(null), 150)}
-                />
-              </div>
-              <button
-                onClick={sendMessage}
-                className={`inline-flex items-center justify-center w-10 h-10 rounded-lg text-white transition-colors border-none cursor-pointer shrink-0 ${
-                  activeChannel?.type === "all_members"
-                    ? "bg-[#e63946] hover:bg-red-600"
-                    : "bg-[#2a9d8f] hover:bg-teal-600"
-                }`}
-              >
-                <Send className="size-4" />
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
+      {/* Chat */}
+      <ChatPanel
+        channels={channels}
+        activeChannelId={activeChannelId}
+        setActiveChannelId={setActiveChannelId}
+        messages={messages}
+        allMessages={allMessages}
+        lastSeenIds={lastSeenIds}
+        setLastSeenIds={setLastSeenIds}
+        user={user}
+        nights={nights}
+        highlightMessageId={highlightMessageId}
+        setHighlightMessageId={setHighlightMessageId}
+        swapConfirmMsg={swapConfirmMsg}
+        setSwapConfirmMsg={setSwapConfirmMsg}
+        channelMembers={channelMembers}
+        onSend={handleSendMessage}
+        messagesContainerRef={messagesContainerRef}
+        chatEndRef={chatEndRef}
+        pendingScrollMsgId={pendingScrollMsgId}
+      />
 
       {/* Edit profile modal */}
-      {showEditModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm flex flex-col overflow-hidden">
-            {/* Header */}
-            <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-100">
-              <h2 className="font-semibold text-neutral-900">Rediger profil</h2>
-              <button
-                onClick={() => setShowEditModal(false)}
-                className="text-neutral-400 hover:text-neutral-600 transition-colors cursor-pointer bg-transparent border-none p-1"
-              >
-                ✕
-              </button>
-            </div>
-
-            {/* Tabs */}
-            <div className="flex border-b border-neutral-100">
-              <button
-                onClick={() => setEditTab("name")}
-                className={`flex-1 py-2.5 text-sm font-medium transition-colors cursor-pointer border-none bg-transparent ${editTab === "name" ? "text-neutral-900 border-b-2 border-neutral-900" : "text-neutral-500 hover:text-neutral-700"}`}
-              >
-                Navn
-              </button>
-              <button
-                onClick={() => setEditTab("password")}
-                className={`flex-1 py-2.5 text-sm font-medium transition-colors cursor-pointer border-none bg-transparent ${editTab === "password" ? "text-neutral-900 border-b-2 border-neutral-900" : "text-neutral-500 hover:text-neutral-700"}`}
-              >
-                Adgangskode
-              </button>
-              <button
-                onClick={() => setEditTab("emails")}
-                className={`flex-1 py-2.5 text-sm font-medium transition-colors cursor-pointer border-none bg-transparent ${editTab === "emails" ? "text-neutral-900 border-b-2 border-neutral-900" : "text-neutral-500 hover:text-neutral-700"}`}
-              >
-                E-mails
-              </button>
-            </div>
-
-            {/* Content */}
-            <div className="p-5 flex flex-col gap-4">
-              {editTab === "emails" ? (
-                <div className="flex flex-col gap-4">
-                  {(
-                    [
-                      "email_on_mention",
-                      "email_on_nights",
-                      "email_on_shift",
-                    ] as const
-                  ).map((key) => {
-                    const labels: Record<typeof key, string> = {
-                      email_on_mention: "E-mail når du @omtales",
-                      email_on_nights: "E-mail ved nye klubaftener",
-                      email_on_shift: "E-mail når du tildeles en vagt",
-                    };
-                    const enabled = emailPrefs?.[key] ?? true;
-                    return (
-                      <div
-                        key={key}
-                        className="flex items-center justify-between gap-3"
-                      >
-                        <span className="text-sm text-neutral-700">
-                          {labels[key]}
-                        </span>
-                        <button
-                          onClick={() => {
-                            const next = !enabled;
-                            setEmailPrefs((p) =>
-                              p ? { ...p, [key]: next } : p,
-                            );
-                            patchEmailPrefs({ [key]: next }).catch(
-                              console.error,
-                            );
-                          }}
-                          style={{
-                            position: "relative",
-                            width: 40,
-                            height: 24,
-                            borderRadius: 9999,
-                            border: "none",
-                            cursor: "pointer",
-                            backgroundColor: enabled ? "#171717" : "#e5e5e5",
-                            transition: "background-color 150ms",
-                            flexShrink: 0,
-                          }}
-                        >
-                          <span
-                            style={{
-                              position: "absolute",
-                              top: "50%",
-                              left: enabled ? 20 : 4,
-                              transform: "translateY(-50%)",
-                              width: 16,
-                              height: 16,
-                              borderRadius: 9999,
-                              backgroundColor: "white",
-                              boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
-                              transition: "left 150ms",
-                            }}
-                          />
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : editTab === "name" ? (
-                <>
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-medium text-neutral-700">
-                      Fulde navn
-                    </label>
-                    <input
-                      type="text"
-                      value={editName}
-                      onChange={(e) => setEditName(e.target.value)}
-                      className="h-9 rounded-lg border border-neutral-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900"
-                      placeholder="Dit navn"
-                      onKeyDown={(e) => e.key === "Enter" && handleSaveName()}
-                    />
-                  </div>
-                  <button
-                    onClick={handleSaveName}
-                    disabled={editSaving || !editName.trim()}
-                    className="h-9 rounded-lg bg-neutral-900 text-white text-sm font-medium hover:bg-neutral-700 transition-colors cursor-pointer border-none disabled:opacity-50"
-                  >
-                    {editSaving ? "Gemmer…" : "Gem navn"}
-                  </button>
-                </>
-              ) : (
-                <>
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-medium text-neutral-700">
-                      Nuværende adgangskode
-                    </label>
-                    <input
-                      type="password"
-                      value={editCurrentPw}
-                      onChange={(e) => setEditCurrentPw(e.target.value)}
-                      className="h-9 rounded-lg border border-neutral-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900"
-                      placeholder="••••••••"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-medium text-neutral-700">
-                      Ny adgangskode
-                    </label>
-                    <input
-                      type="password"
-                      value={editNewPw}
-                      onChange={(e) => setEditNewPw(e.target.value)}
-                      className="h-9 rounded-lg border border-neutral-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900"
-                      placeholder="Mindst 6 tegn"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-medium text-neutral-700">
-                      Gentag ny adgangskode
-                    </label>
-                    <input
-                      type="password"
-                      value={editConfirmPw}
-                      onChange={(e) => setEditConfirmPw(e.target.value)}
-                      className="h-9 rounded-lg border border-neutral-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900"
-                      placeholder="••••••••"
-                      onKeyDown={(e) =>
-                        e.key === "Enter" && handleSavePassword()
-                      }
-                    />
-                  </div>
-                  <button
-                    onClick={handleSavePassword}
-                    disabled={
-                      editSaving ||
-                      !editCurrentPw ||
-                      !editNewPw ||
-                      !editConfirmPw
-                    }
-                    className="h-9 rounded-lg bg-neutral-900 text-white text-sm font-medium hover:bg-neutral-700 transition-colors cursor-pointer border-none disabled:opacity-50"
-                  >
-                    {editSaving ? "Gemmer…" : "Skift adgangskode"}
-                  </button>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      <EditProfileModal
+        open={showEditModal}
+        onClose={() => setShowEditModal(false)}
+      />
     </main>
   );
 }

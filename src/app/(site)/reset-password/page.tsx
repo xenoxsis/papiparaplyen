@@ -117,7 +117,7 @@ function ResetPasswordForm() {
               </div>
             </div>
             {error && (
-              <p className="text-sm text-[#e63946] text-center">{error}</p>
+              <p className="text-sm text-brand-red text-center">{error}</p>
             )}
             <Button
               type="submit"

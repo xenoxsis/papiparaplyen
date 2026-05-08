@@ -78,10 +78,10 @@ export function AssignModal({
               }}
               className="flex items-center gap-3 px-3 py-3 rounded-xl text-left hover:bg-red-50 transition-colors"
             >
-              <div className="w-10 h-10 rounded-full bg-[#E63946]/10 text-[#E63946] flex items-center justify-center shrink-0">
+              <div className="w-10 h-10 rounded-full bg-brand-red/10 text-brand-red flex items-center justify-center shrink-0">
                 <UserMinus className="size-4" />
               </div>
-              <span className="text-sm font-medium text-[#E63946]">
+              <span className="text-sm font-medium text-brand-red">
                 Fjern vagt
               </span>
             </button>
@@ -101,10 +101,10 @@ export function AssignModal({
                   onClose();
                 }}
                 className={`flex items-center gap-3 px-3 py-3 rounded-xl text-left transition-colors ${
-                  isCurrent ? "bg-[#2A9D8F]/10" : "hover:bg-neutral-50"
+                  isCurrent ? "bg-brand-teal/10" : "hover:bg-neutral-50"
                 }`}
               >
-                <div className="w-10 h-10 rounded-full bg-[#E63946] text-white flex items-center justify-center text-xs font-bold shrink-0">
+                <div className="w-10 h-10 rounded-full bg-brand-red text-white flex items-center justify-center text-xs font-bold shrink-0">
                   {m.initials}
                 </div>
                 <div className="flex flex-col flex-1 min-w-0">
@@ -114,7 +114,7 @@ export function AssignModal({
                   <span className="text-xs text-neutral-400">Vagt</span>
                 </div>
                 {isCurrent && (
-                  <Check className="size-4 text-[#2A9D8F] shrink-0" />
+                  <Check className="size-4 text-brand-teal shrink-0" />
                 )}
               </button>
             );
