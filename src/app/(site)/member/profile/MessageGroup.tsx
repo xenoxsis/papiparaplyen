@@ -78,7 +78,11 @@ export const MessageGroup = memo(function MessageGroup({
 
   return (
     <>
-      <Modal open={!!deletingMsg} onClose={() => setDeletingMsg(null)} panelClassName="p-6">
+      <Modal
+        open={!!deletingMsg}
+        onClose={() => setDeletingMsg(null)}
+        panelClassName="p-6"
+      >
         <h2 className="text-base font-semibold text-neutral-900 mb-3">
           Slet besked
         </h2>

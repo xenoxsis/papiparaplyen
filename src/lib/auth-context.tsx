@@ -57,7 +57,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       router.replace("/login");
     }
     window.addEventListener("auth:unauthorized", handleUnauthorized);
-    return () => window.removeEventListener("auth:unauthorized", handleUnauthorized);
+    return () =>
+      window.removeEventListener("auth:unauthorized", handleUnauthorized);
   }, [router]);
 
   async function login(email: string, password: string): Promise<boolean> {
