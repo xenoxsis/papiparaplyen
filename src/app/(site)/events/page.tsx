@@ -12,10 +12,13 @@ export default function EventsPage() {
   useEffect(() => {
     getClubNights()
       .then((all) => {
-        const today = new Date().toISOString().slice(0, 10);
+        const now = new Date();
         setNights(
           all
-            .filter((n) => n.date >= today && n.vagt_confirmed)
+            .filter((n) => {
+              const start = new Date(`${n.date}T${n.time_from}`);
+              return start > now && n.vagt_confirmed;
+            })
             .sort((a, b) => a.date.localeCompare(b.date)),
         );
       })

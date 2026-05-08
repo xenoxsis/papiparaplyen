@@ -75,6 +75,7 @@ export default function SchedulePage() {
   ).length;
 
   const filteredNights = nights
+    .filter((n) => new Date(`${n.date}T${n.time_to}`) > new Date())
     .filter((n) => n.name.toLowerCase().includes(search.toLowerCase()))
     .filter((n) => !filterMissingVagt || draft.effectiveVagt(n) === null)
     .filter(

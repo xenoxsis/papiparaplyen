@@ -33,9 +33,15 @@ export function renderMessageBody(
     parts.push(
       <span
         key={`mention-${start}`}
-        className={`inline-block rounded px-1 py-0 font-medium text-[0.85em] ${
-          isSelf ? "bg-yellow-100 text-yellow-800" : "bg-blue-100 text-blue-700"
-        }`}
+        style={{
+          display: "inline-block",
+          borderRadius: 4,
+          padding: "0 4px",
+          fontWeight: 500,
+          fontSize: "0.85em",
+          backgroundColor: isSelf ? "#fef9c3" : "#dbeafe",
+          color: isSelf ? "#92400e" : "#1d4ed8",
+        }}
       >
         @{name}
       </span>,

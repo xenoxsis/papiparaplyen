@@ -37,9 +37,12 @@ async function getUpcomingNights(): Promise<ClubNight[]> {
     });
     if (!res.ok) return [];
     const all: ClubNight[] = await res.json();
-    const today = new Date().toISOString().slice(0, 10);
+    const now = new Date();
     return all
-      .filter((n) => n.date >= today && n.vagt_confirmed)
+      .filter((n) => {
+        const start = new Date(`${n.date}T${n.time_from}`);
+        return start > now && n.vagt_confirmed;
+      })
       .sort((a, b) => a.date.localeCompare(b.date))
       .slice(0, 3);
   } catch {
