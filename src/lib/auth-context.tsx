@@ -7,6 +7,7 @@ import {
   useEffect,
   ReactNode,
 } from "react";
+import { useRouter } from "next/navigation";
 import { postLogin, postLogout } from "@/lib/api";
 
 export type User = {
@@ -33,6 +34,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [pendingShiftCount, setPendingShiftCount] = useState(0);
+  const router = useRouter();
 
   // Reading from localStorage after mount is a valid external-store sync.
   useEffect(() => {
@@ -46,6 +48,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsLoading(false);
     }
   }, []);
+
+  // Treat any 401 from the API as a session expiry — clear state and redirect
+  useEffect(() => {
+    function handleUnauthorized() {
+      setUser(null);
+      localStorage.removeItem("auth_user");
+      router.replace("/login");
+    }
+    window.addEventListener("auth:unauthorized", handleUnauthorized);
+    return () => window.removeEventListener("auth:unauthorized", handleUnauthorized);
+  }, [router]);
 
   async function login(email: string, password: string): Promise<boolean> {
     try {
