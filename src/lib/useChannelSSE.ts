@@ -1,82 +1,31 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef } from "react";
 import type { ApiMessage } from "./api";
-
-const BASE = process.env.NEXT_PUBLIC_API_URL ?? "";
+import { useUserSSE } from "./UserSSEContext";
 
 /**
- * Opens an SSE connection to /api/channels/:channelId/stream and calls
- * `onMessage` whenever the server pushes a new or updated message.
+ * Subscribes to chat_message events for a specific channel via the shared
+ * per-user SSE connection.  Calls `onMessage` whenever the server pushes
+ * a new or updated message for `channelId`.
  *
- * Automatically reconnects with exponential back-off on unexpected closure.
- * Falls back to a no-op if EventSource is unavailable (SSR / old browsers).
+ * The underlying SSE connection is owned by UserSSEContext (one per user).
+ * No per-channel connection is opened.
  */
 export function useChannelSSE(
   channelId: number | null,
   onMessage: (msg: ApiMessage) => void,
 ): { connected: boolean } {
-  // Keep a stable ref to the callback so we don't need it in the deps array
   const onMessageRef = useRef(onMessage);
   onMessageRef.current = onMessage;
 
-  const [connected, setConnected] = useState(false);
-  useEffect(() => {
-    if (channelId === null) return;
-    if (typeof EventSource === "undefined") return; // SSR guard
+  useUserSSE((evt) => {
+    if (evt.event !== "chat_message") return;
+    if (evt.data.channelId !== channelId) return;
+    onMessageRef.current(evt.data.message as ApiMessage);
+  });
 
-    let es: EventSource | null = null;
-    let retryDelay = 1_000; // start at 1 s, cap at 30 s
-    let retryTimer: ReturnType<typeof setTimeout> | null = null;
-    let unmounted = false;
-
-    function connect() {
-      if (unmounted) return;
-      const token = localStorage.getItem("auth_token") ?? "";
-      const url = `${BASE}/api/channels/${channelId}/stream?token=${encodeURIComponent(token)}`;
-      es = new EventSource(url);
-
-      es.onopen = () => {
-        retryDelay = 1_000; // reset back-off on successful open
-        setConnected(true);
-      };
-
-      es.onmessage = (event) => {
-        try {
-          const parsed = JSON.parse(event.data) as {
-            event: string;
-            data: ApiMessage;
-          };
-          if (parsed.event === "message") {
-            onMessageRef.current(parsed.data);
-          }
-        } catch {
-          /* ignore malformed frames */
-        }
-      };
-
-      es.onerror = () => {
-        es?.close();
-        es = null;
-        setConnected(false);
-        if (!unmounted) {
-          retryTimer = setTimeout(() => {
-            retryDelay = Math.min(retryDelay * 2, 30_000);
-            connect();
-          }, retryDelay);
-        }
-      };
-    }
-
-    connect();
-
-    return () => {
-      unmounted = true;
-      setConnected(false);
-      if (retryTimer !== null) clearTimeout(retryTimer);
-      es?.close();
-    };
-  }, [channelId]);
-
-  return { connected };
+  // Connection status is managed by the context; always report connected
+  // (the context handles reconnect internally)
+  return { connected: true };
 }

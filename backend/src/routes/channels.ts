@@ -10,6 +10,18 @@ import { sendMentionEmail } from "../scheduleEmails";
 
 const router = Router();
 
+/** Broadcast a chat message to all active member user-streams. */
+async function broadcastChatMessage(channelId: number, message: unknown) {
+  const pool = await getPool();
+  const result = await pool
+    .request()
+    .query("SELECT id FROM dbo.members WHERE ISNULL(banned, 0) = 0");
+  const payload = { event: "chat_message", data: { channelId, message } };
+  for (const row of result.recordset as { id: number }[]) {
+    broadcast(`user:${row.id}`, payload);
+  }
+}
+
 // GET /api/channels/:id/stream  — SSE endpoint
 router.get("/:id/stream", async (req: Request, res: Response) => {
   const channelId = Number(req.params.id);
@@ -174,6 +186,9 @@ router.post("/:id/messages", requireAuth, async (req, res) => {
     `);
 
   broadcast(channelId, { event: "message", data: row.recordset[0] });
+  broadcastChatMessage(channelId, row.recordset[0]).catch((e) =>
+    console.error("[channels] broadcastChatMessage failed:", e),
+  );
 
   // Parse @[Name](memberId) mentions and notify each mentioned member
   const mentionPattern = /@\[([^\]]+)\]\((\d+)\)/g;
@@ -326,6 +341,9 @@ router.patch(
     }
 
     broadcast(channelId, { event: "message", data: row.recordset[0] });
+    broadcastChatMessage(channelId, row.recordset[0]).catch((e) =>
+      console.error("[channels] broadcastChatMessage failed:", e),
+    );
 
     // Notify the original sender that their swap was accepted
     if (req.body.swap_status === "taken") {
