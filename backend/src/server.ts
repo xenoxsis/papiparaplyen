@@ -5,7 +5,7 @@ if (process.env.NODE_ENV !== "production") {
     /* not available in production */
   }
 }
-import express from "express";
+import express, { NextFunction, Request, Response } from "express";
 import cors from "cors";
 import passport from "passport";
 import membersRouter from "./routes/members";
@@ -38,6 +38,14 @@ app.use("/api/schedule-reviews", scheduleReviewsRouter);
 app.use("/api/notifications", notificationsRouter);
 
 app.get("/health", (_, res) => res.json({ ok: true }));
+
+// Global error handler — catches errors forwarded via next(err)
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
+  console.error("[server] Unhandled error:", err);
+  const message = err instanceof Error ? err.message : "Internal server error";
+  res.status(500).json({ error: message });
+});
 
 // Warm up DB connection then start listening
 getPool()

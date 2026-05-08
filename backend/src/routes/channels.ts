@@ -1,7 +1,11 @@
-import { Router, Request, Response } from "express";
+import { Router, Request, Response, NextFunction } from "express";
 import { getPool, sql } from "../db";
 import { requireAuth, verifyToken } from "../auth";
-import { broadcast, initSseResponse } from "../broadcaster";
+import {
+  broadcast,
+  getConnectedUserIds,
+  initSseResponse,
+} from "../broadcaster";
 import {
   createNotification,
   createNotificationForMany,
@@ -10,15 +14,17 @@ import { sendMentionEmail } from "../scheduleEmails";
 
 const router = Router();
 
-/** Broadcast a chat message to all active member user-streams. */
-async function broadcastChatMessage(channelId: number, message: unknown) {
-  const pool = await getPool();
-  const result = await pool
-    .request()
-    .query("SELECT id FROM dbo.members WHERE ISNULL(banned, 0) = 0");
+/** Wraps an async route handler so unhandled errors are forwarded via next(). */
+const asyncRoute =
+  (fn: (req: Request, res: Response) => Promise<unknown>) =>
+  (req: Request, res: Response, next: NextFunction) =>
+    fn(req, res).catch(next);
+
+/** Broadcast a chat message to all currently-connected member user-streams. */
+function broadcastChatMessage(channelId: number, message: unknown) {
   const payload = { event: "chat_message", data: { channelId, message } };
-  for (const row of result.recordset as { id: number }[]) {
-    broadcast(`user:${row.id}`, payload);
+  for (const id of getConnectedUserIds()) {
+    broadcast(`user:${id}`, payload);
   }
 }
 
@@ -58,50 +64,57 @@ router.get("/:id/stream", async (req: Request, res: Response) => {
 });
 
 // GET /api/channels
-router.get("/", requireAuth, async (_req, res) => {
-  const pool = await getPool();
-  const jwt = res.locals.jwt as { roles: string[] };
-  const canSeeVagterChannel =
-    jwt.roles.includes("Administrator") ||
-    jwt.roles.includes("Vagt") ||
-    jwt.roles.includes("Tilskuer");
-
-  const result = await pool
-    .request()
-    .query("SELECT id, name, type FROM dbo.channels ORDER BY id");
-
-  const channels = canSeeVagterChannel
-    ? result.recordset
-    : result.recordset.filter((c: { type: string }) => c.type !== "vagter");
-
-  res.json(channels);
-});
-
-// GET /api/channels/:id/members  — list members in a channel
-router.get("/:id/members", requireAuth, async (req, res) => {
-  const pool = await getPool();
-  const channelId = Number(req.params.id);
-
-  // Role-gate vagter channel
-  const chanResult = await pool
-    .request()
-    .input("channelId", sql.Int, channelId)
-    .query("SELECT type FROM dbo.channels WHERE id = @channelId");
-  const channelType: string | undefined = chanResult.recordset[0]?.type;
-  if (channelType === "vagter") {
+router.get(
+  "/",
+  requireAuth,
+  asyncRoute(async (_req, res) => {
+    const pool = await getPool();
     const jwt = res.locals.jwt as { roles: string[] };
-    const allowed =
+    const canSeeVagterChannel =
       jwt.roles.includes("Administrator") ||
       jwt.roles.includes("Vagt") ||
       jwt.roles.includes("Tilskuer");
-    if (!allowed) {
-      res.status(403).json({ error: "Forbidden" });
-      return;
-    }
-  }
 
-  const result = await pool.request().input("channelId", sql.Int, channelId)
-    .query(`
+    const result = await pool
+      .request()
+      .query("SELECT id, name, type FROM dbo.channels ORDER BY id");
+
+    const channels = canSeeVagterChannel
+      ? result.recordset
+      : result.recordset.filter((c: { type: string }) => c.type !== "vagter");
+
+    res.json(channels);
+  }),
+);
+
+// GET /api/channels/:id/members  — list members in a channel
+router.get(
+  "/:id/members",
+  requireAuth,
+  asyncRoute(async (req, res) => {
+    const pool = await getPool();
+    const channelId = Number(req.params.id);
+
+    // Role-gate vagter channel
+    const chanResult = await pool
+      .request()
+      .input("channelId", sql.Int, channelId)
+      .query("SELECT type FROM dbo.channels WHERE id = @channelId");
+    const channelType: string | undefined = chanResult.recordset[0]?.type;
+    if (channelType === "vagter") {
+      const jwt = res.locals.jwt as { roles: string[] };
+      const allowed =
+        jwt.roles.includes("Administrator") ||
+        jwt.roles.includes("Vagt") ||
+        jwt.roles.includes("Tilskuer");
+      if (!allowed) {
+        res.status(403).json({ error: "Forbidden" });
+        return;
+      }
+    }
+
+    const result = await pool.request().input("channelId", sql.Int, channelId)
+      .query(`
       SELECT m.id, m.name, m.initials
       FROM dbo.members m
       LEFT JOIN dbo.users u ON u.member_id = m.id
@@ -109,34 +122,38 @@ router.get("/:id/members", requireAuth, async (req, res) => {
       ORDER BY m.name
     `);
 
-  res.json(result.recordset);
-});
+    res.json(result.recordset);
+  }),
+);
 
 // GET /api/channels/:id/messages
-router.get("/:id/messages", requireAuth, async (req, res) => {
-  const pool = await getPool();
-  const channelId = Number(req.params.id);
+router.get(
+  "/:id/messages",
+  requireAuth,
+  asyncRoute(async (req, res) => {
+    const pool = await getPool();
+    const channelId = Number(req.params.id);
 
-  // Check if this channel is restricted
-  const chanResult = await pool
-    .request()
-    .input("channelId", sql.Int, channelId)
-    .query("SELECT type FROM dbo.channels WHERE id = @channelId");
-  const channelType: string | undefined = chanResult.recordset[0]?.type;
-  if (channelType === "vagter") {
-    const jwt = res.locals.jwt as { roles: string[] };
-    const allowed =
-      jwt.roles.includes("Administrator") ||
-      jwt.roles.includes("Vagt") ||
-      jwt.roles.includes("Tilskuer");
-    if (!allowed) {
-      res.status(403).json({ error: "Forbidden" });
-      return;
+    // Check if this channel is restricted
+    const chanResult = await pool
+      .request()
+      .input("channelId", sql.Int, channelId)
+      .query("SELECT type FROM dbo.channels WHERE id = @channelId");
+    const channelType: string | undefined = chanResult.recordset[0]?.type;
+    if (channelType === "vagter") {
+      const jwt = res.locals.jwt as { roles: string[] };
+      const allowed =
+        jwt.roles.includes("Administrator") ||
+        jwt.roles.includes("Vagt") ||
+        jwt.roles.includes("Tilskuer");
+      if (!allowed) {
+        res.status(403).json({ error: "Forbidden" });
+        return;
+      }
     }
-  }
 
-  const result = await pool.request().input("channelId", sql.Int, channelId)
-    .query(`
+    const result = await pool.request().input("channelId", sql.Int, channelId)
+      .query(`
       SELECT m.id, m.channel_id, m.sender_id, m.body, m.sent_at,
              m.type, m.shift_night_id, m.swap_status, m.taken_by_member_id,
              s.name  AS sender_name,
@@ -150,32 +167,36 @@ router.get("/:id/messages", requireAuth, async (req, res) => {
       ORDER BY m.sent_at
     `);
 
-  res.json(result.recordset);
-});
+    res.json(result.recordset);
+  }),
+);
 
 // POST /api/channels/:id/messages
-router.post("/:id/messages", requireAuth, async (req, res) => {
-  const pool = await getPool();
-  const channelId = Number(req.params.id);
-  const isSwap = req.body.type === "shift_swap";
+router.post(
+  "/:id/messages",
+  requireAuth,
+  asyncRoute(async (req, res) => {
+    const pool = await getPool();
+    const channelId = Number(req.params.id);
+    const isSwap = req.body.type === "shift_swap";
 
-  const insertResult = await pool
-    .request()
-    .input("channelId", sql.Int, channelId)
-    .input("senderId", sql.Int, req.body.sender_id ?? null)
-    .input("body", sql.NVarChar(sql.MAX), req.body.body)
-    .input("sentAt", sql.DateTime2, new Date().toISOString())
-    .input("type", sql.NVarChar, isSwap ? "shift_swap" : null)
-    .input("shiftNightId", sql.Int, isSwap ? req.body.shift_night_id : null)
-    .input("swapStatus", sql.NVarChar, isSwap ? "pending" : null).query(`
+    const insertResult = await pool
+      .request()
+      .input("channelId", sql.Int, channelId)
+      .input("senderId", sql.Int, req.body.sender_id ?? null)
+      .input("body", sql.NVarChar(sql.MAX), req.body.body)
+      .input("sentAt", sql.DateTime2, new Date().toISOString())
+      .input("type", sql.NVarChar, isSwap ? "shift_swap" : null)
+      .input("shiftNightId", sql.Int, isSwap ? req.body.shift_night_id : null)
+      .input("swapStatus", sql.NVarChar, isSwap ? "pending" : null).query(`
       INSERT INTO dbo.messages (channel_id, sender_id, body, sent_at, type, shift_night_id, swap_status, taken_by_member_id)
       OUTPUT INSERTED.id
       VALUES (@channelId, @senderId, @body, @sentAt, @type, @shiftNightId, @swapStatus, NULL)
     `);
 
-  const newId: number = insertResult.recordset[0].id;
+    const newId: number = insertResult.recordset[0].id;
 
-  const row = await pool.request().input("id", sql.Int, newId).query(`
+    const row = await pool.request().input("id", sql.Int, newId).query(`
       SELECT m.id, m.channel_id, m.sender_id, m.body, m.sent_at,
              m.type, m.shift_night_id, m.swap_status, m.taken_by_member_id,
              s.name AS sender_name, s.initials AS sender_initials,
@@ -185,74 +206,80 @@ router.post("/:id/messages", requireAuth, async (req, res) => {
       WHERE m.id = @id
     `);
 
-  broadcast(channelId, { event: "message", data: row.recordset[0] });
-  broadcastChatMessage(channelId, row.recordset[0]).catch((e) =>
-    console.error("[channels] broadcastChatMessage failed:", e),
-  );
+    broadcast(channelId, { event: "message", data: row.recordset[0] });
+    broadcastChatMessage(channelId, row.recordset[0]);
 
-  // Parse @[Name](memberId) mentions and notify each mentioned member
-  const mentionPattern = /@\[([^\]]+)\]\((\d+)\)/g;
-  const mentionedIds = new Set<number>();
-  let match: RegExpExecArray | null;
-  while ((match = mentionPattern.exec(req.body.body ?? "")) !== null) {
-    const mentionedId = Number(match[2]);
-    const senderId: number | null = req.body.sender_id ?? null;
-    if (mentionedId && mentionedId !== senderId) {
-      mentionedIds.add(mentionedId);
+    // Parse @[Name](memberId) mentions and notify each mentioned member
+    const mentionPattern = /@\[([^\]]+)\]\((\d+)\)/g;
+    const mentionedIds = new Set<number>();
+    let match: RegExpExecArray | null;
+    while ((match = mentionPattern.exec(req.body.body ?? "")) !== null) {
+      const mentionedId = Number(match[2]);
+      const senderId: number | null = req.body.sender_id ?? null;
+      if (mentionedId && mentionedId !== senderId) {
+        mentionedIds.add(mentionedId);
+      }
     }
-  }
-  if (mentionedIds.size > 0) {
-    const senderName: string = row.recordset[0]?.sender_name ?? "Nogen";
-    // Fetch channel name for the mention email
-    const chanNameResult = await pool
-      .request()
-      .input("channelId", sql.Int, channelId)
-      .query("SELECT name FROM dbo.channels WHERE id = @channelId");
-    const channelName: string = chanNameResult.recordset[0]?.name ?? "kanalen";
-    const messageBody: string = req.body.body ?? "";
-    await createNotificationForMany(
-      Array.from(mentionedIds),
-      "mentioned",
-      `${senderName} n\u00e6vnte dig i en besked`,
-      "/member/profile",
-    );
-    // Send mention email to each mentioned member (respects email_on_mention pref)
-    for (const mentionedId of mentionedIds) {
-      sendMentionEmail(mentionedId, senderName, channelName, messageBody).catch(
-        (err) => console.error("[channels] mention email failed:", err),
+    if (mentionedIds.size > 0) {
+      const senderName: string = row.recordset[0]?.sender_name ?? "Nogen";
+      // Fetch channel name for the mention email
+      const chanNameResult = await pool
+        .request()
+        .input("channelId", sql.Int, channelId)
+        .query("SELECT name FROM dbo.channels WHERE id = @channelId");
+      const channelName: string =
+        chanNameResult.recordset[0]?.name ?? "kanalen";
+      const messageBody: string = req.body.body ?? "";
+      await createNotificationForMany(
+        Array.from(mentionedIds),
+        "mentioned",
+        `${senderName} n\u00e6vnte dig i en besked`,
+        "/member/profile",
+      );
+      // Send mention email to each mentioned member (respects email_on_mention pref)
+      for (const mentionedId of mentionedIds) {
+        sendMentionEmail(
+          mentionedId,
+          senderName,
+          channelName,
+          messageBody,
+        ).catch((err) =>
+          console.error("[channels] mention email failed:", err),
+        );
+      }
+    }
+
+    // Notify channel members about the new swap request (excluding sender)
+    if (isSwap) {
+      const senderId: number | null = req.body.sender_id ?? null;
+      const nightName: string =
+        row.recordset[0]?.shift_night_name ?? "en aften";
+      const membersResult = await pool
+        .request()
+        .input("channelId", sql.Int, channelId)
+        .query(
+          "SELECT member_id FROM dbo.channel_members WHERE channel_id = @channelId",
+        );
+      const recipientIds: number[] = membersResult.recordset
+        .map((r: { member_id: number }) => r.member_id)
+        .filter((id: number) => id !== senderId);
+      await createNotificationForMany(
+        recipientIds,
+        "swap_requested",
+        `Ny vagtbytning tilgængelig`,
+        "/member/schedule",
       );
     }
-  }
 
-  // Notify channel members about the new swap request (excluding sender)
-  if (isSwap) {
-    const senderId: number | null = req.body.sender_id ?? null;
-    const nightName: string = row.recordset[0]?.shift_night_name ?? "en aften";
-    const membersResult = await pool
-      .request()
-      .input("channelId", sql.Int, channelId)
-      .query(
-        "SELECT member_id FROM dbo.channel_members WHERE channel_id = @channelId",
-      );
-    const recipientIds: number[] = membersResult.recordset
-      .map((r: { member_id: number }) => r.member_id)
-      .filter((id: number) => id !== senderId);
-    await createNotificationForMany(
-      recipientIds,
-      "swap_requested",
-      `Ny vagtbytning tilgængelig`,
-      "/member/schedule",
-    );
-  }
-
-  return res.status(201).json(row.recordset[0]);
-});
+    return res.status(201).json(row.recordset[0]);
+  }),
+);
 
 // PATCH /api/channels/:channelId/messages/:messageId
 router.patch(
   "/:channelId/messages/:messageId",
   requireAuth,
-  async (req, res) => {
+  asyncRoute(async (req, res) => {
     const pool = await getPool();
     const messageId = Number(req.params.messageId);
     const channelId = Number(req.params.channelId);
@@ -341,9 +368,7 @@ router.patch(
     }
 
     broadcast(channelId, { event: "message", data: row.recordset[0] });
-    broadcastChatMessage(channelId, row.recordset[0]).catch((e) =>
-      console.error("[channels] broadcastChatMessage failed:", e),
-    );
+    broadcastChatMessage(channelId, row.recordset[0]);
 
     // Notify the original sender that their swap was accepted
     if (req.body.swap_status === "taken") {
@@ -378,7 +403,7 @@ router.patch(
     }
 
     return res.json(row.recordset[0]);
-  },
+  }),
 );
 
 export default router;

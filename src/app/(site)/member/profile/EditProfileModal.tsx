@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useReducer } from "react";
 import {
   getEmailPrefs,
   patchEmailPrefs,
@@ -16,61 +16,89 @@ interface EditProfileModalProps {
   onClose: () => void;
 }
 
+// ── Edit-modal state ──────────────────────────────────────────────────────────
+type EditState = {
+  tab: "name" | "password" | "emails";
+  name: string;
+  currentPw: string;
+  newPw: string;
+  confirmPw: string;
+  saving: boolean;
+  emailPrefs: ApiEmailPrefs | null;
+};
+
+type EditAction =
+  | { type: "SET"; payload: Partial<EditState> }
+  | { type: "RESET"; name: string };
+
+const initialEditState: EditState = {
+  tab: "name",
+  name: "",
+  currentPw: "",
+  newPw: "",
+  confirmPw: "",
+  saving: false,
+  emailPrefs: null,
+};
+
+function editReducer(state: EditState, action: EditAction): EditState {
+  switch (action.type) {
+    case "SET":
+      return { ...state, ...action.payload };
+    case "RESET":
+      return { ...initialEditState, name: action.name };
+    default:
+      return state;
+  }
+}
+
 export function EditProfileModal({ open, onClose }: EditProfileModalProps) {
   const { user, updateUser } = useAuth();
-  const [editTab, setEditTab] = useState<"name" | "password" | "emails">(
-    "name",
-  );
-  const [editName, setEditName] = useState("");
-  const [editCurrentPw, setEditCurrentPw] = useState("");
-  const [editNewPw, setEditNewPw] = useState("");
-  const [editConfirmPw, setEditConfirmPw] = useState("");
-  const [editSaving, setEditSaving] = useState(false);
-  const [emailPrefs, setEmailPrefs] = useState<ApiEmailPrefs | null>(null);
+  const [edit, dispatch] = useReducer(editReducer, initialEditState);
 
   useEffect(() => {
     if (!open) return;
-    setEditName(user?.name ?? "");
-    setEditCurrentPw("");
-    setEditNewPw("");
-    setEditConfirmPw("");
-    setEditTab("name");
-    getEmailPrefs().then(setEmailPrefs).catch(console.error);
+    dispatch({ type: "RESET", name: user?.name ?? "" });
+    getEmailPrefs()
+      .then((prefs) =>
+        dispatch({ type: "SET", payload: { emailPrefs: prefs } }),
+      )
+      .catch(console.error);
   }, [open, user?.name]);
 
   async function handleSaveName() {
-    if (!editName.trim()) return;
-    setEditSaving(true);
+    if (!edit.name.trim()) return;
+    dispatch({ type: "SET", payload: { saving: true } });
     try {
-      const result = await patchMe(editName.trim());
+      const result = await patchMe(edit.name.trim());
       updateUser({ name: result.name, initials: result.initials });
       toast.success("Navn opdateret");
       onClose();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Noget gik galt");
     } finally {
-      setEditSaving(false);
+      dispatch({ type: "SET", payload: { saving: false } });
     }
   }
 
   async function handleSavePassword() {
-    if (editNewPw.length < 6) {
+    if (edit.newPw.length < 6) {
       toast.error("Adgangskode skal være mindst 6 tegn");
       return;
     }
-    if (editNewPw !== editConfirmPw) {
+    if (edit.newPw !== edit.confirmPw) {
       toast.error("Adgangskoderne matcher ikke");
       return;
     }
-    setEditSaving(true);
+    dispatch({ type: "SET", payload: { saving: true } });
     try {
-      await changePassword(editCurrentPw, editNewPw);
+      await changePassword(edit.currentPw, edit.newPw);
       toast.success("Adgangskode ændret");
       onClose();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Noget gik galt");
     } finally {
-      setEditSaving(false);
+      dispatch({ type: "SET", payload: { saving: false } });
     }
   }
 
@@ -107,9 +135,9 @@ export function EditProfileModal({ open, onClose }: EditProfileModalProps) {
             return (
               <button
                 key={tab}
-                onClick={() => setEditTab(tab)}
+                onClick={() => dispatch({ type: "SET", payload: { tab } })}
                 className={`flex-1 py-2.5 text-sm font-medium transition-colors cursor-pointer border-none bg-transparent ${
-                  editTab === tab
+                  edit.tab === tab
                     ? "text-neutral-900 border-b-2 border-neutral-900"
                     : "text-neutral-500 hover:text-neutral-700"
                 }`}
@@ -122,7 +150,7 @@ export function EditProfileModal({ open, onClose }: EditProfileModalProps) {
 
         {/* Content */}
         <div className="p-5 flex flex-col gap-4">
-          {editTab === "emails" ? (
+          {edit.tab === "emails" ? (
             <div className="flex flex-col gap-4">
               {(
                 [
@@ -136,7 +164,7 @@ export function EditProfileModal({ open, onClose }: EditProfileModalProps) {
                   email_on_nights: "E-mail ved nye klubaftener",
                   email_on_shift: "E-mail når du tildeles en vagt",
                 };
-                const enabled = emailPrefs?.[key] ?? true;
+                const enabled = edit.emailPrefs?.[key] ?? true;
                 return (
                   <div
                     key={key}
@@ -151,7 +179,14 @@ export function EditProfileModal({ open, onClose }: EditProfileModalProps) {
                       aria-label={labels[key]}
                       onClick={() => {
                         const next = !enabled;
-                        setEmailPrefs((p) => (p ? { ...p, [key]: next } : p));
+                        dispatch({
+                          type: "SET",
+                          payload: {
+                            emailPrefs: edit.emailPrefs
+                              ? { ...edit.emailPrefs, [key]: next }
+                              : edit.emailPrefs,
+                          },
+                        });
                         patchEmailPrefs({ [key]: next }).catch(console.error);
                       }}
                       style={{
@@ -185,7 +220,7 @@ export function EditProfileModal({ open, onClose }: EditProfileModalProps) {
                 );
               })}
             </div>
-          ) : editTab === "name" ? (
+          ) : edit.tab === "name" ? (
             <>
               <div className="flex flex-col gap-1.5">
                 <label
@@ -197,8 +232,10 @@ export function EditProfileModal({ open, onClose }: EditProfileModalProps) {
                 <input
                   id="edit-name"
                   type="text"
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
+                  value={edit.name}
+                  onChange={(e) =>
+                    dispatch({ type: "SET", payload: { name: e.target.value } })
+                  }
                   className="h-9 rounded-lg border border-neutral-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900"
                   placeholder="Dit navn"
                   onKeyDown={(e) => e.key === "Enter" && handleSaveName()}
@@ -206,10 +243,10 @@ export function EditProfileModal({ open, onClose }: EditProfileModalProps) {
               </div>
               <button
                 onClick={handleSaveName}
-                disabled={editSaving || !editName.trim()}
+                disabled={edit.saving || !edit.name.trim()}
                 className="h-9 rounded-lg bg-neutral-900 text-white text-sm font-medium hover:bg-neutral-700 transition-colors cursor-pointer border-none disabled:opacity-50"
               >
-                {editSaving ? "Gemmer…" : "Gem navn"}
+                {edit.saving ? "Gemmer…" : "Gem navn"}
               </button>
             </>
           ) : (
@@ -224,8 +261,13 @@ export function EditProfileModal({ open, onClose }: EditProfileModalProps) {
                 <input
                   id="edit-current-pw"
                   type="password"
-                  value={editCurrentPw}
-                  onChange={(e) => setEditCurrentPw(e.target.value)}
+                  value={edit.currentPw}
+                  onChange={(e) =>
+                    dispatch({
+                      type: "SET",
+                      payload: { currentPw: e.target.value },
+                    })
+                  }
                   className="h-9 rounded-lg border border-neutral-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900"
                   placeholder="••••••••"
                 />
@@ -240,8 +282,13 @@ export function EditProfileModal({ open, onClose }: EditProfileModalProps) {
                 <input
                   id="edit-new-pw"
                   type="password"
-                  value={editNewPw}
-                  onChange={(e) => setEditNewPw(e.target.value)}
+                  value={edit.newPw}
+                  onChange={(e) =>
+                    dispatch({
+                      type: "SET",
+                      payload: { newPw: e.target.value },
+                    })
+                  }
                   className="h-9 rounded-lg border border-neutral-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900"
                   placeholder="Mindst 6 tegn"
                 />
@@ -256,8 +303,13 @@ export function EditProfileModal({ open, onClose }: EditProfileModalProps) {
                 <input
                   id="edit-confirm-pw"
                   type="password"
-                  value={editConfirmPw}
-                  onChange={(e) => setEditConfirmPw(e.target.value)}
+                  value={edit.confirmPw}
+                  onChange={(e) =>
+                    dispatch({
+                      type: "SET",
+                      payload: { confirmPw: e.target.value },
+                    })
+                  }
                   className="h-9 rounded-lg border border-neutral-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900"
                   placeholder="••••••••"
                   onKeyDown={(e) => e.key === "Enter" && handleSavePassword()}
@@ -266,11 +318,14 @@ export function EditProfileModal({ open, onClose }: EditProfileModalProps) {
               <button
                 onClick={handleSavePassword}
                 disabled={
-                  editSaving || !editCurrentPw || !editNewPw || !editConfirmPw
+                  edit.saving ||
+                  !edit.currentPw ||
+                  !edit.newPw ||
+                  !edit.confirmPw
                 }
                 className="h-9 rounded-lg bg-neutral-900 text-white text-sm font-medium hover:bg-neutral-700 transition-colors cursor-pointer border-none disabled:opacity-50"
               >
-                {editSaving ? "Gemmer…" : "Skift adgangskode"}
+                {edit.saving ? "Gemmer…" : "Skift adgangskode"}
               </button>
             </>
           )}

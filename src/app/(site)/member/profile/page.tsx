@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+} from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import {
@@ -54,6 +61,51 @@ function upsertIntoMap(
   return { ...map, [msg.channel_id]: next };
 }
 
+// ── Swap modal state ──────────────────────────────────────────────────────────
+type SwapState = {
+  showModal: boolean;
+  targetShift: ApiClubNight | null;
+  modalMessage: string;
+  confirmMsg: ApiMessage | null;
+};
+type SwapAction =
+  | { type: "OPEN"; shift: ApiClubNight }
+  | { type: "CLOSE" }
+  | { type: "SET_MESSAGE"; message: string }
+  | { type: "SET_CONFIRM"; msg: ApiMessage | null };
+
+const initialSwapState: SwapState = {
+  showModal: false,
+  targetShift: null,
+  modalMessage: "",
+  confirmMsg: null,
+};
+
+function swapReducer(state: SwapState, action: SwapAction): SwapState {
+  switch (action.type) {
+    case "OPEN":
+      return {
+        ...state,
+        showModal: true,
+        targetShift: action.shift,
+        modalMessage: "",
+      };
+    case "CLOSE":
+      return {
+        ...state,
+        showModal: false,
+        targetShift: null,
+        modalMessage: "",
+      };
+    case "SET_MESSAGE":
+      return { ...state, modalMessage: action.message };
+    case "SET_CONFIRM":
+      return { ...state, confirmMsg: action.msg };
+    default:
+      return state;
+  }
+}
+
 export default function ProfilePage() {
   const { authorized } = useRequireAuth();
   const { user, setPendingShiftCount } = useAuth();
@@ -72,13 +124,14 @@ export default function ProfilePage() {
   const [channelMembers, setChannelMembers] = useState<ApiChannelMember[]>([]);
   const [myReview, setMyReview] = useState<ApiScheduleReview | null>(null);
 
-  // ── Swap state ────────────────────────────────────────────────────────────
-  const [showSwapModal, setShowSwapModal] = useState(false);
-  const [swapTargetShift, setSwapTargetShift] = useState<ApiClubNight | null>(
-    null,
+  // Derived: vagter channel ID (avoids hardcoding channel 2 everywhere)
+  const vagterChannelId = useMemo(
+    () => channels.find((c) => c.type === "vagter")?.id,
+    [channels],
   );
-  const [swapModalMessage, setSwapModalMessage] = useState("");
-  const [swapConfirmMsg, setSwapConfirmMsg] = useState<ApiMessage | null>(null);
+
+  // ── Swap state ────────────────────────────────────────────────────────────
+  const [swap, dispatchSwap] = useReducer(swapReducer, initialSwapState);
 
   // ── Deep link ─────────────────────────────────────────────────────────────
   const [vagterMsgId, setVagterMsgId] = useState<number | null>(null);
@@ -222,7 +275,9 @@ export default function ProfilePage() {
   // Auto-refresh after swap taken
   useEffect(() => {
     if (!user) return;
-    const myTakenSwap = (messageMap[2] ?? []).find(
+    const myTakenSwap = (
+      vagterChannelId !== undefined ? (messageMap[vagterChannelId] ?? []) : []
+    ).find(
       (m) =>
         m.type === "shift_swap" &&
         m.swap_status === "taken" &&
@@ -233,7 +288,7 @@ export default function ProfilePage() {
       getMemberShifts(user.id).then(setShifts).catch(console.error);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [messageMap]);
+  }, [messageMap, vagterChannelId]);
 
   // Scroll effect for new messages / deep link
   useEffect(() => {
@@ -259,8 +314,10 @@ export default function ProfilePage() {
 
   // ── Derived state ─────────────────────────────────────────────────────────
   const pendingSwap = useMemo(() => {
-    if (!user) return null;
-    const m = (messageMap[2] ?? []).find(
+    if (!user || vagterChannelId === undefined) return null;
+    const m = (
+      vagterChannelId !== undefined ? (messageMap[vagterChannelId] ?? []) : []
+    ).find(
       (msg) =>
         msg.type === "shift_swap" &&
         msg.swap_status === "pending" &&
@@ -269,7 +326,7 @@ export default function ProfilePage() {
     if (m && m.shift_night_id !== undefined)
       return { shiftId: m.shift_night_id, messageId: m.id };
     return null;
-  }, [messageMap, user]);
+  }, [messageMap, user, vagterChannelId]);
 
   const today = new Date().toISOString().slice(0, 10);
   const confirmedNightsCount = nights.filter((n) => n.vagt_confirmed).length;
@@ -291,71 +348,88 @@ export default function ProfilePage() {
   }, [pendingShiftsForMe.length, setPendingShiftCount]);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
-  async function handleSendMessage(body: string) {
-    if (!user) return;
-    const msg = await postMessage(activeChannelId, user.id, body);
-    scrollOnNextRender.current = true;
-    setMessageMap((prev) => upsertIntoMap(prev, msg));
-  }
+  const handleSendMessage = useCallback(
+    async (body: string) => {
+      if (!user) return;
+      const msg = await postMessage(activeChannelId, user.id, body);
+      scrollOnNextRender.current = true;
+      setMessageMap((prev) => upsertIntoMap(prev, msg));
+    },
+    [activeChannelId, user],
+  );
 
-  async function requestSwap() {
-    if (!user || !swapTargetShift) return;
+  const requestSwap = useCallback(async () => {
+    if (!user || !swap.targetShift || vagterChannelId === undefined) return;
     try {
       const msg = await postMessage(
-        2,
+        vagterChannelId,
         user.id,
-        swapModalMessage.trim() ||
-          `Kan nogen tage min vagt til ${swapTargetShift.name}?`,
-        { type: "shift_swap", shift_night_id: swapTargetShift.id },
+        swap.modalMessage.trim() ||
+          `Kan nogen tage min vagt til ${swap.targetShift.name}?`,
+        { type: "shift_swap", shift_night_id: swap.targetShift.id },
       );
       setMessageMap((prev) => upsertIntoMap(prev, msg));
-      if (activeChannelId === 2) scrollOnNextRender.current = true;
-      setShowSwapModal(false);
-      setSwapModalMessage("");
-      setSwapTargetShift(null);
+      if (activeChannelId === vagterChannelId)
+        scrollOnNextRender.current = true;
+      dispatchSwap({ type: "CLOSE" });
     } catch (err) {
-      console.error(err);
+      toast.error(
+        err instanceof Error ? err.message : "Noget gik galt. Prøv igen.",
+      );
     }
-  }
+  }, [
+    user,
+    swap.targetShift,
+    swap.modalMessage,
+    vagterChannelId,
+    activeChannelId,
+  ]);
 
-  async function cancelSwap() {
-    if (!user || !pendingSwap) return;
+  const cancelSwap = useCallback(async () => {
+    if (!user || !pendingSwap || vagterChannelId === undefined) return;
     try {
-      await patchMessage(2, pendingSwap.messageId, {
+      await patchMessage(vagterChannelId, pendingSwap.messageId, {
         body: `Annulleret af ${user.name}`,
         swap_status: "cancelled",
       });
-      getMessages(2).then((msgs) =>
-        setMessageMap((prev) => ({ ...prev, [2]: msgs })),
+      getMessages(vagterChannelId).then((msgs) =>
+        setMessageMap((prev) => ({ ...prev, [vagterChannelId]: msgs })),
       );
     } catch (err) {
-      console.error(err);
+      toast.error(
+        err instanceof Error ? err.message : "Noget gik galt. Prøv igen.",
+      );
     }
-  }
+  }, [user, pendingSwap, vagterChannelId]);
 
-  async function confirmTakeSwap() {
-    if (!user || !swapConfirmMsg || swapConfirmMsg.shift_night_id === undefined)
+  const confirmTakeSwap = useCallback(async () => {
+    if (
+      !user ||
+      !swap.confirmMsg ||
+      swap.confirmMsg.shift_night_id === undefined ||
+      vagterChannelId === undefined
+    )
       return;
     try {
-      await patchClubNight(swapConfirmMsg.shift_night_id, {
+      await patchClubNight(swap.confirmMsg.shift_night_id, {
         vagt_member_id: user.id,
       });
-      await patchMessage(2, swapConfirmMsg.id, {
+      await patchMessage(vagterChannelId, swap.confirmMsg.id, {
         swap_status: "taken",
         taken_by_member_id: user.id,
       });
-      setSwapConfirmMsg(null);
+      dispatchSwap({ type: "SET_CONFIRM", msg: null });
       getClubNights().then(setNights).catch(console.error);
       getMemberShifts(user.id).then(setShifts).catch(console.error);
-      getMessages(2).then((msgs) =>
-        setMessageMap((prev) => ({ ...prev, [2]: msgs })),
+      getMessages(vagterChannelId).then((msgs) =>
+        setMessageMap((prev) => ({ ...prev, [vagterChannelId]: msgs })),
       );
     } catch (err: unknown) {
       toast.error(
         err instanceof Error ? err.message : "Noget gik galt. Prøv igen.",
       );
     }
-  }
+  }, [user, swap.confirmMsg, vagterChannelId]);
 
   async function handleConfirmShift(shiftId: number) {
     try {
@@ -422,6 +496,11 @@ export default function ProfilePage() {
               );
             } catch (err) {
               console.error(err);
+              toast.error(
+                err instanceof Error
+                  ? err.message
+                  : "Noget gik galt. Prøv igen.",
+              );
             }
             setShowAddModal(false);
           }}
@@ -430,22 +509,18 @@ export default function ProfilePage() {
 
       {/* Swap modals */}
       <SwapModal
-        open={showSwapModal && swapTargetShift !== null}
-        onClose={() => {
-          setShowSwapModal(false);
-          setSwapModalMessage("");
-          setSwapTargetShift(null);
-        }}
-        shift={swapTargetShift}
-        message={swapModalMessage}
-        setMessage={setSwapModalMessage}
+        open={swap.showModal && swap.targetShift !== null}
+        onClose={() => dispatchSwap({ type: "CLOSE" })}
+        shift={swap.targetShift}
+        message={swap.modalMessage}
+        setMessage={(m) => dispatchSwap({ type: "SET_MESSAGE", message: m })}
         onSubmit={requestSwap}
       />
 
       <SwapConfirmModal
-        msg={swapConfirmMsg}
+        msg={swap.confirmMsg}
         nights={nights}
-        onClose={() => setSwapConfirmMsg(null)}
+        onClose={() => dispatchSwap({ type: "SET_CONFIRM", msg: null })}
         onConfirm={confirmTakeSwap}
       />
 
@@ -516,8 +591,7 @@ export default function ProfilePage() {
             onOptOut={handleOptOut}
             onConfirmAllShifts={handleConfirmAllShifts}
             onRequestSwap={(shift) => {
-              setSwapTargetShift(shift);
-              setShowSwapModal(true);
+              dispatchSwap({ type: "OPEN", shift });
             }}
             onCancelSwap={cancelSwap}
           />
@@ -617,8 +691,8 @@ export default function ProfilePage() {
         nights={nights}
         highlightMessageId={highlightMessageId}
         setHighlightMessageId={setHighlightMessageId}
-        swapConfirmMsg={swapConfirmMsg}
-        setSwapConfirmMsg={setSwapConfirmMsg}
+        swapConfirmMsg={swap.confirmMsg}
+        setSwapConfirmMsg={(msg) => dispatchSwap({ type: "SET_CONFIRM", msg })}
         channelMembers={channelMembers}
         onSend={handleSendMessage}
         messagesContainerRef={messagesContainerRef}

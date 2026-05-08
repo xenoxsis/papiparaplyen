@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import { CalendarDays, Clock, MapPin, User, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -75,7 +76,10 @@ export function ClubNightModal({
       .then((members) =>
         setVagter(members.filter((m) => m.roles.includes("Vagt") && !m.banned)),
       )
-      .catch(() => {});
+      .catch((err) => {
+        console.error(err);
+        toast.error("Kunne ikke hente vagtliste.");
+      });
   }, []);
 
   function handleOverlayClick(e: React.MouseEvent) {

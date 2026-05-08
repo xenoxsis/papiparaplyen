@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   CalendarDays,
@@ -79,15 +79,18 @@ export default function SchedulePage() {
     (n) => n.vagt_member_id !== null && !n.vagt_confirmed,
   ).length;
 
-  const filteredNights = nights
-    .filter((n) => new Date(`${n.date}T${n.time_to}`) > new Date())
-    .filter((n) => n.name.toLowerCase().includes(search.toLowerCase()))
-    .filter((n) => !filterMissingVagt || draft.effectiveVagt(n) === null)
-    .filter(
-      (n) =>
-        !filterUnreviewed || !myReview || n.created_at > myReview.reviewed_at,
-    )
-    .sort((a, b) => a.date.localeCompare(b.date));
+  const filteredNights = useMemo(() => {
+    const now = new Date();
+    return nights
+      .filter((n) => new Date(`${n.date}T${n.time_to}`) > now)
+      .filter((n) => n.name.toLowerCase().includes(search.toLowerCase()))
+      .filter((n) => !filterMissingVagt || draft.effectiveVagt(n) === null)
+      .filter(
+        (n) =>
+          !filterUnreviewed || !myReview || n.created_at > myReview.reviewed_at,
+      )
+      .sort((a, b) => a.date.localeCompare(b.date));
+  }, [nights, search, filterMissingVagt, filterUnreviewed, myReview, draft]);
 
   // ── Handlers ─────────────────────────────────────────────────────────────
   async function toggleOptOut(nightId: number, currentlyOptedOut: boolean) {
@@ -101,6 +104,7 @@ export default function SchedulePage() {
       setNights(updated);
     } catch (err) {
       console.error(err);
+      toast.error("Noget gik galt. Prøv igen.");
     }
   }
 
@@ -133,6 +137,7 @@ export default function SchedulePage() {
               );
             } catch (err) {
               console.error(err);
+              toast.error("Noget gik galt. Prøv igen.");
             }
             setShowAddModal(false);
           }}

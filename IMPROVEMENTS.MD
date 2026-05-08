@@ -35,48 +35,47 @@ Extracted into focused files; `page.tsx` is now ~580 lines:
 
 `messages` and `allMessages` replaced with a single `messageMap: Record<number, ApiMessage[]>`. `messages` is now a derived constant (`messageMap[activeChannelId] ?? []`). A shared `upsertIntoMap()` helper handles SSE push, swap mutations, and polls. `pendingSwap` and the auto-refresh effect now read directly from `messageMap[2]` (channel 2) instead of scanning the full flat array.
 
-### MEDIUM — 30+ `useState` calls
+### ✅ DONE — 30+ `useState` calls
 
-Group related states with `useReducer`:
+Grouped related states with `useReducer`:
 
-- Edit modal: `editTab`, `editName`, `editCurrentPw`, `editNewPw`, `editConfirmPw`, `editSaving`, `emailPrefs`
-- Swap flow: `showSwapModal`, `swapTargetShift`, `swapModalMessage`, `swapConfirmMsg`
-- Mention: `mentionQuery`, `mentionIndex`, `channelMembers`
+- **Swap flow** in `profile/page.tsx`: `showSwapModal`, `swapTargetShift`, `swapModalMessage`, `swapConfirmMsg` → single `useReducer` with `SwapState` / `SwapAction` (`OPEN`, `CLOSE`, `SET_MESSAGE`, `SET_CONFIRM`)
+- **Edit modal** in `EditProfileModal.tsx`: `editTab`, `editName`, `editCurrentPw`, `editNewPw`, `editConfirmPw`, `editSaving`, `emailPrefs` → single `useReducer` with `EditState` / `EditAction` (`SET`, `RESET`)
 
-### MEDIUM — Missing `useCallback` and `useMemo`
+### ✅ DONE — Missing `useCallback` and `useMemo`
 
-- `sendMessage`, `requestSwap`, `confirmTakeSwap`, etc. re-create every render
-- `messageSearchResults` is computed every render even when search is closed
-- `Math.max(0, ...allMessages.filter(...))` runs per channel per render (O(channels × messages))
-- `filteredNights` in schedule page calls `new Date()` on every render
+- `handleSendMessage`, `requestSwap`, `confirmTakeSwap`, `cancelSwap` in `profile/page.tsx` wrapped in `useCallback` with correct dependency arrays
+- `filteredNights` in `schedule/page.tsx` wrapped in `useMemo`; single `now` reference computed once per memo invocation
 
-### MEDIUM — Inconsistent error handling
+### ✅ DONE — Inconsistent error handling
 
-Some operations show `toast.error`, most silently `console.error`. Standardize: user-facing actions should always toast on failure. Network fetches that populate lists should show an error state or retry button.
+- All user-triggered mutations in `profile/page.tsx`, `schedule/page.tsx` now show `toast.error` on failure
+- `ClubNightModal.tsx` silent `.catch(() => {})` replaced with `toast.error("Kunne ikke hente vagtliste.")`
+- Backend: `asyncRoute` wrapper added in `channels.ts` so DB errors propagate via `next(err)` to a global error handler in `server.ts` (returns `500` JSON response + logs).
 
-### MEDIUM — Silent `catch {}` or `catch(console.error)` in backend
+### ✅ DONE — Silent `catch {}` or `catch(console.error)` in backend
 
-`broadcaster.ts` heartbeat, `channels.ts` broadcastChatMessage — should at minimum log for monitoring. Consider a shared `logError()` utility.
+`broadcastChatMessage` is now synchronous (no more `.catch()` needed). An `asyncRoute` wrapper in `channels.ts` ensures all route-handler errors call `next(err)`, which is caught by the new global error handler in `server.ts`.
 
-### LOW — `api.ts` helpers are duplicative
+### ✅ DONE — `api.ts` helpers are duplicative
 
-Create `apiPost`, `apiPatch`, `apiDelete` wrappers around the generic `api<T>()` to reduce boilerplate and enforce correct `Content-Type` only when a body is present.
+Added `apiPost<T>`, `apiPatch<T>`, `apiDelete<T>` wrappers in `src/lib/api.ts`. All exported functions migrated to use them, eliminating inline `{ method, body: JSON.stringify(...) }` boilerplate.
 
-### LOW — Separate `ClubNight` type in home page
+### ✅ DONE — Separate `ClubNight` type in home page
 
-`src/app/(site)/page.tsx` defines its own `ClubNight` type instead of importing `ApiClubNight`. Consolidate.
+`src/app/(site)/page.tsx` already imports `ApiClubNight` from `@/lib/api` — no local type alias exists.
 
-### LOW — Hardcoded channel ID `2` for Vagter
+### ✅ DONE — Hardcoded channel ID `2` for Vagter
 
-The swap workflow hardcodes channel ID `2` in multiple places. Query for the channel by `type === "vagter"` instead.
+Derived `vagterChannelId = channels.find(c => c.type === "vagter")?.id` (memoized) in `profile/page.tsx`. All 6 hardcoded `2` references replaced. Swap operations guard against `vagterChannelId === undefined`.
 
-### LOW — `broadcastChatMessage` queries all members on every message
+### ✅ DONE — `broadcastChatMessage` queries all members on every message
 
-In `channels.ts`, every POST/PATCH queries all non-banned members to broadcast. Cache the member list or maintain a connected-user set from SSE registrations.
+`getConnectedUserIds()` exported from `broadcaster.ts` reads live `sseClients` Map keys. `broadcastChatMessage` (now synchronous) iterates only connected users — zero DB round-trips per message.
 
-### LOW — Broadcaster memory leak
+### ✅ DONE — Broadcaster memory leak
 
-Empty `Set` entries in `sseClients` are never removed when all clients disconnect. Add cleanup in `unregisterClient`.
+`unregisterClient` in `broadcaster.ts` now deletes the Map entry when its Set becomes empty: `if (set.size === 0) sseClients.delete(channelKey)`.
 
 ### LOW — No `Last-Event-ID` support in SSE
 

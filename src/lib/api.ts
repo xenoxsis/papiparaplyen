@@ -23,6 +23,20 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+const apiPost = <T>(path: string, body?: unknown) =>
+  api<T>(path, {
+    method: "POST",
+    ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+  });
+
+const apiPatch = <T>(path: string, body?: unknown) =>
+  api<T>(path, {
+    method: "PATCH",
+    ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+  });
+
+const apiDelete = <T>(path: string) => api<T>(path, { method: "DELETE" });
+
 // ── Types ────────────────────────────────────────────────────────────────────
 
 export type ApiMember = {
@@ -95,10 +109,7 @@ export type AuthUser = {
 export const getMembers = () => api<ApiMember[]>("/api/members");
 export const getMember = (id: number) => api<ApiMember>(`/api/members/${id}`);
 export const patchMember = (id: number, body: Partial<ApiMember>) =>
-  api<ApiMember>(`/api/members/${id}`, {
-    method: "PATCH",
-    body: JSON.stringify(body),
-  });
+  apiPatch<ApiMember>(`/api/members/${id}`, body);
 export const putMemberRoles = (id: number, roles: string[]) =>
   api<ApiMember>(`/api/members/${id}/roles`, {
     method: "PUT",
@@ -111,34 +122,22 @@ export const getMemberShifts = (id: number) =>
 
 export const getClubNights = () => api<ApiClubNight[]>("/api/club-nights");
 export const postClubNight = (body: Partial<ApiClubNight>) =>
-  api<ApiClubNight>("/api/club-nights", {
-    method: "POST",
-    body: JSON.stringify(body),
-  });
+  apiPost<ApiClubNight>("/api/club-nights", body);
 export const patchClubNight = (id: number, body: Partial<ApiClubNight>) =>
-  api<ApiClubNight>(`/api/club-nights/${id}`, {
-    method: "PATCH",
-    body: JSON.stringify(body),
-  });
+  apiPatch<ApiClubNight>(`/api/club-nights/${id}`, body);
 export const deleteClubNight = (id: number) =>
-  api<{ ok: boolean }>(`/api/club-nights/${id}`, { method: "DELETE" });
+  apiDelete<{ ok: boolean }>(`/api/club-nights/${id}`);
 export const postClubNightOptOut = (nightId: number) =>
-  api<{ ok: boolean }>(`/api/club-nights/${nightId}/opt-out`, {
-    method: "POST",
-  });
+  apiPost<{ ok: boolean }>(`/api/club-nights/${nightId}/opt-out`);
 export const deleteClubNightOptOut = (nightId: number) =>
-  api<{ ok: boolean }>(`/api/club-nights/${nightId}/opt-out`, {
-    method: "DELETE",
-  });
+  apiDelete<{ ok: boolean }>(`/api/club-nights/${nightId}/opt-out`);
 export const postClubNightConfirm = (nightId: number) =>
-  api<ApiClubNight>(`/api/club-nights/${nightId}/confirm`, { method: "POST" });
+  apiPost<ApiClubNight>(`/api/club-nights/${nightId}/confirm`);
 
 // ── Schedule Reviews ──────────────────────────────────────────────────────────
 
 export const postScheduleReview = () =>
-  api<{ ok: boolean; reviewed_at: string }>("/api/schedule-reviews", {
-    method: "POST",
-  });
+  apiPost<{ ok: boolean; reviewed_at: string }>("/api/schedule-reviews");
 export const getScheduleReviews = () =>
   api<ApiScheduleReview[]>("/api/schedule-reviews");
 export const getMyScheduleReview = () =>
@@ -155,9 +154,10 @@ export const postMessage = (
   body: string,
   extra?: Partial<Pick<ApiMessage, "type" | "shift_night_id">>,
 ) =>
-  api<ApiMessage>(`/api/channels/${channelId}/messages`, {
-    method: "POST",
-    body: JSON.stringify({ sender_id, body, ...extra }),
+  apiPost<ApiMessage>(`/api/channels/${channelId}/messages`, {
+    sender_id,
+    body,
+    ...extra,
   });
 export const patchMessage = (
   channelId: number,
@@ -166,48 +166,35 @@ export const patchMessage = (
     Pick<ApiMessage, "body" | "swap_status" | "taken_by_member_id">
   >,
 ) =>
-  api<ApiMessage>(`/api/channels/${channelId}/messages/${messageId}`, {
-    method: "PATCH",
-    body: JSON.stringify(patch),
-  });
+  apiPatch<ApiMessage>(
+    `/api/channels/${channelId}/messages/${messageId}`,
+    patch,
+  );
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
 
 export const postLogin = (email: string, password: string) =>
-  api<AuthUser>("/api/auth/login", {
-    method: "POST",
-    body: JSON.stringify({ email, password }),
-  });
+  apiPost<AuthUser>("/api/auth/login", { email, password });
 
 export const postRegister = (name: string, email: string, password: string) =>
-  api<AuthUser>("/api/auth/register", {
-    method: "POST",
-    body: JSON.stringify({ name, email, password }),
-  });
+  apiPost<AuthUser>("/api/auth/register", { name, email, password });
 
 export const patchMe = (name: string) =>
-  api<{ id: number; name: string; initials: string }>("/api/auth/me", {
-    method: "PATCH",
-    body: JSON.stringify({ name }),
+  apiPatch<{ id: number; name: string; initials: string }>("/api/auth/me", {
+    name,
   });
 
 export const changePassword = (currentPassword: string, newPassword: string) =>
-  api<{ ok: boolean }>("/api/auth/change-password", {
-    method: "POST",
-    body: JSON.stringify({ currentPassword, newPassword }),
+  apiPost<{ ok: boolean }>("/api/auth/change-password", {
+    currentPassword,
+    newPassword,
   });
 
 export const forgotPassword = (email: string) =>
-  api<{ ok: boolean }>("/api/auth/forgot-password", {
-    method: "POST",
-    body: JSON.stringify({ email }),
-  });
+  apiPost<{ ok: boolean }>("/api/auth/forgot-password", { email });
 
 export const resetPassword = (token: string, newPassword: string) =>
-  api<{ ok: boolean }>("/api/auth/reset-password", {
-    method: "POST",
-    body: JSON.stringify({ token, newPassword }),
-  });
+  apiPost<{ ok: boolean }>("/api/auth/reset-password", { token, newPassword });
 
 // ── Notifications ─────────────────────────────────────────────────────────────
 
@@ -235,10 +222,10 @@ export const getNotifications = () =>
   );
 
 export const markNotificationRead = (id: number) =>
-  api<{ ok: boolean }>(`/api/notifications/${id}/read`, { method: "PATCH" });
+  apiPatch<{ ok: boolean }>(`/api/notifications/${id}/read`);
 
 export const markAllNotificationsRead = () =>
-  api<{ ok: boolean }>("/api/notifications/read-all", { method: "PATCH" });
+  apiPatch<{ ok: boolean }>("/api/notifications/read-all");
 
 // ── Email preferences ───────────────────────────────────────────────────────────
 
@@ -251,10 +238,7 @@ export type ApiEmailPrefs = {
 export const getEmailPrefs = () => api<ApiEmailPrefs>("/api/auth/email-prefs");
 
 export const patchEmailPrefs = (prefs: Partial<ApiEmailPrefs>) =>
-  api<{ ok: boolean }>("/api/auth/email-prefs", {
-    method: "PATCH",
-    body: JSON.stringify(prefs),
-  });
+  apiPatch<{ ok: boolean }>("/api/auth/email-prefs", prefs);
 
 // ── Channel Members ───────────────────────────────────────────────────────────
 

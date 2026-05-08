@@ -12,7 +12,22 @@ export function registerClient(channelKey: ChannelKey, res: Response) {
 }
 
 export function unregisterClient(channelKey: ChannelKey, res: Response) {
-  sseClients.get(channelKey)?.delete(res);
+  const set = sseClients.get(channelKey);
+  if (!set) return;
+  set.delete(res);
+  if (set.size === 0) sseClients.delete(channelKey);
+}
+
+/** Returns the member IDs of all currently connected SSE clients. */
+export function getConnectedUserIds(): number[] {
+  const ids: number[] = [];
+  for (const key of sseClients.keys()) {
+    if (typeof key === "string" && key.startsWith("user:")) {
+      const id = Number(key.slice(5));
+      if (!isNaN(id)) ids.push(id);
+    }
+  }
+  return ids;
 }
 
 export function broadcast(channelKey: ChannelKey, data: unknown) {
