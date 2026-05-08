@@ -7,7 +7,9 @@ if (process.env.NODE_ENV !== "production") {
 }
 import express, { NextFunction, Request, Response } from "express";
 import cors from "cors";
+import cookieParser from "cookie-parser";
 import passport from "passport";
+import rateLimit from "express-rate-limit";
 import membersRouter from "./routes/members";
 import clubNightsRouter from "./routes/club-nights";
 import channelsRouter from "./routes/channels";
@@ -27,7 +29,34 @@ const allowedOrigins = [
 ];
 app.use(cors({ origin: allowedOrigins, credentials: true }));
 app.use(express.json());
+app.use(cookieParser());
 app.use(passport.initialize());
+
+// ── Rate limiting ─────────────────────────────────────────────────────────────
+
+/** Strict limiter for auth endpoints (login, register, password reset). */
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "For mange forsøg, prøv igen om lidt" },
+});
+
+/** General API limiter — broad fallback. */
+const generalLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "For mange forespørgsler, prøv igen om lidt" },
+});
+
+app.use("/api/auth/login", authLimiter);
+app.use("/api/auth/register", authLimiter);
+app.use("/api/auth/forgot-password", authLimiter);
+app.use("/api/auth/reset-password", authLimiter);
+app.use(generalLimiter);
 
 app.use("/api/members", membersRouter);
 app.use("/api/club-nights", clubNightsRouter);

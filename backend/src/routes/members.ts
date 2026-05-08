@@ -2,7 +2,7 @@ import { Router } from "express";
 import { getPool, sql } from "../db";
 import { requireAdmin, requireAuth } from "../auth";
 
-const SUPERUSER_EMAIL = "REDACTED";
+const SUPERUSER_EMAIL = process.env.SUPERUSER_EMAIL ?? "REDACTED";
 
 const router = Router();
 
@@ -26,6 +26,7 @@ router.get("/", async (_req, res) => {
       banned: row.banned === true || row.banned === 1,
       roles: row.roles_agg ? row.roles_agg.split(",") : [],
       roles_agg: undefined,
+      is_superuser: row.email?.toLowerCase() === SUPERUSER_EMAIL,
     })),
   );
 });

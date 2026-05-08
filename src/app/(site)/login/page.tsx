@@ -86,13 +86,12 @@ export default function LoginPage() {
     }
     setRegLoading(true);
     try {
-      const authUser = await postRegister(
+      const user = await postRegister(
         regName.trim(),
         regEmail.trim(),
         regPassword,
       );
-      const { token, ...user } = authUser;
-      loginWithData(user, token);
+      loginWithData(user);
       router.push("/member/profile");
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Noget gik galt.";

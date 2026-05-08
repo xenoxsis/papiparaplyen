@@ -2,7 +2,13 @@ import bcrypt from "bcrypt";
 import crypto from "crypto";
 import { Router } from "express";
 import { getPool, sql } from "../db";
-import { signToken, getMemberRoles, requireAuth } from "../auth";
+import {
+  signToken,
+  getMemberRoles,
+  requireAuth,
+  setAuthCookie,
+  clearAuthCookie,
+} from "../auth";
 import {
   sendEmail,
   resetPasswordEmailHtml,
@@ -54,12 +60,12 @@ router.post("/login", async (req, res) => {
 
   const roles = rolesResult.recordset.map((r: { name: string }) => r.name);
   const token = signToken({ memberId: row.member_id, roles });
+  setAuthCookie(res, token);
   return res.json({
     id: row.member_id,
     name: row.name,
     initials: row.initials,
     roles,
-    token,
   });
 });
 
@@ -122,17 +128,23 @@ router.post("/register", async (req, res) => {
 
     const roles = await getMemberRoles(newMemberId);
     const token = signToken({ memberId: newMemberId, roles });
+    setAuthCookie(res, token);
     return res.status(201).json({
       id: newMemberId,
       name: trimmedName,
       initials,
       roles,
-      token,
     });
   } catch (err) {
     await transaction.rollback();
     throw err;
   }
+});
+
+// POST /api/auth/logout
+router.post("/logout", (_req, res) => {
+  clearAuthCookie(res);
+  return res.json({ ok: true });
 });
 
 // PATCH /api/auth/me — update own display name

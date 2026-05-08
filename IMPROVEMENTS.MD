@@ -152,21 +152,32 @@ Add a query parameter `?upcoming=true` to the backend endpoint.
 
 ## Security Improvements
 
-### MEDIUM — JWT in localStorage (XSS risk)
+### ✅ DONE — JWT moved to httpOnly cookie (XSS risk resolved)
 
-`auth_token` is stored in `localStorage`. Any XSS vulnerability exposes it. Consider `httpOnly` cookie approach for the JWT.
+`auth_token` is no longer stored in `localStorage`. The backend now sets it as an `httpOnly; SameSite=Strict` cookie on login, register, and OAuth callbacks. All `fetch` calls use `credentials: "include"` so the cookie travels automatically. `UserSSEContext` uses `{ withCredentials: true }` on the `EventSource`. A `POST /api/auth/logout` endpoint clears the cookie. `auth_user` (non-sensitive display data) remains in `localStorage`.
 
-### MEDIUM — No rate limiting
+### ✅ DONE — Rate limiting added
 
-No rate limiting on login, password reset, message send, or SSE connections. Express middleware like `express-rate-limit` would help.
+`express-rate-limit` installed. Limits applied in `server.ts`:
 
-### LOW — Superuser email exposed client-side
+- `POST /api/auth/login`, `/register`, `/forgot-password`, `/reset-password` — **10 req / 15 min** per IP
+- `POST /api/channels/:id/messages` — **30 req / min** per IP (applied in `channels.ts`)
+- General fallback — **100 req / min** per IP across all routes
 
-`SUPERUSER_EMAIL` is hardcoded in `admin/page.tsx`. The protection is already enforced server-side in `members.ts`, but the client-side constant leaks the superuser's email. Remove the client-side check or use a server-returned flag.
+Exceeded limits return `429` with a Danish error message.
 
-### LOW — No input sanitization on message body
+### ✅ DONE — Superuser email removed from client bundle
 
-Chat message bodies are stored raw. While React escapes HTML on render, consider sanitizing or length-limiting on the backend.
+`SUPERUSER_EMAIL` constant removed from `admin/page.tsx`. The backend (`routes/members.ts`) now compares against `process.env.SUPERUSER_EMAIL` and exposes an `is_superuser: boolean` field on each member in the list response. The admin UI uses `member.is_superuser` to hide role controls and show the "Beskyttet" / "🔒 Superbruger" label — the actual email never leaves the backend.
+
+### ✅ DONE — Input sanitization on message body
+
+`POST /api/channels/:id/messages` in `channels.ts` now validates `req.body.body` before INSERT:
+
+- Rejects missing, non-string, or whitespace-only bodies with `400`
+- Caps length at **4 000 characters** — returns `400` if exceeded
+- Trims leading/trailing whitespace
+- Strips null bytes (`\0`) before storing
 
 ---
 

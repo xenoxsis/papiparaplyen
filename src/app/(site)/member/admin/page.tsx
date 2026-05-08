@@ -24,8 +24,6 @@ const ROLE_STYLES: Record<Role, string> = {
   Tilskuer: "bg-blue-50 text-blue-600",
 };
 
-const SUPERUSER_EMAIL = "REDACTED";
-
 export default function AdminPage() {
   const { authorized } = useRequireAuth(["Administrator"]);
   const [members, setMembers] = useState<ApiMember[]>([]);
@@ -293,11 +291,9 @@ export default function AdminPage() {
                         })}
                       </td>
                       <td className="py-3 pr-4">
-                        {m.banned ||
-                        m.email.toLowerCase() === SUPERUSER_EMAIL ? (
+                        {m.banned || m.is_superuser ? (
                           <span className="text-neutral-400 text-xs">
-                            {m.email.toLowerCase() === SUPERUSER_EMAIL &&
-                            !m.banned
+                            {m.is_superuser && !m.banned
                               ? "🔒 Superbruger"
                               : "-"}
                           </span>
@@ -325,7 +321,7 @@ export default function AdminPage() {
                         )}
                       </td>
                       <td className="py-3">
-                        {m.email.toLowerCase() === SUPERUSER_EMAIL ? (
+                        {m.is_superuser ? (
                           <span className="text-neutral-300 text-xs">
                             Beskyttet
                           </span>

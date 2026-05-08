@@ -3,6 +3,35 @@ import jwt from "jsonwebtoken";
 import { getPool, sql } from "./db";
 import { touchPresence } from "./presence";
 
+const COOKIE_NAME = "auth_token";
+const COOKIE_MAX_AGE = 7 * 24 * 60 * 60 * 1000; // 7 days (matches JWT expiry)
+
+/** Set the JWT as an httpOnly cookie on the response. */
+export function setAuthCookie(res: Response, token: string): void {
+  res.cookie(COOKIE_NAME, token, {
+    httpOnly: true,
+    sameSite: "strict",
+    secure: process.env.NODE_ENV === "production",
+    maxAge: COOKIE_MAX_AGE,
+    path: "/",
+  });
+}
+
+/** Clear the auth cookie (logout). */
+export function clearAuthCookie(res: Response): void {
+  res.clearCookie(COOKIE_NAME, { path: "/" });
+}
+
+/** Extract the JWT string from a request (cookie first, then Bearer header). */
+export function extractToken(req: Request): string | null {
+  const cookieToken = (req.cookies as Record<string, string> | undefined)?.[
+    COOKIE_NAME
+  ];
+  if (cookieToken) return cookieToken;
+  const header = req.headers["authorization"];
+  return header?.startsWith("Bearer ") ? header.slice(7) : null;
+}
+
 if (!process.env.JWT_SECRET) {
   throw new Error("JWT_SECRET environment variable is required");
 }
@@ -34,8 +63,7 @@ export function requireAuth(
   res: Response,
   next: NextFunction,
 ): void {
-  const header = req.headers["authorization"];
-  const token = header?.startsWith("Bearer ") ? header.slice(7) : null;
+  const token = extractToken(req);
   if (!token) {
     res.status(401).json({ error: "Unauthorized" });
     return;

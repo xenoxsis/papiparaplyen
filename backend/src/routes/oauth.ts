@@ -1,9 +1,9 @@
-import { Router } from "express";
+import { Router, Request, Response } from "express";
 import passport from "passport";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import { Strategy as FacebookStrategy } from "passport-facebook";
 import { getPool, sql } from "../db";
-import { signToken, getMemberRoles } from "../auth";
+import { signToken, getMemberRoles, setAuthCookie } from "../auth";
 
 const router = Router();
 
@@ -136,10 +136,16 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
       session: false,
       failureRedirect: `${FRONTEND_URL}/login?error=oauth`,
     }),
-    (req, res) => {
-      const encoded = Buffer.from(JSON.stringify(req.user)).toString(
-        "base64url",
-      );
+    (req: Request, res: Response) => {
+      const { token, ...user } = req.user as {
+        token: string;
+        id: number;
+        name: string;
+        initials: string;
+        roles: string[];
+      };
+      setAuthCookie(res, token);
+      const encoded = Buffer.from(JSON.stringify(user)).toString("base64url");
       res.redirect(`${FRONTEND_URL}/oauth-callback?user=${encoded}`);
     },
   );
@@ -188,10 +194,16 @@ if (process.env.FACEBOOK_APP_ID && process.env.FACEBOOK_APP_SECRET) {
       session: false,
       failureRedirect: `${FRONTEND_URL}/login?error=oauth`,
     }),
-    (req, res) => {
-      const encoded = Buffer.from(JSON.stringify(req.user)).toString(
-        "base64url",
-      );
+    (req: Request, res: Response) => {
+      const { token, ...user } = req.user as {
+        token: string;
+        id: number;
+        name: string;
+        initials: string;
+        roles: string[];
+      };
+      setAuthCookie(res, token);
+      const encoded = Buffer.from(JSON.stringify(user)).toString("base64url");
       res.redirect(`${FRONTEND_URL}/oauth-callback?user=${encoded}`);
     },
   );

@@ -1,14 +1,13 @@
 import { Router, Request, Response } from "express";
 import { getPool, sql } from "../db";
-import { requireAuth, verifyToken } from "../auth";
-import { callerId } from "../auth";
+import { requireAuth, verifyToken, callerId, extractToken } from "../auth";
 import { initSseResponse } from "../broadcaster";
 
 const router = Router();
 
-// GET /api/notifications/stream  — per-user SSE stream (auth via ?token=)
+// GET /api/notifications/stream  — per-user SSE stream (auth via cookie or header)
 router.get("/stream", async (req: Request, res: Response) => {
-  const token = req.query.token as string | undefined;
+  const token = extractToken(req);
   const jwtPayload = token ? verifyToken(token) : null;
   if (!jwtPayload) {
     res.status(401).end();

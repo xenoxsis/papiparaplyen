@@ -1,6 +1,7 @@
 import { Router, Request, Response, NextFunction } from "express";
+import rateLimit from "express-rate-limit";
 import { getPool, sql } from "../db";
-import { requireAuth, verifyToken } from "../auth";
+import { requireAuth, verifyToken, extractToken } from "../auth";
 import {
   broadcast,
   getConnectedUserIds,
@@ -13,6 +14,14 @@ import {
 import { sendMentionEmail } from "../scheduleEmails";
 
 const router = Router();
+
+const messageLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "For mange beskeder, prøv igen om lidt" },
+});
 
 /** Wraps an async route handler so unhandled errors are forwarded via next(). */
 const asyncRoute =
@@ -32,8 +41,8 @@ function broadcastChatMessage(channelId: number, message: unknown) {
 router.get("/:id/stream", async (req: Request, res: Response) => {
   const channelId = Number(req.params.id);
 
-  // Auth via query param (EventSource can't send headers)
-  const token = req.query.token as string | undefined;
+  // Auth via cookie or Authorization header
+  const token = extractToken(req);
   const jwtPayload = token ? verifyToken(token) : null;
   if (!jwtPayload) {
     res.status(401).end();
@@ -184,16 +193,37 @@ router.get(
 router.post(
   "/:id/messages",
   requireAuth,
+  messageLimiter,
   asyncRoute(async (req, res) => {
     const pool = await getPool();
     const channelId = Number(req.params.id);
     const isSwap = req.body.type === "shift_swap";
 
+    // ── Input validation ───────────────────────────────────────────────
+    const rawBody: unknown = req.body.body;
+    if (typeof rawBody !== "string" || rawBody.trim().length === 0) {
+      res
+        .status(400)
+        .json({ error: "Message body must be a non-empty string" });
+      return;
+    }
+    const MAX_LENGTH = 4_000;
+    if (rawBody.length > MAX_LENGTH) {
+      res
+        .status(400)
+        .json({
+          error: `Message body must be at most ${MAX_LENGTH} characters`,
+        });
+      return;
+    }
+    // Sanitise: trim edges, strip null bytes
+    const sanitisedBody = rawBody.trim().replace(/\0/g, "");
+
     const insertResult = await pool
       .request()
       .input("channelId", sql.Int, channelId)
       .input("senderId", sql.Int, req.body.sender_id ?? null)
-      .input("body", sql.NVarChar(sql.MAX), req.body.body)
+      .input("body", sql.NVarChar(sql.MAX), sanitisedBody)
       .input("sentAt", sql.DateTime2, new Date().toISOString())
       .input("type", sql.NVarChar, isSwap ? "shift_swap" : null)
       .input("shiftNightId", sql.Int, isSwap ? req.body.shift_night_id : null)
@@ -222,7 +252,7 @@ router.post(
     const mentionPattern = /@\[([^\]]+)\]\((\d+)\)/g;
     const mentionedIds = new Set<number>();
     let match: RegExpExecArray | null;
-    while ((match = mentionPattern.exec(req.body.body ?? "")) !== null) {
+    while ((match = mentionPattern.exec(sanitisedBody ?? "")) !== null) {
       const mentionedId = Number(match[2]);
       const senderId: number | null = req.body.sender_id ?? null;
       if (mentionedId && mentionedId !== senderId) {

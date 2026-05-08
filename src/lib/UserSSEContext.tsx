@@ -68,12 +68,12 @@ export function UserSSEProvider({
 
     function connect() {
       if (cancelled.current) return;
-      const token = localStorage.getItem("auth_token");
-      if (!token) return;
 
-      const es = new EventSource(
-        `${BASE}/api/notifications/stream?token=${encodeURIComponent(token)}`,
-      );
+      // Cookies are sent automatically (withCredentials=true for cross-origin;
+      // same-origin via Next.js rewrite means cookies always travel with the request).
+      const es = new EventSource(`${BASE}/api/notifications/stream`, {
+        withCredentials: true,
+      });
       esRef.current = es;
 
       es.onopen = () => {

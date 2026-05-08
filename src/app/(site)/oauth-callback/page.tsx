@@ -26,15 +26,13 @@ function OAuthHandler() {
 
     try {
       const decoded = atob(userParam.replace(/-/g, "+").replace(/_/g, "/"));
-      const payload = JSON.parse(decoded) as {
-        token: string;
+      const user = JSON.parse(decoded) as {
         id: number;
         name: string;
         initials: string;
         roles: string[];
       };
-      const { token, ...user } = payload;
-      loginWithData(user, token);
+      loginWithData(user);
       router.replace("/member/profile");
     } catch {
       router.replace("/login?error=oauth");

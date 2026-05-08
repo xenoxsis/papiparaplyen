@@ -1,18 +1,10 @@
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? "";
 
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
-  let token: string | null = null;
-  try {
-    token =
-      typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
-  } catch {
-    /* ignore */
-  }
-
   const res = await fetch(`${BASE}${path}`, {
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
     ...init,
   });
@@ -47,6 +39,7 @@ export type ApiMember = {
   joined_date: string;
   banned: boolean;
   roles: string[];
+  is_superuser: boolean;
 };
 
 export type ApiClubNight = {
@@ -101,7 +94,6 @@ export type AuthUser = {
   name: string;
   initials: string;
   roles: string[];
-  token: string;
 };
 
 // ── Members ──────────────────────────────────────────────────────────────────
@@ -175,6 +167,8 @@ export const patchMessage = (
 
 export const postLogin = (email: string, password: string) =>
   apiPost<AuthUser>("/api/auth/login", { email, password });
+
+export const postLogout = () => apiPost<{ ok: boolean }>("/api/auth/logout");
 
 export const postRegister = (name: string, email: string, password: string) =>
   apiPost<AuthUser>("/api/auth/register", { name, email, password });

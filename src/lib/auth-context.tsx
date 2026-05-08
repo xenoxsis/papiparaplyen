@@ -7,7 +7,7 @@ import {
   useEffect,
   ReactNode,
 } from "react";
-import { postLogin } from "@/lib/api";
+import { postLogin, postLogout } from "@/lib/api";
 
 export type User = {
   id: number;
@@ -20,7 +20,7 @@ type AuthContextType = {
   user: User | null;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<boolean>;
-  loginWithData: (user: User, token: string) => void;
+  loginWithData: (user: User) => void;
   logout: () => void;
   updateUser: (partial: Partial<User>) => void;
   pendingShiftCount: number;
@@ -49,27 +49,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function login(email: string, password: string): Promise<boolean> {
     try {
-      const authUser = await postLogin(email, password);
-      const { token, ...user } = authUser;
+      const user = await postLogin(email, password);
       setUser(user);
       localStorage.setItem("auth_user", JSON.stringify(user));
-      localStorage.setItem("auth_token", token);
       return true;
     } catch {
       return false;
     }
   }
 
-  function loginWithData(user: User, token: string) {
+  function loginWithData(user: User) {
     setUser(user);
     localStorage.setItem("auth_user", JSON.stringify(user));
-    localStorage.setItem("auth_token", token);
   }
 
   function logout() {
     setUser(null);
     localStorage.removeItem("auth_user");
-    localStorage.removeItem("auth_token");
+    postLogout().catch(() => {});
   }
 
   function updateUser(partial: Partial<User>) {
