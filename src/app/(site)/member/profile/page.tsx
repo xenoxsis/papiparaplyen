@@ -42,6 +42,18 @@ import { SwapConfirmModal } from "./SwapConfirmModal";
 import { ChatPanel } from "./ChatPanel";
 import { EditProfileModal } from "./EditProfileModal";
 
+// ── Message map helpers ─────────────────────────────────────────────────────
+function upsertIntoMap(
+  map: Record<number, ApiMessage[]>,
+  msg: ApiMessage,
+): Record<number, ApiMessage[]> {
+  const bucket = map[msg.channel_id] ?? [];
+  const idx = bucket.findIndex((m) => m.id === msg.id);
+  const next =
+    idx !== -1 ? bucket.map((m, i) => (i === idx ? msg : m)) : [...bucket, msg];
+  return { ...map, [msg.channel_id]: next };
+}
+
 export default function ProfilePage() {
   const { authorized } = useRequireAuth();
   const { user, setPendingShiftCount } = useAuth();
@@ -52,8 +64,10 @@ export default function ProfilePage() {
   const [shifts, setShifts] = useState<ApiClubNight[]>([]);
   const [nights, setNights] = useState<ApiClubNight[]>([]);
   const [channels, setChannels] = useState<ApiChannel[]>([]);
-  const [messages, setMessages] = useState<ApiMessage[]>([]);
-  const [allMessages, setAllMessages] = useState<ApiMessage[]>([]);
+  const [messageMap, setMessageMap] = useState<Record<number, ApiMessage[]>>(
+    {},
+  );
+  const messages = messageMap[activeChannelId] ?? [];
   const [lastSeenIds, setLastSeenIds] = useState<Record<number, number>>({});
   const [channelMembers, setChannelMembers] = useState<ApiChannelMember[]>([]);
   const [myReview, setMyReview] = useState<ApiScheduleReview | null>(null);
@@ -95,13 +109,16 @@ export default function ProfilePage() {
         .then(async (chs) => {
           setChannels(chs);
           const all = await Promise.all(chs.map((c) => getMessages(c.id)));
-          const flat = all.flat();
-          setAllMessages(flat);
+          const map: Record<number, ApiMessage[]> = {};
           const seed: Record<number, number> = {};
-          for (const msg of flat) {
-            if ((seed[msg.channel_id] ?? 0) < msg.id)
-              seed[msg.channel_id] = msg.id;
-          }
+          chs.forEach((c, i) => {
+            map[c.id] = all[i];
+            for (const msg of all[i]) {
+              if ((seed[msg.channel_id] ?? 0) < msg.id)
+                seed[msg.channel_id] = msg.id;
+            }
+          });
+          setMessageMap(map);
           setLastSeenIds(seed);
         })
         .catch(console.error),
@@ -115,22 +132,18 @@ export default function ProfilePage() {
 
   // Mark active channel seen
   useEffect(() => {
-    const latestId = Math.max(
-      0,
-      ...allMessages
-        .filter((m) => m.channel_id === activeChannelId)
-        .map((m) => m.id),
-    );
+    const bucket = messageMap[activeChannelId] ?? [];
+    const latestId = Math.max(0, ...bucket.map((m) => m.id));
     if (latestId > 0)
       setLastSeenIds((prev) => ({ ...prev, [activeChannelId]: latestId }));
-  }, [activeChannelId, allMessages]);
+  }, [activeChannelId, messageMap]);
 
   // Fetch messages + members for active channel
   useEffect(() => {
     getMessages(activeChannelId)
       .then((msgs) => {
         scrollOnNextRender.current = true;
-        setMessages(msgs);
+        setMessageMap((prev) => ({ ...prev, [activeChannelId]: msgs }));
       })
       .catch(console.error);
     getChannelMembers(activeChannelId)
@@ -140,32 +153,20 @@ export default function ProfilePage() {
 
   // SSE real-time updates
   const { connected: sseConnected } = useChannelSSE(activeChannelId, (msg) => {
-    setMessages((prev) => {
-      const idx = prev.findIndex((m) => m.id === msg.id);
-      if (idx !== -1) {
-        const next = [...prev];
-        next[idx] = msg;
-        return next;
-      }
-      scrollOnNextRender.current = true;
-      return [...prev, msg];
-    });
-    setAllMessages((prev) => {
-      const idx = prev.findIndex((m) => m.id === msg.id);
-      if (idx !== -1) {
-        const next = [...prev];
-        next[idx] = msg;
-        return next;
-      }
-      return [...prev, msg];
-    });
+    if (msg.channel_id === activeChannelId) scrollOnNextRender.current = true;
+    setMessageMap((prev) => upsertIntoMap(prev, msg));
   });
 
   // Fallback poll (SSE disconnected)
   useEffect(() => {
     if (sseConnected) return;
     const id = setInterval(
-      () => getMessages(activeChannelId).then(setMessages).catch(console.error),
+      () =>
+        getMessages(activeChannelId)
+          .then((msgs) =>
+            setMessageMap((prev) => ({ ...prev, [activeChannelId]: msgs })),
+          )
+          .catch(console.error),
       3000,
     );
     return () => clearInterval(id);
@@ -176,7 +177,13 @@ export default function ProfilePage() {
     if (channels.length === 0) return;
     const id = setInterval(() => {
       Promise.all(channels.map((c) => getMessages(c.id)))
-        .then((results) => setAllMessages(results.flat()))
+        .then((results) => {
+          const map: Record<number, ApiMessage[]> = {};
+          channels.forEach((c, i) => {
+            map[c.id] = results[i];
+          });
+          setMessageMap(map);
+        })
         .catch(console.error);
     }, 15000);
     return () => clearInterval(id);
@@ -191,13 +198,10 @@ export default function ProfilePage() {
 
   // Handle ?vagter= deep link
   useEffect(() => {
-    if (
-      !vagterMsgId ||
-      didHandleVagterParam.current ||
-      allMessages.length === 0
-    )
+    const allMsgs = Object.values(messageMap).flat();
+    if (!vagterMsgId || didHandleVagterParam.current || allMsgs.length === 0)
       return;
-    const msg = allMessages.find((m) => m.id === vagterMsgId);
+    const msg = allMsgs.find((m) => m.id === vagterMsgId);
     if (!msg) return;
     didHandleVagterParam.current = true;
     pendingScrollMsgId.current = vagterMsgId;
@@ -213,12 +217,12 @@ export default function ProfilePage() {
         setTimeout(() => setHighlightMessageId(null), 2000);
       }
     }
-  }, [allMessages, vagterMsgId, activeChannelId]);
+  }, [messageMap, vagterMsgId, activeChannelId]);
 
   // Auto-refresh after swap taken
   useEffect(() => {
     if (!user) return;
-    const myTakenSwap = allMessages.find(
+    const myTakenSwap = (messageMap[2] ?? []).find(
       (m) =>
         m.type === "shift_swap" &&
         m.swap_status === "taken" &&
@@ -229,7 +233,7 @@ export default function ProfilePage() {
       getMemberShifts(user.id).then(setShifts).catch(console.error);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allMessages]);
+  }, [messageMap]);
 
   // Scroll effect for new messages / deep link
   useEffect(() => {
@@ -256,7 +260,7 @@ export default function ProfilePage() {
   // ── Derived state ─────────────────────────────────────────────────────────
   const pendingSwap = useMemo(() => {
     if (!user) return null;
-    const m = allMessages.find(
+    const m = (messageMap[2] ?? []).find(
       (msg) =>
         msg.type === "shift_swap" &&
         msg.swap_status === "pending" &&
@@ -265,7 +269,7 @@ export default function ProfilePage() {
     if (m && m.shift_night_id !== undefined)
       return { shiftId: m.shift_night_id, messageId: m.id };
     return null;
-  }, [allMessages, user]);
+  }, [messageMap, user]);
 
   const today = new Date().toISOString().slice(0, 10);
   const confirmedNightsCount = nights.filter((n) => n.vagt_confirmed).length;
@@ -291,9 +295,7 @@ export default function ProfilePage() {
     if (!user) return;
     const msg = await postMessage(activeChannelId, user.id, body);
     scrollOnNextRender.current = true;
-    setMessages((prev) =>
-      prev.some((m) => m.id === msg.id) ? prev : [...prev, msg],
-    );
+    setMessageMap((prev) => upsertIntoMap(prev, msg));
   }
 
   async function requestSwap() {
@@ -306,18 +308,11 @@ export default function ProfilePage() {
           `Kan nogen tage min vagt til ${swapTargetShift.name}?`,
         { type: "shift_swap", shift_night_id: swapTargetShift.id },
       );
-      setAllMessages((prev) =>
-        prev.some((m) => m.id === msg.id) ? prev : [...prev, msg],
-      );
+      setMessageMap((prev) => upsertIntoMap(prev, msg));
+      if (activeChannelId === 2) scrollOnNextRender.current = true;
       setShowSwapModal(false);
       setSwapModalMessage("");
       setSwapTargetShift(null);
-      if (activeChannelId === 2) {
-        scrollOnNextRender.current = true;
-        setMessages((prev) =>
-          prev.some((m) => m.id === msg.id) ? prev : [...prev, msg],
-        );
-      }
     } catch (err) {
       console.error(err);
     }
@@ -330,13 +325,9 @@ export default function ProfilePage() {
         body: `Annulleret af ${user.name}`,
         swap_status: "cancelled",
       });
-      getMessages(2).then((msgs) => {
-        setAllMessages((prev) => [
-          ...prev.filter((m) => m.channel_id !== 2),
-          ...msgs,
-        ]);
-        if (activeChannelId === 2) setMessages(msgs);
-      });
+      getMessages(2).then((msgs) =>
+        setMessageMap((prev) => ({ ...prev, [2]: msgs })),
+      );
     } catch (err) {
       console.error(err);
     }
@@ -356,13 +347,9 @@ export default function ProfilePage() {
       setSwapConfirmMsg(null);
       getClubNights().then(setNights).catch(console.error);
       getMemberShifts(user.id).then(setShifts).catch(console.error);
-      getMessages(2).then((msgs) => {
-        setAllMessages((prev) => [
-          ...prev.filter((m) => m.channel_id !== 2),
-          ...msgs,
-        ]);
-        if (activeChannelId === 2) setMessages(msgs);
-      });
+      getMessages(2).then((msgs) =>
+        setMessageMap((prev) => ({ ...prev, [2]: msgs })),
+      );
     } catch (err: unknown) {
       toast.error(
         err instanceof Error ? err.message : "Noget gik galt. Prøv igen.",
@@ -623,7 +610,7 @@ export default function ProfilePage() {
         activeChannelId={activeChannelId}
         setActiveChannelId={setActiveChannelId}
         messages={messages}
-        allMessages={allMessages}
+        messageMap={messageMap}
         lastSeenIds={lastSeenIds}
         setLastSeenIds={setLastSeenIds}
         user={user}

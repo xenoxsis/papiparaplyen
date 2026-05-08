@@ -20,7 +20,7 @@ interface ChatPanelProps {
   activeChannelId: number;
   setActiveChannelId: (id: number) => void;
   messages: ApiMessage[];
-  allMessages: ApiMessage[];
+  messageMap: Record<number, ApiMessage[]>;
   lastSeenIds: Record<number, number>;
   setLastSeenIds: React.Dispatch<React.SetStateAction<Record<number, number>>>;
   user: User | null;
@@ -42,7 +42,7 @@ export function ChatPanel({
   activeChannelId,
   setActiveChannelId,
   messages,
-  allMessages,
+  messageMap,
   lastSeenIds,
   setLastSeenIds,
   user,
@@ -78,11 +78,13 @@ export function ChatPanel({
   const messageSearchResults = useMemo(
     () =>
       channelSearch.trim().length > 1
-        ? allMessages.filter((m) =>
-            m.body.toLowerCase().includes(channelSearch.toLowerCase()),
-          )
+        ? Object.values(messageMap)
+            .flat()
+            .filter((m) =>
+              m.body.toLowerCase().includes(channelSearch.toLowerCase()),
+            )
         : [],
-    [allMessages, channelSearch],
+    [messageMap, channelSearch],
   );
 
   const mentionResults = useMemo(() => {
@@ -323,9 +325,7 @@ export function ChatPanel({
                 : channels.map((ch) => {
                     const latestId = Math.max(
                       0,
-                      ...allMessages
-                        .filter((m) => m.channel_id === ch.id)
-                        .map((m) => m.id),
+                      ...(messageMap[ch.id] ?? []).map((m) => m.id),
                     );
                     const unread =
                       ch.id !== activeChannelId &&
