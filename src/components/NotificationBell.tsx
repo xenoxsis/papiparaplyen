@@ -112,7 +112,7 @@ export default function NotificationBell({
                 Ingen notifikationer
               </p>
             ) : (
-              notifications.map((n) => (
+              notifications.slice(0, 10).map((n) => (
                 <button
                   key={n.id}
                   onClick={() => handleNotificationClick(n)}
