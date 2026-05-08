@@ -31,9 +31,9 @@ Extracted into focused files; `page.tsx` is now ~580 lines:
 
 `#e63946`, `#2a9d8f`, `#f4a261`, `#3d5a80` replaced across all TSX/TS source files. Tokens defined via Tailwind v4 `@theme` block in `globals.css` as `--color-brand-red`, `--color-brand-teal`, `--color-brand-orange`, `--color-brand-blue`. All classes now use `bg-brand-red`, `text-brand-teal`, etc. Backend `email.ts` intentionally kept as raw hex (CSS vars don't work in email clients).
 
-### MEDIUM — Dual message store in profile page
+### ✅ DONE — Dual message store in profile page
 
-`messages` and `allMessages` are kept in sync manually across SSE push, poll, and swap operations. Replace with a single `Record<channelId, ApiMessage[]>` with a derived view for the active channel.
+`messages` and `allMessages` replaced with a single `messageMap: Record<number, ApiMessage[]>`. `messages` is now a derived constant (`messageMap[activeChannelId] ?? []`). A shared `upsertIntoMap()` helper handles SSE push, swap mutations, and polls. `pendingSwap` and the auto-refresh effect now read directly from `messageMap[2]` (channel 2) instead of scanning the full flat array.
 
 ### MEDIUM — 30+ `useState` calls
 
@@ -133,9 +133,9 @@ Edit modal name/password inputs in `EditProfileModal.tsx` now have `<label htmlF
 
 Active channel gets updates via SSE **and** a 3-second poll **and** a 15-second all-channels poll. With the new single-SSE architecture, the per-channel 3-second poll can be removed entirely. The 15-second all-channels poll can be reduced to a much longer interval (or removed — just fetch on channel switch).
 
-### MEDIUM — `allMessages` is a flat array scanned linearly
+### ✅ DONE — `allMessages` is a flat array scanned linearly
 
-Replace with `Map<channelId, ApiMessage[]>` for O(1) channel lookups instead of repeated `.filter()`.
+Replaced with `messageMap: Record<number, ApiMessage[]>`. Unread badge per channel reads `messageMap[ch.id]` directly (O(channel size)). `lastSeenIds` auto-mark reads `messageMap[activeChannelId]` — O(1) instead of O(total messages). `messageSearchResults` in `ChatPanel` flattens `Object.values(messageMap)` only when the search query is active.
 
 ### ✅ DONE — IIFE message grouping in JSX
 
