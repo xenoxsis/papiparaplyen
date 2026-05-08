@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { ChevronDown, MessagesSquare, Search, Send, Users } from "lucide-react";
 import { GroupChatItem } from "./GroupChatItem";
 import { MessageGroup } from "./MessageGroup";
+import { Skeleton } from "@/components/ui/skeleton";
 import type {
   ApiChannel,
   ApiChannelMember,
@@ -14,6 +15,7 @@ import type {
 import type { User } from "@/lib/auth-context";
 
 interface ChatPanelProps {
+  loading?: boolean;
   channels: ApiChannel[];
   activeChannelId: number;
   setActiveChannelId: (id: number) => void;
@@ -35,6 +37,7 @@ interface ChatPanelProps {
 }
 
 export function ChatPanel({
+  loading = false,
   channels,
   activeChannelId,
   setActiveChannelId,
@@ -304,40 +307,55 @@ export function ChatPanel({
             </div>
           ) : (
             <div className="flex flex-col p-2 gap-1 overflow-y-auto flex-1">
-              {channels.map((ch) => {
-                const latestId = Math.max(
-                  0,
-                  ...allMessages
-                    .filter((m) => m.channel_id === ch.id)
-                    .map((m) => m.id),
-                );
-                const unread =
-                  ch.id !== activeChannelId &&
-                  latestId > (lastSeenIds[ch.id] ?? 0);
-                return (
-                  <GroupChatItem
-                    key={ch.id}
-                    active={activeChannelId === ch.id}
-                    name={ch.name}
-                    color={ch.type === "all_members" ? "red" : "teal"}
-                    badgeLabel={ch.type === "all_members" ? "Fælles" : "Vagter"}
-                    badgeColor={ch.type === "all_members" ? "red" : "teal"}
-                    lastMsg=""
-                    lastTime=""
-                    unread={unread}
-                    onClick={() => {
-                      setLastSeenIds((prev) => ({
-                        ...prev,
-                        [ch.id]: latestId,
-                      }));
-                      setActiveChannelId(ch.id);
-                      setShowChannelSearch(false);
-                      setChannelSearch("");
-                      setShowChannelDrawer(false);
-                    }}
-                  />
-                );
-              })}
+              {loading
+                ? Array.from({ length: 4 }).map((_, i) => (
+                    <div
+                      key={i}
+                      className="flex items-center gap-3 px-3 py-2 rounded-lg"
+                    >
+                      <Skeleton className="w-8 h-8 rounded-full shrink-0" />
+                      <div className="flex flex-col gap-1.5 flex-1">
+                        <Skeleton className="h-3.5 w-24 rounded" />
+                        <Skeleton className="h-3 w-16 rounded" />
+                      </div>
+                    </div>
+                  ))
+                : channels.map((ch) => {
+                    const latestId = Math.max(
+                      0,
+                      ...allMessages
+                        .filter((m) => m.channel_id === ch.id)
+                        .map((m) => m.id),
+                    );
+                    const unread =
+                      ch.id !== activeChannelId &&
+                      latestId > (lastSeenIds[ch.id] ?? 0);
+                    return (
+                      <GroupChatItem
+                        key={ch.id}
+                        active={activeChannelId === ch.id}
+                        name={ch.name}
+                        color={ch.type === "all_members" ? "red" : "teal"}
+                        badgeLabel={
+                          ch.type === "all_members" ? "Fælles" : "Vagter"
+                        }
+                        badgeColor={ch.type === "all_members" ? "red" : "teal"}
+                        lastMsg=""
+                        lastTime=""
+                        unread={unread}
+                        onClick={() => {
+                          setLastSeenIds((prev) => ({
+                            ...prev,
+                            [ch.id]: latestId,
+                          }));
+                          setActiveChannelId(ch.id);
+                          setShowChannelSearch(false);
+                          setChannelSearch("");
+                          setShowChannelDrawer(false);
+                        }}
+                      />
+                    );
+                  })}
             </div>
           )}
         </div>
@@ -411,18 +429,30 @@ export function ChatPanel({
               aria-label="Beskeder"
               className="bg-neutral-50/40 flex p-4 flex-col flex-1 gap-3 overflow-y-auto"
             >
-              {messageGroups.map((group) => (
-                <MessageGroup
-                  key={group.label}
-                  group={group}
-                  user={user}
-                  nights={nights}
-                  highlightMessageId={highlightMessageId}
-                  outgoingColor={outgoingColor}
-                  accentColor={accentColor}
-                  onSwapConfirm={setSwapConfirmMsg}
-                />
-              ))}
+              {loading
+                ? Array.from({ length: 5 }).map((_, i) => (
+                    <div
+                      key={i}
+                      className={`flex items-end gap-2 ${i % 2 === 0 ? "flex-row-reverse" : ""}`}
+                    >
+                      <Skeleton className="w-7 h-7 rounded-full shrink-0" />
+                      <Skeleton
+                        className={`h-10 rounded-2xl ${i % 2 === 0 ? "w-40" : "w-52"}`}
+                      />
+                    </div>
+                  ))
+                : messageGroups.map((group) => (
+                    <MessageGroup
+                      key={group.label}
+                      group={group}
+                      user={user}
+                      nights={nights}
+                      highlightMessageId={highlightMessageId}
+                      outgoingColor={outgoingColor}
+                      accentColor={accentColor}
+                      onSwapConfirm={setSwapConfirmMsg}
+                    />
+                  ))}
               <div ref={chatEndRef} />
             </div>
           </div>

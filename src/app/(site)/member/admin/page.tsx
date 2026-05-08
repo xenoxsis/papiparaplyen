@@ -14,6 +14,7 @@ import {
 } from "@/lib/api";
 import { useRequireAuth } from "@/lib/useRequireAuth";
 import { Modal } from "@/components/Modal";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type Role = "Vagt" | "Administrator" | "Tilskuer";
 
@@ -31,9 +32,14 @@ export default function AdminPage() {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"alle" | Role | "banned">("alle");
   const [pendingBan, setPendingBan] = useState<ApiMember | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    getMembers().then(setMembers).catch(console.error);
+    setLoading(true);
+    getMembers()
+      .then(setMembers)
+      .catch(console.error)
+      .finally(() => setLoading(false));
   }, []);
 
   async function toggleRole(id: number, role: Role) {
@@ -224,103 +230,132 @@ export default function AdminPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-100">
-              {filtered.length === 0 && (
-                <tr>
-                  <td
-                    colSpan={5}
-                    className="py-8 text-center text-neutral-400 text-sm"
-                  >
-                    Ingen medlemmer fundet
-                  </td>
-                </tr>
-              )}
-              {filtered.map((m) => (
-                <tr
-                  key={m.id}
-                  className={`group ${m.banned ? "opacity-50" : ""}`}
-                >
-                  <td className="py-3 pr-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-brand-red text-white flex items-center justify-center text-[0.6rem] font-bold shrink-0 select-none">
-                        {m.initials}
+              {loading ? (
+                Array.from({ length: 6 }).map((_, i) => (
+                  <tr key={i}>
+                    <td className="py-3 pr-4">
+                      <div className="flex items-center gap-3">
+                        <Skeleton className="w-8 h-8 rounded-full shrink-0" />
+                        <Skeleton className="h-4 w-28 rounded" />
                       </div>
-                      <span className="font-medium text-neutral-900">
-                        {m.name}
-                      </span>
-                      {m.banned && (
-                        <Badge className="bg-brand-red/10 text-brand-red border-0 text-[10px]">
-                          Udelukket
-                        </Badge>
-                      )}
-                    </div>
-                  </td>
-                  <td className="py-3 pr-4 text-neutral-500">{m.email}</td>
-                  <td className="py-3 pr-4 text-neutral-500">
-                    {new Date(m.joined_date).toLocaleDateString("da-DK", {
-                      month: "long",
-                      year: "numeric",
-                    })}
-                  </td>
-                  <td className="py-3 pr-4">
-                    {m.banned || m.email.toLowerCase() === SUPERUSER_EMAIL ? (
-                      <span className="text-neutral-400 text-xs">
-                        {m.email.toLowerCase() === SUPERUSER_EMAIL && !m.banned
-                          ? "🔒 Superbruger"
-                          : "-"}
-                      </span>
-                    ) : (
-                      <div className="flex gap-1 flex-wrap">
-                        <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-neutral-100 text-neutral-500 border border-transparent">
-                          Medlem
-                        </span>
-                        {(["Vagt", "Tilskuer", "Administrator"] as Role[]).map(
-                          (r) => (
-                            <button
-                              key={r}
-                              onClick={() => toggleRole(m.id, r)}
-                              className={`text-[11px] font-medium px-2 py-0.5 rounded-full border transition-colors ${
-                                m.roles.includes(r)
-                                  ? ROLE_STYLES[r] + " border-transparent"
-                                  : "bg-white text-neutral-400 border-neutral-200 hover:border-neutral-400"
-                              }`}
-                            >
-                              {r}
-                            </button>
-                          ),
-                        )}
-                      </div>
-                    )}
-                  </td>
-                  <td className="py-3">
-                    {m.email.toLowerCase() === SUPERUSER_EMAIL ? (
-                      <span className="text-neutral-300 text-xs">
-                        Beskyttet
-                      </span>
-                    ) : (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleBanClick(m)}
-                        className={`gap-1.5 text-xs h-8 ${
-                          m.banned
-                            ? "text-brand-teal border-brand-teal/30 hover:bg-brand-teal/5"
-                            : "text-brand-red border-brand-red/30 hover:bg-brand-red/5"
-                        }`}
+                    </td>
+                    <td className="py-3 pr-4">
+                      <Skeleton className="h-3 w-40 rounded" />
+                    </td>
+                    <td className="py-3 pr-4">
+                      <Skeleton className="h-3 w-20 rounded" />
+                    </td>
+                    <td className="py-3 pr-4">
+                      <Skeleton className="h-5 w-16 rounded-full" />
+                    </td>
+                    <td className="py-3">
+                      <Skeleton className="h-7 w-24 rounded" />
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <>
+                  {filtered.length === 0 && (
+                    <tr>
+                      <td
+                        colSpan={5}
+                        className="py-8 text-center text-neutral-400 text-sm"
                       >
-                        {m.banned ? (
-                          <>
-                            <UserCheck className="size-3" /> Genoptag
-                          </>
+                        Ingen medlemmer fundet
+                      </td>
+                    </tr>
+                  )}
+                  {filtered.map((m) => (
+                    <tr
+                      key={m.id}
+                      className={`group ${m.banned ? "opacity-50" : ""}`}
+                    >
+                      <td className="py-3 pr-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-brand-red text-white flex items-center justify-center text-[0.6rem] font-bold shrink-0 select-none">
+                            {m.initials}
+                          </div>
+                          <span className="font-medium text-neutral-900">
+                            {m.name}
+                          </span>
+                          {m.banned && (
+                            <Badge className="bg-brand-red/10 text-brand-red border-0 text-[10px]">
+                              Udelukket
+                            </Badge>
+                          )}
+                        </div>
+                      </td>
+                      <td className="py-3 pr-4 text-neutral-500">{m.email}</td>
+                      <td className="py-3 pr-4 text-neutral-500">
+                        {new Date(m.joined_date).toLocaleDateString("da-DK", {
+                          month: "long",
+                          year: "numeric",
+                        })}
+                      </td>
+                      <td className="py-3 pr-4">
+                        {m.banned ||
+                        m.email.toLowerCase() === SUPERUSER_EMAIL ? (
+                          <span className="text-neutral-400 text-xs">
+                            {m.email.toLowerCase() === SUPERUSER_EMAIL &&
+                            !m.banned
+                              ? "🔒 Superbruger"
+                              : "-"}
+                          </span>
                         ) : (
-                          <>
-                            <UserX className="size-3" /> Udeluk
-                          </>
+                          <div className="flex gap-1 flex-wrap">
+                            <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-neutral-100 text-neutral-500 border border-transparent">
+                              Medlem
+                            </span>
+                            {(
+                              ["Vagt", "Tilskuer", "Administrator"] as Role[]
+                            ).map((r) => (
+                              <button
+                                key={r}
+                                onClick={() => toggleRole(m.id, r)}
+                                className={`text-[11px] font-medium px-2 py-0.5 rounded-full border transition-colors ${
+                                  m.roles.includes(r)
+                                    ? ROLE_STYLES[r] + " border-transparent"
+                                    : "bg-white text-neutral-400 border-neutral-200 hover:border-neutral-400"
+                                }`}
+                              >
+                                {r}
+                              </button>
+                            ))}
+                          </div>
                         )}
-                      </Button>
-                    )}
-                  </td>
-                </tr>
-              ))}
+                      </td>
+                      <td className="py-3">
+                        {m.email.toLowerCase() === SUPERUSER_EMAIL ? (
+                          <span className="text-neutral-300 text-xs">
+                            Beskyttet
+                          </span>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleBanClick(m)}
+                            className={`gap-1.5 text-xs h-8 ${
+                              m.banned
+                                ? "text-brand-teal border-brand-teal/30 hover:bg-brand-teal/5"
+                                : "text-brand-red border-brand-red/30 hover:bg-brand-red/5"
+                            }`}
+                          >
+                            {m.banned ? (
+                              <>
+                                <UserCheck className="size-3" /> Genoptag
+                              </>
+                            ) : (
+                              <>
+                                <UserX className="size-3" /> Udeluk
+                              </>
+                            )}
+                          </Button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </>
+              )}
             </tbody>
           </table>
         </div>

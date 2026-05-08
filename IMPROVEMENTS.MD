@@ -219,12 +219,20 @@ The Paperclip button is already present (commented out). Implementation:
 
 `GroupChatItem` already accepts `lastMsg` and `lastTime` props but they're always `""`. Compute from `allMessages` or store the last message when broadcasting.
 
-### Loading / Skeleton States
+### ✅ DONE — Loading / Skeleton States
 
-All data-fetching pages show either nothing or "Ingen…" during loading. Add:
+All data-fetching pages now show pulse skeleton placeholders instead of blank screens or premature "Ingen…" empty states:
 
-- Pulse/skeleton loaders for shift cards, night cards, channel list, message list
-- Spinner overlays for mutation actions (swap, confirm, save)
+- `src/components/ui/skeleton.tsx` — base `<Skeleton>` primitive using Tailwind `animate-pulse`
+- `src/components/NightCardSkeleton.tsx` — mimics `NightCard` in both `card` and `row` variants
+- `src/app/(site)/events/page.tsx` — `loading` boolean added; shows 4 `NightCardSkeleton` items while fetching; "Ingen…" empty state only shown after load completes
+- `src/app/(site)/member/schedule/ScheduleNightCard.tsx` — `ScheduleNightCardSkeleton` exported
+- `src/app/(site)/member/schedule/useScheduleData.ts` — `loading` state exposed in return value
+- `src/app/(site)/member/schedule/page.tsx` — shows 6 `ScheduleNightCardSkeleton` items while `scheduleLoading` is true
+- `src/app/(site)/member/admin/page.tsx` — shows 6 skeleton table rows (avatar circle + text lines) while fetching members
+- `src/app/(site)/member/profile/ShiftsPanel.tsx` — optional `loading` prop; renders 3 skeleton shift cards when true
+- `src/app/(site)/member/profile/ChatPanel.tsx` — optional `loading` prop; renders skeleton channel list rows in sidebar and 5 skeleton message bubbles in message area
+- `src/app/(site)/member/profile/page.tsx` — `loading` state controls all initial fetches via `Promise.all`; passed to `<ShiftsPanel>` and `<ChatPanel>`
 
 ### Calendar Page — Event Detail View
 

@@ -4,12 +4,15 @@ import { useEffect, useState } from "react";
 import { LayoutGrid, LayoutList } from "lucide-react";
 import { getClubNights, type ApiClubNight } from "@/lib/api";
 import { NightCard } from "@/components/NightCard";
+import { NightCardSkeleton } from "@/components/NightCardSkeleton";
 
 export default function EventsPage() {
   const [nights, setNights] = useState<ApiClubNight[]>([]);
   const [view, setView] = useState<"grid" | "list">("grid");
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    setLoading(true);
     getClubNights()
       .then((all) => {
         const now = new Date();
@@ -22,7 +25,8 @@ export default function EventsPage() {
             .sort((a, b) => a.date.localeCompare(b.date)),
         );
       })
-      .catch(console.error);
+      .catch(console.error)
+      .finally(() => setLoading(false));
   }, []);
 
   return (
@@ -55,7 +59,7 @@ export default function EventsPage() {
           </div>
         </div>
 
-        {nights.length === 0 && (
+        {!loading && nights.length === 0 && (
           <p className="text-neutral-500 text-sm">
             Ingen kommende klubaftener planlagt endnu.
           </p>
@@ -63,15 +67,28 @@ export default function EventsPage() {
 
         {view === "grid" ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {nights.map((night, i) => (
-              <NightCard key={night.id} night={night} index={i} />
-            ))}
+            {loading
+              ? Array.from({ length: 4 }).map((_, i) => (
+                  <NightCardSkeleton key={i} variant="card" />
+                ))
+              : nights.map((night, i) => (
+                  <NightCard key={night.id} night={night} index={i} />
+                ))}
           </div>
         ) : (
           <div className="flex flex-col gap-2">
-            {nights.map((night, i) => (
-              <NightCard key={night.id} night={night} index={i} variant="row" />
-            ))}
+            {loading
+              ? Array.from({ length: 4 }).map((_, i) => (
+                  <NightCardSkeleton key={i} variant="row" />
+                ))
+              : nights.map((night, i) => (
+                  <NightCard
+                    key={night.id}
+                    night={night}
+                    index={i}
+                    variant="row"
+                  />
+                ))}
           </div>
         )}
       </div>

@@ -83,26 +83,34 @@ export default function ProfilePage() {
   const chatEndRef = useRef<HTMLDivElement>(null);
   const scrollOnNextRender = useRef(false);
   const pendingScrollMsgId = useRef<number | null>(null);
+  const [loading, setLoading] = useState(true);
 
   // ── Initial data fetch ────────────────────────────────────────────────────
   useEffect(() => {
-    getClubNights().then(setNights).catch(console.error);
-    getMyScheduleReview().then(setMyReview).catch(console.error);
-    getChannels()
-      .then(async (chs) => {
-        setChannels(chs);
-        const all = await Promise.all(chs.map((c) => getMessages(c.id)));
-        const flat = all.flat();
-        setAllMessages(flat);
-        const seed: Record<number, number> = {};
-        for (const msg of flat) {
-          if ((seed[msg.channel_id] ?? 0) < msg.id)
-            seed[msg.channel_id] = msg.id;
-        }
-        setLastSeenIds(seed);
-      })
-      .catch(console.error);
-    if (user) getMemberShifts(user.id).then(setShifts).catch(console.error);
+    setLoading(true);
+    const promises: Promise<unknown>[] = [
+      getClubNights().then(setNights).catch(console.error),
+      getMyScheduleReview().then(setMyReview).catch(console.error),
+      getChannels()
+        .then(async (chs) => {
+          setChannels(chs);
+          const all = await Promise.all(chs.map((c) => getMessages(c.id)));
+          const flat = all.flat();
+          setAllMessages(flat);
+          const seed: Record<number, number> = {};
+          for (const msg of flat) {
+            if ((seed[msg.channel_id] ?? 0) < msg.id)
+              seed[msg.channel_id] = msg.id;
+          }
+          setLastSeenIds(seed);
+        })
+        .catch(console.error),
+    ];
+    if (user)
+      promises.push(
+        getMemberShifts(user.id).then(setShifts).catch(console.error),
+      );
+    Promise.all(promises).finally(() => setLoading(false));
   }, [user]);
 
   // Mark active channel seen
@@ -513,6 +521,7 @@ export default function ProfilePage() {
         {/* Left: Shifts panel — Vagt/Admin only */}
         {isVagtOrAdmin && (
           <ShiftsPanel
+            loading={loading}
             shifts={shifts}
             pendingShiftsForMe={pendingShiftsForMe}
             pendingSwap={pendingSwap}
@@ -587,9 +596,14 @@ export default function ProfilePage() {
                         Din vagt
                       </span>
                     ) : hasOtherVagt ? (
-                      <span className="text-xs font-medium px-2 py-0.5 rounded-full whitespace-nowrap bg-neutral-100 text-neutral-600 shrink-0">
-                        {evt.assigned_member_name}
-                      </span>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <span className="w-6 h-6 rounded-full bg-brand-orange text-white text-[0.6rem] font-bold flex items-center justify-center shrink-0">
+                          {evt.assigned_member_initials}
+                        </span>
+                        <span className="text-xs font-medium text-neutral-600 whitespace-nowrap">
+                          {evt.assigned_member_name}
+                        </span>
+                      </div>
                     ) : (
                       <span className="text-xs font-medium px-2 py-0.5 rounded-full whitespace-nowrap bg-brand-red/10 text-brand-red shrink-0">
                         Ingen vagt
@@ -604,6 +618,7 @@ export default function ProfilePage() {
 
       {/* Chat */}
       <ChatPanel
+        loading={loading}
         channels={channels}
         activeChannelId={activeChannelId}
         setActiveChannelId={setActiveChannelId}

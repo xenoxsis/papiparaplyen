@@ -27,7 +27,10 @@ import {
 
 import { useScheduleData } from "./useScheduleData";
 import { useVagtDraft } from "./useVagtDraft";
-import { ScheduleNightCard } from "./ScheduleNightCard";
+import {
+  ScheduleNightCard,
+  ScheduleNightCardSkeleton,
+} from "./ScheduleNightCard";
 import { VagterPanel } from "./VagterPanel";
 import { AssignModal } from "./AssignModal";
 
@@ -49,6 +52,7 @@ export default function SchedulePage() {
     reviews,
     pendingSwapMsgs,
     submittingReview,
+    loading: scheduleLoading,
     myReview,
     hasUnreviewedNights,
     submitReview,
@@ -410,49 +414,59 @@ export default function SchedulePage() {
               className="flex flex-col gap-3 overflow-y-auto"
               style={{ maxHeight: "calc(6 * 5.5rem + 5 * 0.75rem)" }}
             >
-              {filteredNights.length === 0 && (
-                <p className="text-sm text-neutral-400 py-6 text-center">
-                  Ingen klubaftener fundet
-                </p>
-              )}
-              {filteredNights.map((night) => {
-                const vagt = draft.effectiveVagt(night);
-                const isPending = night.id in draft.pendingChanges;
-                const swapMsg =
-                  pendingSwapMsgs.find((m) => m.shift_night_id === night.id) ??
-                  null;
-                const myOptOut =
-                  user !== null &&
-                  night.opted_out_members.some((o) => o.id === user.id);
-                const canOptOut = !!user && !user.roles.includes("Tilskuer");
+              {scheduleLoading ? (
+                Array.from({ length: 6 }).map((_, i) => (
+                  <ScheduleNightCardSkeleton key={i} />
+                ))
+              ) : (
+                <>
+                  {filteredNights.length === 0 && (
+                    <p className="text-sm text-neutral-400 py-6 text-center">
+                      Ingen klubaftener fundet
+                    </p>
+                  )}
+                  {filteredNights.map((night) => {
+                    const vagt = draft.effectiveVagt(night);
+                    const isPending = night.id in draft.pendingChanges;
+                    const swapMsg =
+                      pendingSwapMsgs.find(
+                        (m) => m.shift_night_id === night.id,
+                      ) ?? null;
+                    const myOptOut =
+                      user !== null &&
+                      night.opted_out_members.some((o) => o.id === user.id);
+                    const canOptOut =
+                      !!user && !user.roles.includes("Tilskuer");
 
-                return (
-                  <ScheduleNightCard
-                    key={night.id}
-                    night={night}
-                    vagt={vagt}
-                    isPending={isPending}
-                    isAutoAssigned={draft.autoAssignedIds.has(night.id)}
-                    isProblem={draft.problemNightIds.includes(night.id)}
-                    isOver={draft.dragOverNightId === night.id}
-                    swapMsg={swapMsg}
-                    myOptOut={myOptOut}
-                    canOptOut={canOptOut}
-                    isAdmin={isAdmin}
-                    userId={user?.id ?? null}
-                    onDragOver={(e) => {
-                      e.preventDefault();
-                      draft.setDragOverNightId(night.id);
-                    }}
-                    onDragLeave={() => draft.setDragOverNightId(null)}
-                    onDrop={() => draft.handleDrop(night.id)}
-                    onAssign={() => setAssignModalNightId(night.id)}
-                    onRemoveVagt={() => draft.removeVagt(night.id)}
-                    onDelete={() => setDeleteConfirmId(night.id)}
-                    onToggleOptOut={() => toggleOptOut(night.id, myOptOut)}
-                  />
-                );
-              })}
+                    return (
+                      <ScheduleNightCard
+                        key={night.id}
+                        night={night}
+                        vagt={vagt}
+                        isPending={isPending}
+                        isAutoAssigned={draft.autoAssignedIds.has(night.id)}
+                        isProblem={draft.problemNightIds.includes(night.id)}
+                        isOver={draft.dragOverNightId === night.id}
+                        swapMsg={swapMsg}
+                        myOptOut={myOptOut}
+                        canOptOut={canOptOut}
+                        isAdmin={isAdmin}
+                        userId={user?.id ?? null}
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          draft.setDragOverNightId(night.id);
+                        }}
+                        onDragLeave={() => draft.setDragOverNightId(null)}
+                        onDrop={() => draft.handleDrop(night.id)}
+                        onAssign={() => setAssignModalNightId(night.id)}
+                        onRemoveVagt={() => draft.removeVagt(night.id)}
+                        onDelete={() => setDeleteConfirmId(night.id)}
+                        onToggleOptOut={() => toggleOptOut(night.id, myOptOut)}
+                      />
+                    );
+                  })}
+                </>
+              )}
             </div>
           </CardContent>
         </Card>

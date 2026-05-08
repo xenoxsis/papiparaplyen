@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Check,
   ChevronDown,
@@ -264,6 +265,31 @@ export function ScheduleNightCard({
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+export function ScheduleNightCardSkeleton() {
+  return (
+    <div className="rounded-lg flex flex-col p-4 gap-3 border border-neutral-200 bg-white animate-pulse">
+      {/* Date + title row */}
+      <div className="flex items-center gap-3">
+        <Skeleton className="w-10 h-12 rounded-lg shrink-0" />
+        <div className="flex flex-col gap-1.5 flex-1 min-w-0">
+          <Skeleton className="h-4 w-36 rounded" />
+          <Skeleton className="h-3 w-24 rounded" />
+        </div>
+      </div>
+      {/* Meta row */}
+      <div className="flex items-center gap-3">
+        <Skeleton className="h-3 w-28 rounded" />
+        <Skeleton className="h-3 w-20 rounded" />
+      </div>
+      {/* Assignee chip */}
+      <div className="flex items-center gap-2">
+        <Skeleton className="h-6 w-6 rounded-full" />
+        <Skeleton className="h-3 w-20 rounded" />
+      </div>
     </div>
   );
 }

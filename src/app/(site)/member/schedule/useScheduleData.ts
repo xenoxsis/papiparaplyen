@@ -23,32 +23,39 @@ export function useScheduleData(isAdmin: boolean) {
   const [reviews, setReviews] = useState<ApiScheduleReview[]>([]);
   const [pendingSwapMsgs, setPendingSwapMsgs] = useState<ApiMessage[]>([]);
   const [submittingReview, setSubmittingReview] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    getClubNights().then(setNights).catch(console.error);
-    getMembers()
-      .then((ms) =>
-        setVagter(ms.filter((m) => m.roles.includes("Vagt") && !m.banned)),
-      )
-      .catch(console.error);
-    getMessages(2)
-      .then((msgs) =>
-        setPendingSwapMsgs(
-          msgs.filter(
-            (m) => m.type === "shift_swap" && m.swap_status === "pending",
+    setLoading(true);
+    const promises: Promise<unknown>[] = [
+      getClubNights().then(setNights).catch(console.error),
+      getMembers()
+        .then((ms) =>
+          setVagter(ms.filter((m) => m.roles.includes("Vagt") && !m.banned)),
+        )
+        .catch(console.error),
+      getMessages(2)
+        .then((msgs) =>
+          setPendingSwapMsgs(
+            msgs.filter(
+              (m) => m.type === "shift_swap" && m.swap_status === "pending",
+            ),
           ),
-        ),
-      )
-      .catch(console.error);
+        )
+        .catch(console.error),
+    ];
     if (isAdmin) {
-      getScheduleReviews().then(setReviews).catch(console.error);
+      promises.push(getScheduleReviews().then(setReviews).catch(console.error));
     } else if (user?.roles.includes("Vagt")) {
-      getMyScheduleReview()
-        .then((r) => {
-          if (r) setReviews([r]);
-        })
-        .catch(console.error);
+      promises.push(
+        getMyScheduleReview()
+          .then((r) => {
+            if (r) setReviews([r]);
+          })
+          .catch(console.error),
+      );
     }
+    Promise.all(promises).finally(() => setLoading(false));
   }, [isAdmin, user]);
 
   // For vagter: which nights are newer than their last review?
@@ -108,6 +115,7 @@ export function useScheduleData(isAdmin: boolean) {
     reviews,
     pendingSwapMsgs,
     submittingReview,
+    loading,
     myReview,
     hasUnreviewedNights,
     submitReview,
