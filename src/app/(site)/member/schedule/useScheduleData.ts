@@ -70,8 +70,8 @@ export function useScheduleData(isAdmin: boolean) {
     setSubmittingReview(true);
     try {
       const { reviewed_at } = await postScheduleReview();
-      const updatedNights = await getClubNights();
-      setNights(updatedNights);
+      // Optimistic: no night data changes on review submission,
+      // only the review record itself updates. Skip full getClubNights() refetch.
       if (isAdmin) {
         const updatedReviews = await getScheduleReviews();
         setReviews(updatedReviews);

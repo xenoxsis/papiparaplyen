@@ -11,17 +11,13 @@ const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
 async function getUpcomingNights(): Promise<ApiClubNight[]> {
   try {
-    const res = await fetch(`${API}/api/club-nights`, {
+    const res = await fetch(`${API}/api/club-nights?upcoming=true`, {
       cache: "no-store",
     });
     if (!res.ok) return [];
-    const all: ApiClubNight[] = await res.json();
-    const now = new Date();
-    return all
-      .filter((n) => {
-        const start = new Date(`${n.date}T${n.time_from}`);
-        return start > now && n.vagt_confirmed;
-      })
+    const upcoming: ApiClubNight[] = await res.json();
+    return upcoming
+      .filter((n) => n.vagt_confirmed)
       .sort((a, b) => a.date.localeCompare(b.date))
       .slice(0, 3);
   } catch {

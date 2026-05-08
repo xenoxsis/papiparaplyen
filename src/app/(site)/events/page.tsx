@@ -13,15 +13,11 @@ export default function EventsPage() {
 
   useEffect(() => {
     setLoading(true);
-    getClubNights()
-      .then((all) => {
-        const now = new Date();
+    getClubNights(true)
+      .then((upcoming) => {
         setNights(
-          all
-            .filter((n) => {
-              const start = new Date(`${n.date}T${n.time_from}`);
-              return start > now && n.vagt_confirmed;
-            })
+          upcoming
+            .filter((n) => n.vagt_confirmed)
             .sort((a, b) => a.date.localeCompare(b.date)),
         );
       })

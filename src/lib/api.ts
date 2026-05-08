@@ -112,7 +112,10 @@ export const getMemberShifts = (id: number) =>
 
 // ── Club Nights ───────────────────────────────────────────────────────────────
 
-export const getClubNights = () => api<ApiClubNight[]>("/api/club-nights");
+export const getClubNights = (upcoming?: boolean) =>
+  api<ApiClubNight[]>(`/api/club-nights${upcoming ? "?upcoming=true" : ""}`);
+export const getClubNight = (id: number) =>
+  api<ApiClubNight>(`/api/club-nights/${id}`);
 export const postClubNight = (body: Partial<ApiClubNight>) =>
   apiPost<ApiClubNight>("/api/club-nights", body);
 export const patchClubNight = (id: number, body: Partial<ApiClubNight>) =>

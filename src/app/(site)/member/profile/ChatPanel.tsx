@@ -323,13 +323,40 @@ export function ChatPanel({
                     </div>
                   ))
                 : channels.map((ch) => {
-                    const latestId = Math.max(
-                      0,
-                      ...(messageMap[ch.id] ?? []).map((m) => m.id),
-                    );
+                    const msgs = messageMap[ch.id] ?? [];
+                    const latestId = Math.max(0, ...msgs.map((m) => m.id));
                     const unread =
                       ch.id !== activeChannelId &&
                       latestId > (lastSeenIds[ch.id] ?? 0);
+                    const lastMsgObj =
+                      msgs.length > 0 ? msgs[msgs.length - 1] : null;
+                    const lastMsg = lastMsgObj
+                      ? lastMsgObj.type === "shift_swap"
+                        ? "📅 Vagtvagt"
+                        : lastMsgObj.body
+                      : "";
+                    const lastTime = lastMsgObj
+                      ? (() => {
+                          const d = new Date(lastMsgObj.sent_at);
+                          const now = new Date();
+                          const diffDays = Math.floor(
+                            (now.getTime() - d.getTime()) / 86_400_000,
+                          );
+                          if (diffDays === 0)
+                            return d.toLocaleTimeString("da-DK", {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            });
+                          if (diffDays < 7)
+                            return d.toLocaleDateString("da-DK", {
+                              weekday: "short",
+                            });
+                          return d.toLocaleDateString("da-DK", {
+                            day: "numeric",
+                            month: "numeric",
+                          });
+                        })()
+                      : "";
                     return (
                       <GroupChatItem
                         key={ch.id}
@@ -340,8 +367,8 @@ export function ChatPanel({
                           ch.type === "all_members" ? "Fælles" : "Vagter"
                         }
                         badgeColor={ch.type === "all_members" ? "red" : "teal"}
-                        lastMsg=""
-                        lastTime=""
+                        lastMsg={lastMsg}
+                        lastTime={lastTime}
                         unread={unread}
                         onClick={() => {
                           setLastSeenIds((prev) => ({

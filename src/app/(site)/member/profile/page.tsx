@@ -210,7 +210,7 @@ export default function ProfilePage() {
     setMessageMap((prev) => upsertIntoMap(prev, msg));
   });
 
-  // Fallback poll (SSE disconnected)
+  // Fallback poll — only active when SSE is disconnected
   useEffect(() => {
     if (sseConnected) return;
     const id = setInterval(
@@ -220,27 +220,10 @@ export default function ProfilePage() {
             setMessageMap((prev) => ({ ...prev, [activeChannelId]: msgs })),
           )
           .catch(console.error),
-      3000,
+      10_000,
     );
     return () => clearInterval(id);
   }, [activeChannelId, sseConnected]);
-
-  // 15-second all-channels poll
-  useEffect(() => {
-    if (channels.length === 0) return;
-    const id = setInterval(() => {
-      Promise.all(channels.map((c) => getMessages(c.id)))
-        .then((results) => {
-          const map: Record<number, ApiMessage[]> = {};
-          channels.forEach((c, i) => {
-            map[c.id] = results[i];
-          });
-          setMessageMap(map);
-        })
-        .catch(console.error);
-    }, 15000);
-    return () => clearInterval(id);
-  }, [channels]);
 
   // Read ?vagter= param
   useEffect(() => {

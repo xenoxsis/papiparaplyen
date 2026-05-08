@@ -94,15 +94,33 @@ export default function SchedulePage() {
 
   // ── Handlers ─────────────────────────────────────────────────────────────
   async function toggleOptOut(nightId: number, currentlyOptedOut: boolean) {
+    // Optimistic update
+    const userId = user?.id;
+    setNights((prev) =>
+      prev.map((n) => {
+        if (n.id !== nightId || !userId) return n;
+        const opts = n.opted_out_members;
+        return {
+          ...n,
+          opted_out_members: currentlyOptedOut
+            ? opts.filter((o) => o.id !== userId)
+            : [
+                ...opts,
+                { id: userId, name: user!.name, initials: user!.initials },
+              ],
+        };
+      }),
+    );
     try {
       if (currentlyOptedOut) {
         await deleteClubNightOptOut(nightId);
       } else {
         await postClubNightOptOut(nightId);
       }
-      const updated = await getClubNights();
-      setNights(updated);
     } catch (err) {
+      // Roll back optimistic update on failure
+      const restored = await getClubNights();
+      setNights(restored);
       console.error(err);
       toast.error("Noget gik galt. Prøv igen.");
     }

@@ -128,9 +128,9 @@ Edit modal name/password inputs in `EditProfileModal.tsx` now have `<label htmlF
 
 ## Performance Improvements
 
-### HIGH — Remove redundant polling
+### ✅ DONE — Remove redundant polling
 
-Active channel gets updates via SSE **and** a 3-second poll **and** a 15-second all-channels poll. With the new single-SSE architecture, the per-channel 3-second poll can be removed entirely. The 15-second all-channels poll can be reduced to a much longer interval (or removed — just fetch on channel switch).
+The always-on 15-second all-channels poll in `profile/page.tsx` (which fired N `getMessages()` requests every 15 s regardless of SSE state) has been removed entirely. SSE delivers all new messages in real time, making the poll redundant. The SSE-disconnect fallback poll is retained but slowed from 3 s → **10 s** and continues to fetch the active channel only.
 
 ### ✅ DONE — `allMessages` is a flat array scanned linearly
 
@@ -140,13 +140,13 @@ Replaced with `messageMap: Record<number, ApiMessage[]>`. Unread badge per chann
 
 The IIFE was replaced with a `useMemo`-d `messageGroups` computation in `ChatPanel.tsx`. Message rendering is extracted into `profile/MessageGroup.tsx` — a `memo`-ized component receiving `group`, `user`, `nights`, `highlightMessageId`, `outgoingColor`, `accentColor`, and `onSwapConfirm`.
 
-### MEDIUM — Refetch entire list after mutations
+### ✅ DONE — Refetch entire list after mutations
 
-`toggleOptOut`, `confirmShift`, `optOut` all refetch the complete club nights list. Use optimistic updates or targeted re-fetch.
+`toggleOptOut` in `schedule/page.tsx` now applies an **optimistic in-place update** to `nights` state before the API call, rolling back to a fresh `getClubNights()` only on error. `submitReview` in `useScheduleData.ts` no longer calls `getClubNights()` at all after posting a review — review submission doesn’t mutate night data, only the review record, so only the reviews state is updated.
 
-### LOW — Events page fetches all nights then filters client-side
+### ✅ DONE — Events page fetches all nights then filters client-side
 
-Add a query parameter `?upcoming=true` to the backend endpoint.
+Backend `GET /api/club-nights` now accepts `?upcoming=true`, which adds `WHERE n.date >= CAST(GETDATE() AS DATE)` to the SQL query (and scopes the opt-outs join to the same set). `getClubNights(upcoming?)` in `api.ts` threads the flag through. Both the events page and the home page server component now call `?upcoming=true` and skip the client-side date filter. The schedule and admin pages continue to call without the flag to get the full list.
 
 ---
 
@@ -225,9 +225,13 @@ The Paperclip button is already present (commented out). Implementation:
 - `attachment_url` column on messages or a separate `dbo.attachments` table
 - Inline preview for images, link for other files
 
-### Channel Last Message Preview
+### ✅ DONE — Channel Last Message Preview
 
-`GroupChatItem` already accepts `lastMsg` and `lastTime` props but they're always `""`. Compute from `allMessages` or store the last message when broadcasting.
+`GroupChatItem` `lastMsg` and `lastTime` props are now computed from `messageMap` in `ChatPanel.tsx`:
+
+- `lastMsg` — body of the last message in `messageMap[ch.id]`; `shift_swap` messages show "📅 Vagtvagt" instead of the raw body
+- `lastTime` — clock time (`HH:MM`) for today, abbreviated weekday for within 7 days, `d/m` for older
+- Updates live when SSE pushes a new message (no extra fetches)
 
 ### ✅ DONE — Loading / Skeleton States
 

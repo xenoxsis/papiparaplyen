@@ -60,7 +60,9 @@ async function fetchNightWithOptOuts(
 }
 
 // GET /api/club-nights
-router.get("/", async (_req, res) => {
+// ?upcoming=true  — only return nights with date >= today (DB-side filter)
+router.get("/", async (req, res) => {
+  const upcomingOnly = req.query.upcoming === "true";
   const pool = await getPool();
   const nightsResult = await pool.request().query(`
     SELECT n.id, n.number, n.name,
@@ -72,6 +74,7 @@ router.get("/", async (_req, res) => {
            vm.initials AS assigned_member_initials
     FROM dbo.club_nights n
     LEFT JOIN dbo.members vm ON vm.id = n.vagt_member_id
+    ${upcomingOnly ? "WHERE n.date >= CAST(GETDATE() AS DATE)" : ""}
     ORDER BY n.date
   `);
 
@@ -79,6 +82,7 @@ router.get("/", async (_req, res) => {
     SELECT o.club_night_id, m.id, m.name, m.initials
     FROM dbo.club_night_opt_outs o
     JOIN dbo.members m ON m.id = o.member_id
+    ${upcomingOnly ? "WHERE o.club_night_id IN (SELECT id FROM dbo.club_nights WHERE date >= CAST(GETDATE() AS DATE))" : ""}
   `);
 
   const nights = nightsResult.recordset.map((n: NightRow) => ({
