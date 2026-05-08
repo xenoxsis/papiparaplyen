@@ -10,6 +10,9 @@
  * every raw parsed event object.  The broadcaster on the server sends:
  *   { event: "notification", data: ... }
  *   { event: "chat_message", data: { channelId, message } }
+ *   { event: "message_edited", data: { channelId, message } }
+ *   { event: "message_deleted", data: { channelId, message } }
+ *   { event: "typing", data: { channelId, memberId, name } }
  */
 
 import {
@@ -23,7 +26,13 @@ import {
 
 export type UserSSEEvent =
   | { event: "notification"; data: unknown }
-  | { event: "chat_message"; data: { channelId: number; message: unknown } };
+  | { event: "chat_message"; data: { channelId: number; message: unknown } }
+  | { event: "message_edited"; data: { channelId: number; message: unknown } }
+  | { event: "message_deleted"; data: { channelId: number; message: unknown } }
+  | {
+      event: "typing";
+      data: { channelId: number; memberId: number; name: string };
+    };
 
 type Handler = (evt: UserSSEEvent) => void;
 

@@ -33,6 +33,8 @@ import {
   postClubNight,
   postMessage,
   patchMessage,
+  deleteMessage,
+  markChannelRead,
   patchClubNight,
   postClubNightConfirm,
   postClubNightOptOut,
@@ -43,6 +45,7 @@ import {
   type ApiChannelMember,
 } from "@/lib/api";
 import { useChannelSSE } from "@/lib/useChannelSSE";
+import { useUserSSE } from "@/lib/UserSSEContext";
 import { ShiftsPanel } from "./ShiftsPanel";
 import { SwapModal } from "./SwapModal";
 import { SwapConfirmModal } from "./SwapConfirmModal";
@@ -183,12 +186,18 @@ export default function ProfilePage() {
     Promise.all(promises).finally(() => setLoading(false));
   }, [user]);
 
-  // Mark active channel seen
+  // Mark active channel seen (persisted to DB, debounced)
+  const markReadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     const bucket = messageMap[activeChannelId] ?? [];
     const latestId = Math.max(0, ...bucket.map((m) => m.id));
-    if (latestId > 0)
+    if (latestId > 0) {
       setLastSeenIds((prev) => ({ ...prev, [activeChannelId]: latestId }));
+      if (markReadTimerRef.current) clearTimeout(markReadTimerRef.current);
+      markReadTimerRef.current = setTimeout(() => {
+        markChannelRead(activeChannelId, latestId).catch(() => {});
+      }, 1500);
+    }
   }, [activeChannelId, messageMap]);
 
   // Fetch messages + members for active channel
@@ -204,10 +213,18 @@ export default function ProfilePage() {
       .catch(console.error);
   }, [activeChannelId]);
 
-  // SSE real-time updates
+  // SSE real-time updates — chat_message (new), message_edited, message_deleted
   const { connected: sseConnected } = useChannelSSE(activeChannelId, (msg) => {
     if (msg.channel_id === activeChannelId) scrollOnNextRender.current = true;
     setMessageMap((prev) => upsertIntoMap(prev, msg));
+  });
+
+  // Handle message_edited and message_deleted from the user SSE stream
+  useUserSSE((evt) => {
+    if (evt.event === "message_edited" || evt.event === "message_deleted") {
+      const msg = evt.data.message as ApiMessage;
+      setMessageMap((prev) => upsertIntoMap(prev, msg));
+    }
   });
 
   // Fallback poll — only active when SSE is disconnected
@@ -340,6 +357,43 @@ export default function ProfilePage() {
     },
     [activeChannelId, user],
   );
+
+  const handleEditMessage = useCallback(
+    async (msg: ApiMessage, newBody: string) => {
+      // Optimistic update
+      const optimistic: ApiMessage = {
+        ...msg,
+        body: newBody,
+        edited_at: new Date().toISOString(),
+      };
+      setMessageMap((prev) => upsertIntoMap(prev, optimistic));
+      try {
+        await patchMessage(msg.channel_id, msg.id, { body: newBody });
+      } catch (err) {
+        // Roll back
+        setMessageMap((prev) => upsertIntoMap(prev, msg));
+        toast.error(
+          err instanceof Error ? err.message : "Kunne ikke redigere besked.",
+        );
+      }
+    },
+    [],
+  );
+
+  const handleDeleteMessage = useCallback(async (msg: ApiMessage) => {
+    // Optimistic update
+    const optimistic: ApiMessage = { ...msg, is_deleted: true };
+    setMessageMap((prev) => upsertIntoMap(prev, optimistic));
+    try {
+      await deleteMessage(msg.channel_id, msg.id);
+    } catch (err) {
+      // Roll back
+      setMessageMap((prev) => upsertIntoMap(prev, msg));
+      toast.error(
+        err instanceof Error ? err.message : "Kunne ikke slette besked.",
+      );
+    }
+  }, []);
 
   const requestSwap = useCallback(async () => {
     if (!user || !swap.targetShift || vagterChannelId === undefined) return;
@@ -678,6 +732,8 @@ export default function ProfilePage() {
         setSwapConfirmMsg={(msg) => dispatchSwap({ type: "SET_CONFIRM", msg })}
         channelMembers={channelMembers}
         onSend={handleSendMessage}
+        onEdit={handleEditMessage}
+        onDelete={handleDeleteMessage}
         messagesContainerRef={messagesContainerRef}
         chatEndRef={chatEndRef}
         pendingScrollMsgId={pendingScrollMsgId}

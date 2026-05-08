@@ -192,9 +192,9 @@ The SSE architecture already supports this — one stream per user, events tagge
 3. Show DM list in chat sidebar alongside group channels
 4. Reuse all existing message components
 
-### Message Read Receipts / "Last Read" Persistence
+### ✅ DONE — Message Read Receipts / "Last Read" Persistence
 
-Currently `lastSeenIds` is in-memory and resets on page reload. Store `last_read_message_id` per user per channel in the DB. This also enables proper unread counts.
+`dbo.message_last_read` table stores `(member_id, channel_id, last_message_id, updated_at)`. Backend exposes `GET /:id/last-read` and `POST /:id/mark-read` (MERGE upsert). Frontend debounces `markChannelRead` (1.5 s) in `profile/page.tsx` whenever the active channel changes or new messages arrive.
 
 ### Message Reactions (Emoji)
 
@@ -204,18 +204,17 @@ Lightweight engagement feature:
 - Render reaction badges under messages
 - Broadcast reaction events via SSE
 
-### Message Edit & Delete
+### ✅ DONE — Message Edit & Delete
 
-Users can't edit or correct typos in chat messages. Implementation:
+- `edited_at DATETIME2` and `is_deleted BIT` added to `dbo.messages` (migration 005)
+- PATCH endpoint checks ownership; sets `edited_at = GETUTCDATE()` on body edits
+- New DELETE soft-delete endpoint; broadcasts `message_deleted` SSE event
+- `handleEditMessage` / `handleDeleteMessage` in `page.tsx` do optimistic updates
+- `MessageGroup.tsx` shows hover pencil + trash on own messages, inline edit textarea (Escape = cancel, Enter = save), `(redigeret)` suffix, and grey italic "Besked slettet" for deleted messages
 
-- `edited_at` column on `dbo.messages`
-- PATCH endpoint already exists — add owner check
-- Show "(redigeret)" indicator
-- Soft-delete with `deleted_at` column
+### ✅ DONE — Typing Indicators
 
-### Typing Indicators
-
-Broadcast `{ event: "typing", data: { channelId, memberId, name } }` through the user SSE stream. Show "X is typing…" in the chat input area.
+`POST /api/channels/:id/typing` broadcasts `{ event: "typing", data: { channelId, memberId, name } }` over the per-user SSE stream. `ChatPanel.tsx` throttles `postTyping` to once per 2 s, tracks active typers with 3 s expiry, and renders bouncing dots + "X skriver…" with `aria-live="polite"`.
 
 ### File Attachments in Chat
 

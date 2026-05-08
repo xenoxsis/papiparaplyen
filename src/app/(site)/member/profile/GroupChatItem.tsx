@@ -54,7 +54,9 @@ export function GroupChatItem({
             {lastTime}
           </span>
         </div>
-        <span className="text-neutral-500 text-xs truncate">{lastMsg}</span>
+        <span className="text-neutral-500 text-xs truncate">
+          {lastMsg.replace(/@\[([^\]]+)\]\(\d+\)/g, "@$1")}
+        </span>
       </div>
       <span
         className={`text-[0.6rem] font-semibold uppercase tracking-wider rounded-full px-1.5 py-0.5 whitespace-nowrap shrink-0 ${

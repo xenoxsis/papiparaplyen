@@ -79,6 +79,8 @@ export type ApiMessage = {
   sender_id: number | null;
   body: string;
   sent_at: string;
+  edited_at?: string | null;
+  is_deleted?: boolean;
   sender_name: string | null;
   sender_initials: string | null;
   type?: "shift_swap";
@@ -165,6 +167,16 @@ export const patchMessage = (
     `/api/channels/${channelId}/messages/${messageId}`,
     patch,
   );
+export const deleteMessage = (channelId: number, messageId: number) =>
+  apiDelete<ApiMessage>(`/api/channels/${channelId}/messages/${messageId}`);
+export const postTyping = (channelId: number, name: string) =>
+  apiPost<void>(`/api/channels/${channelId}/typing`, { name });
+export const markChannelRead = (channelId: number, messageId: number) =>
+  apiPost<{ ok: boolean }>(`/api/channels/${channelId}/mark-read`, {
+    message_id: messageId,
+  });
+export const getChannelLastRead = (channelId: number) =>
+  api<{ last_message_id: number }>(`/api/channels/${channelId}/last-read`);
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
 

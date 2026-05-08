@@ -6,6 +6,8 @@ import { ChevronDown, MessagesSquare, Search, Send, Users } from "lucide-react";
 import { GroupChatItem } from "./GroupChatItem";
 import { MessageGroup } from "./MessageGroup";
 import { Skeleton } from "@/components/ui/skeleton";
+import { postTyping } from "@/lib/api";
+import { useUserSSE } from "@/lib/UserSSEContext";
 import type {
   ApiChannel,
   ApiChannelMember,
@@ -31,6 +33,8 @@ interface ChatPanelProps {
   setSwapConfirmMsg: (msg: ApiMessage | null) => void;
   channelMembers: ApiChannelMember[];
   onSend: (body: string) => Promise<void>;
+  onEdit: (msg: ApiMessage, newBody: string) => Promise<void>;
+  onDelete: (msg: ApiMessage) => Promise<void>;
   messagesContainerRef: React.RefObject<HTMLDivElement | null>;
   chatEndRef: React.RefObject<HTMLDivElement | null>;
   pendingScrollMsgId: React.MutableRefObject<number | null>;
@@ -53,6 +57,8 @@ export function ChatPanel({
   setSwapConfirmMsg,
   channelMembers,
   onSend,
+  onEdit,
+  onDelete,
   messagesContainerRef,
   chatEndRef,
   pendingScrollMsgId,
@@ -72,6 +78,53 @@ export function ChatPanel({
   const channelSearchRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const mentionContainerRef = useRef<HTMLDivElement>(null);
+  const lastTypingSentRef = useRef<number>(0);
+
+  // Typing indicator state: channelId -> list of { memberId, name, until }
+  const [typingUsers, setTypingUsers] = useState<
+    Record<number, { memberId: number; name: string; until: number }[]>
+  >({});
+
+  // Subscribe to typing events via the user SSE stream
+  useUserSSE((evt) => {
+    if (evt.event !== "typing") return;
+    const { channelId: ch, memberId: mid, name } = evt.data;
+    if (mid === user?.id) return; // ignore own typing
+    const until = Date.now() + 3_000;
+    setTypingUsers((prev) => {
+      const existing = (prev[ch] ?? []).filter((t) => t.memberId !== mid);
+      return { ...prev, [ch]: [...existing, { memberId: mid, name, until }] };
+    });
+  });
+
+  // Clear expired typing entries every second
+  useEffect(() => {
+    const id = setInterval(() => {
+      const now = Date.now();
+      setTypingUsers((prev) => {
+        const next: typeof prev = {};
+        let changed = false;
+        for (const [k, arr] of Object.entries(prev)) {
+          const filtered = arr.filter((t) => t.until > now);
+          if (filtered.length !== arr.length) changed = true;
+          if (filtered.length > 0) next[Number(k)] = filtered;
+        }
+        return changed ? next : prev;
+      });
+    }, 1_000);
+    return () => clearInterval(id);
+  }, []);
+
+  // Scroll to bottom when typing indicator appears so it stays visible
+  useEffect(() => {
+    if (!activeChannelId) return;
+    const typers = typingUsers[activeChannelId] ?? [];
+    if (typers.length === 0) return;
+    const el = messagesContainerRef.current;
+    if (!el) return;
+    const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    if (distFromBottom < 120) el.scrollTop = el.scrollHeight;
+  }, [typingUsers, activeChannelId, messagesContainerRef]);
 
   const activeChannel = channels.find((c) => c.id === activeChannelId);
 
@@ -121,6 +174,14 @@ export function ChatPanel({
       setMentionIndex(0);
     } else {
       setMentionQuery(null);
+    }
+    // Throttled typing indicator (at most once per 2 s)
+    if (value.trim() && user) {
+      const now = Date.now();
+      if (now - lastTypingSentRef.current > 2_000) {
+        lastTypingSentRef.current = now;
+        postTyping(activeChannelId, user.name).catch(() => {});
+      }
     }
   }
 
@@ -478,8 +539,27 @@ export function ChatPanel({
                       outgoingColor={outgoingColor}
                       accentColor={accentColor}
                       onSwapConfirm={setSwapConfirmMsg}
+                      onEdit={onEdit}
+                      onDelete={onDelete}
                     />
                   ))}
+              {/* Typing indicator */}
+              {(typingUsers[activeChannelId] ?? []).length > 0 && (
+                <div
+                  aria-live="polite"
+                  className="flex items-center gap-2 pl-1 text-xs text-neutral-400 italic"
+                >
+                  <span className="flex gap-0.5">
+                    <span className="w-1.5 h-1.5 bg-neutral-400 rounded-full animate-bounce [animation-delay:0ms]" />
+                    <span className="w-1.5 h-1.5 bg-neutral-400 rounded-full animate-bounce [animation-delay:150ms]" />
+                    <span className="w-1.5 h-1.5 bg-neutral-400 rounded-full animate-bounce [animation-delay:300ms]" />
+                  </span>
+                  {(typingUsers[activeChannelId] ?? [])
+                    .map((t) => t.name)
+                    .join(" og ")}{" "}
+                  skriver…
+                </div>
+              )}
               <div ref={chatEndRef} />
             </div>
           </div>
