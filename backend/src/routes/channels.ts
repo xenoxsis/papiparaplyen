@@ -58,9 +58,18 @@ router.get("/:id/stream", async (req: Request, res: Response) => {
     }
   }
 
-  initSseResponse(channelId, res, () => {
-    /* cleanup handled inside */
-  });
+  const lastEventId = req.headers["last-event-id"]
+    ? Number(req.headers["last-event-id"])
+    : undefined;
+
+  initSseResponse(
+    channelId,
+    res,
+    () => {
+      /* cleanup handled inside */
+    },
+    lastEventId,
+  );
 });
 
 // GET /api/channels

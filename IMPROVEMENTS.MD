@@ -77,9 +77,9 @@ Derived `vagterChannelId = channels.find(c => c.type === "vagter")?.id` (memoize
 
 `unregisterClient` in `broadcaster.ts` now deletes the Map entry when its Set becomes empty: `if (set.size === 0) sseClients.delete(channelKey)`.
 
-### LOW — No `Last-Event-ID` support in SSE
+### ✅ DONE — No `Last-Event-ID` support in SSE
 
-If a client disconnects briefly, it misses events with no way to catch up. Consider storing a sequence ID per event.
+Every SSE event is now assigned a monotonic `id:` field in `broadcaster.ts` (global `nextEventId` counter). Events are stored in an in-memory circular buffer (last 1 000 events across all channels). On reconnect, `EventSource` automatically sends the `Last-Event-ID` header; both stream endpoints (`/api/channels/:id/stream` and `/api/notifications/stream`) read the header and pass it to `initSseResponse()`, which replays all buffered events for that channel with `id > lastEventId` before registering the client for live events. No frontend changes required — the browser `EventSource` spec handles the header automatically.
 
 ---
 

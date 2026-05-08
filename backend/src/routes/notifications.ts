@@ -16,9 +16,17 @@ router.get("/stream", async (req: Request, res: Response) => {
   }
 
   const channelKey = `user:${jwtPayload.memberId}`;
-  initSseResponse(channelKey, res, () => {
-    /* cleanup handled inside */
-  });
+  const lastEventId = req.headers["last-event-id"]
+    ? Number(req.headers["last-event-id"])
+    : undefined;
+  initSseResponse(
+    channelKey,
+    res,
+    () => {
+      /* cleanup handled inside */
+    },
+    lastEventId,
+  );
 });
 
 // GET /api/notifications  — fetch notifications for the calling user
