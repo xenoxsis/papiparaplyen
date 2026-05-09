@@ -390,7 +390,7 @@ export function ChatPanel({
                       ch.id !== activeChannelId &&
                       latestId > (lastSeenIds[ch.id] ?? 0);
                     const lastMsgObj =
-                      msgs.length > 0 ? msgs[msgs.length - 1] : null;
+                      [...msgs].reverse().find((m) => !m.is_deleted) ?? null;
                     const lastMsg = lastMsgObj
                       ? lastMsgObj.type === "shift_swap"
                         ? "📅 Vagtvagt"
