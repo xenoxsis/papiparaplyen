@@ -461,64 +461,72 @@ export default function SchedulePage() {
                 </button>
               </div>
             )}
-            <div
-              className="flex flex-col gap-3 overflow-y-auto"
-              style={{ maxHeight: "calc(6 * 5.5rem + 5 * 0.75rem)" }}
-            >
-              {scheduleLoading ? (
-                Array.from({ length: 6 }).map((_, i) => (
-                  <ScheduleNightCardSkeleton key={i} />
-                ))
-              ) : (
-                <>
-                  {filteredNights.length === 0 && (
-                    <p className="text-sm text-neutral-400 py-6 text-center">
-                      Ingen klubaftener fundet
-                    </p>
-                  )}
-                  {filteredNights.map((night) => {
-                    const vagt = draft.effectiveVagt(night);
-                    const isPending = night.id in draft.pendingChanges;
-                    const swapMsg =
-                      pendingSwapMsgs.find(
-                        (m) => m.shift_night_id === night.id,
-                      ) ?? null;
-                    const myOptOut =
-                      user !== null &&
-                      night.opted_out_members.some((o) => o.id === user.id);
-                    const canOptOut =
-                      !!user && !user.roles.includes("Tilskuer");
+            <div className="relative">
+              <div
+                className="flex flex-col gap-3 overflow-y-auto"
+                style={{ maxHeight: "calc(5.5 * 5.5rem + 5 * 0.75rem)" }}
+              >
+                {scheduleLoading ? (
+                  Array.from({ length: 6 }).map((_, i) => (
+                    <ScheduleNightCardSkeleton key={i} />
+                  ))
+                ) : (
+                  <>
+                    {filteredNights.length === 0 && (
+                      <p className="text-sm text-neutral-400 py-6 text-center">
+                        Ingen klubaftener fundet
+                      </p>
+                    )}
+                    {filteredNights.map((night) => {
+                      const vagt = draft.effectiveVagt(night);
+                      const isPending = night.id in draft.pendingChanges;
+                      const swapMsg =
+                        pendingSwapMsgs.find(
+                          (m) => m.shift_night_id === night.id,
+                        ) ?? null;
+                      const myOptOut =
+                        user !== null &&
+                        night.opted_out_members.some((o) => o.id === user.id);
+                      const canOptOut =
+                        !!user && !user.roles.includes("Tilskuer");
 
-                    return (
-                      <ScheduleNightCard
-                        key={night.id}
-                        night={night}
-                        vagt={vagt}
-                        isPending={isPending}
-                        isAutoAssigned={draft.autoAssignedIds.has(night.id)}
-                        isProblem={draft.problemNightIds.includes(night.id)}
-                        isOver={draft.dragOverNightId === night.id}
-                        swapMsg={swapMsg}
-                        myOptOut={myOptOut}
-                        canOptOut={canOptOut}
-                        isAdmin={isAdmin}
-                        userId={user?.id ?? null}
-                        onDragOver={(e) => {
-                          e.preventDefault();
-                          draft.setDragOverNightId(night.id);
-                        }}
-                        onDragLeave={() => draft.setDragOverNightId(null)}
-                        onDrop={() => draft.handleDrop(night.id)}
-                        onAssign={() => setAssignModalNightId(night.id)}
-                        onRemoveVagt={() => draft.removeVagt(night.id)}
-                        onEdit={() => setEditingNight(night)}
-                        onDelete={() => setDeleteConfirmId(night.id)}
-                        onToggleOptOut={() => toggleOptOut(night.id, myOptOut)}
-                      />
-                    );
-                  })}
-                </>
-              )}
+                      return (
+                        <ScheduleNightCard
+                          key={night.id}
+                          night={night}
+                          vagt={vagt}
+                          isPending={isPending}
+                          isAutoAssigned={draft.autoAssignedIds.has(night.id)}
+                          isProblem={draft.problemNightIds.includes(night.id)}
+                          isOver={draft.dragOverNightId === night.id}
+                          swapMsg={swapMsg}
+                          myOptOut={myOptOut}
+                          canOptOut={canOptOut}
+                          isAdmin={isAdmin}
+                          userId={user?.id ?? null}
+                          onDragOver={(e) => {
+                            e.preventDefault();
+                            draft.setDragOverNightId(night.id);
+                          }}
+                          onDragLeave={() => draft.setDragOverNightId(null)}
+                          onDrop={() => draft.handleDrop(night.id)}
+                          onAssign={() => setAssignModalNightId(night.id)}
+                          onRemoveVagt={() => draft.removeVagt(night.id)}
+                          onEdit={() => setEditingNight(night)}
+                          onDelete={() => setDeleteConfirmId(night.id)}
+                          onToggleOptOut={() =>
+                            toggleOptOut(night.id, myOptOut)
+                          }
+                        />
+                      );
+                    })}
+                  </>
+                )}
+              </div>
+              {/* Top fade */}
+              <div className="pointer-events-none absolute inset-x-0 top-0 h-6 bg-gradient-to-b from-white to-transparent" />
+              {/* Bottom fade */}
+              <div className="pointer-events-none absolute inset-x-0 bottom-0 h-6 bg-gradient-to-t from-white to-transparent" />
             </div>
           </CardContent>
         </Card>

@@ -105,7 +105,7 @@ export function ScheduleNightCard({
           <span className="font-semibold text-sm leading-5 truncate">
             {night.name}
           </span>
-          <div className="text-neutral-500 text-xs leading-4 flex items-center gap-3">
+          <div className="text-neutral-500 text-xs leading-4 flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
             <span className="flex items-center gap-1">
               <Clock className="size-3" />
               {night.time_from} – {night.time_to}
@@ -115,7 +115,7 @@ export function ScheduleNightCard({
               {night.location}
             </span>
           </div>
-          <div className="flex mt-1 items-center gap-2 flex-wrap">
+          <div className="flex flex-col sm:flex-row mt-1 items-start sm:items-center gap-1 sm:gap-2">
             {hasVagt ? (
               <>
                 <div
@@ -135,7 +135,7 @@ export function ScheduleNightCard({
                   aria-label={
                     isAdmin ? `Skift vagt for ${night.name}` : undefined
                   }
-                  className={`rounded-full flex pl-1 pr-2 py-1 items-center gap-1 border ${
+                  className={`self-start rounded-full flex pl-1 pr-2 py-1 items-center gap-1 border ${
                     isPending
                       ? "bg-brand-orange/10 border-brand-orange/40"
                       : "bg-white border-neutral-200"
@@ -160,12 +160,13 @@ export function ScheduleNightCard({
                 {/* Confirmation status badge (saved assignments only) */}
                 {!isPending &&
                   (night.vagt_confirmed ? (
-                    <span className="flex items-center gap-1 text-[10px] font-medium text-brand-teal bg-brand-teal/10 rounded-full px-2 py-0.5">
+                    <span className="self-start flex items-center gap-1 text-[10px] font-medium text-brand-teal bg-brand-teal/20 rounded-full px-2 py-0.5">
                       <Check className="size-3" />
                       Bekræftet
                     </span>
                   ) : (
-                    <span className="flex items-center gap-1 text-[10px] font-medium text-brand-orange bg-brand-orange/10 rounded-full px-2 py-0.5">
+                    <span className="self-start flex items-center gap-1 text-[10px] font-medium text-brand-orange bg-brand-orange/20 rounded-full px-2 py-0.5">
+                      <Clock className="size-3" />
                       Afventer
                     </span>
                   ))}
@@ -173,7 +174,7 @@ export function ScheduleNightCard({
             ) : isAdmin ? (
               <button
                 onClick={onAssign}
-                className={`rounded-lg sm:rounded-full border flex px-2.5 py-1.5 sm:py-1 items-center gap-1.5 transition-colors ${
+                className={`self-start rounded-lg sm:rounded-full border flex px-2.5 py-1.5 sm:py-1 items-center gap-1.5 transition-colors ${
                   isOver
                     ? "border-brand-teal bg-brand-teal/10 text-brand-teal"
                     : "border-brand-red/40 bg-brand-red sm:bg-brand-red/10 text-white sm:text-brand-red hover:bg-brand-red/20 sm:hover:bg-brand-red/20 sm:hover:border-brand-red/60"
@@ -186,7 +187,7 @@ export function ScheduleNightCard({
                 <ChevronDown className="size-3 shrink-0 sm:hidden" />
               </button>
             ) : (
-              <div className="rounded-full border border-dashed flex px-2 py-1 items-center gap-1 border-brand-red/30 bg-brand-red/10">
+              <div className="self-start rounded-full border border-dashed flex px-2 py-1 items-center gap-1 border-brand-red/30 bg-brand-red/10">
                 <UserPlus className="size-3 text-brand-red" />
                 <span className="text-xs leading-4 text-brand-red">
                   Ingen vagt tildelt
@@ -194,12 +195,12 @@ export function ScheduleNightCard({
               </div>
             )}
             {isProblem && (
-              <span className="flex items-center gap-1 text-[10px] font-medium text-red-600 bg-red-100 rounded-full px-2 py-0.5">
+              <span className="self-start flex items-center gap-1 text-[10px] font-medium text-red-600 bg-red-100 rounded-full px-2 py-0.5">
                 Ingen kandidat
               </span>
             )}
             {isAutoAssigned && isPending && (
-              <span className="flex items-center gap-1 text-[10px] font-medium text-purple-700 bg-purple-100 rounded-full px-2 py-0.5">
+              <span className="self-start flex items-center gap-1 text-[10px] font-medium text-purple-700 bg-purple-100 rounded-full px-2 py-0.5">
                 <Wand2 className="size-2.5" />
                 Auto-tildelt
               </span>

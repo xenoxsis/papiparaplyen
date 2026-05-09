@@ -244,7 +244,7 @@ export function ChatPanel({
   }, [messages]);
 
   return (
-    <div className="bg-white rounded-xl border border-black/6 p-6 flex flex-col gap-4 shadow-sm">
+    <div className="bg-white rounded-xl border border-neutral-200 p-6 flex flex-col gap-4 shadow-sm">
       <div className="flex justify-between items-center">
         <div className="flex items-center gap-2">
           <MessagesSquare className="size-5 text-neutral-900 shrink-0" />
