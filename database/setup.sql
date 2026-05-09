@@ -19,6 +19,8 @@ IF OBJECT_ID('dbo.member_roles',          'U') IS NOT NULL DROP TABLE dbo.member
 IF OBJECT_ID('dbo.users',                 'U') IS NOT NULL DROP TABLE dbo.users;
 IF OBJECT_ID('dbo.roles',                 'U') IS NOT NULL DROP TABLE dbo.roles;
 IF OBJECT_ID('dbo.members',               'U') IS NOT NULL DROP TABLE dbo.members;
+IF OBJECT_ID('dbo.vagt_checklist',        'U') IS NOT NULL DROP TABLE dbo.vagt_checklist;
+IF OBJECT_ID('dbo.vagt_settings',         'U') IS NOT NULL DROP TABLE dbo.vagt_settings;
 GO
 
 -- ---------------------------------------------------------------
@@ -198,6 +200,32 @@ GO
 -- Seed data  (admin@example.com only)
 -- =============================================================
 
+-- ---------------------------------------------------------------
+-- vagt_settings
+-- ---------------------------------------------------------------
+CREATE TABLE dbo.vagt_settings (
+    [key]   NVARCHAR(100) NOT NULL,
+    [value] NVARCHAR(MAX) NOT NULL DEFAULT '',
+    CONSTRAINT PK_vagt_settings PRIMARY KEY ([key])
+);
+GO
+
+-- ---------------------------------------------------------------
+-- vagt_checklist
+-- ---------------------------------------------------------------
+CREATE TABLE dbo.vagt_checklist (
+    id          INT           NOT NULL IDENTITY(1,1),
+    [text]      NVARCHAR(500) NOT NULL,
+    sort_order  INT           NOT NULL DEFAULT 0,
+    is_header   BIT           NOT NULL DEFAULT 0,
+    CONSTRAINT PK_vagt_checklist PRIMARY KEY (id)
+);
+GO
+
+-- =============================================================
+-- Seed data  (admin@example.com only)
+-- =============================================================
+
 -- Roles (fixed lookup values – inserted with explicit IDs)
 INSERT INTO dbo.roles (id, name) VALUES (1, N'Vagt'), (2, N'Administrator'), (3, N'Medlem'), (4, N'Tilskuer');
 GO
@@ -225,4 +253,10 @@ GO
 INSERT INTO dbo.member_roles (member_id, role_id)
 SELECT m.id, r.id FROM dbo.members m, dbo.roles r
 WHERE m.email = N'admin@example.com' AND r.name IN (N'Vagt', N'Administrator');
+GO
+
+-- Vagt settings defaults
+INSERT INTO dbo.vagt_settings ([key], [value]) VALUES ('door_code', '');
+INSERT INTO dbo.vagt_settings ([key], [value]) VALUES ('locker_code', '');
+INSERT INTO dbo.vagt_settings ([key], [value]) VALUES ('shift_note', '');
 GO

@@ -38,6 +38,7 @@ interface ChatPanelProps {
   messagesContainerRef: React.RefObject<HTMLDivElement | null>;
   chatEndRef: React.RefObject<HTMLDivElement | null>;
   pendingScrollMsgId: React.MutableRefObject<number | null>;
+  hideChannelSelector?: boolean;
 }
 
 export function ChatPanel({
@@ -62,6 +63,7 @@ export function ChatPanel({
   messagesContainerRef,
   chatEndRef,
   pendingScrollMsgId,
+  hideChannelSelector = false,
 }: ChatPanelProps) {
   const [channelSearch, setChannelSearch] = useState("");
   const [showChannelSearch, setShowChannelSearch] = useState(false);
@@ -252,26 +254,34 @@ export function ChatPanel({
             Medlemschat
           </h2>
         </div>
-        <button
-          onClick={() => {
-            setShowChannelSearch((v) => !v);
-            setChannelSearch("");
-            setTimeout(() => channelSearchRef.current?.focus(), 50);
-          }}
-          className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-sm transition-colors cursor-pointer border-none font-[inherit] ${
-            showChannelSearch
-              ? "bg-neutral-100 text-neutral-900"
-              : "bg-transparent text-neutral-500 hover:bg-neutral-100"
-          }`}
-        >
-          <Search className="size-4" />
-          Søg samtale
-        </button>
+        {!hideChannelSelector && (
+          <button
+            onClick={() => {
+              setShowChannelSearch((v) => !v);
+              setChannelSearch("");
+              setTimeout(() => channelSearchRef.current?.focus(), 50);
+            }}
+            className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-sm transition-colors cursor-pointer border-none font-[inherit] ${
+              showChannelSearch
+                ? "bg-neutral-100 text-neutral-900"
+                : "bg-transparent text-neutral-500 hover:bg-neutral-100"
+            }`}
+          >
+            <Search className="size-4" />
+            Søg samtale
+          </button>
+        )}
       </div>
 
-      <div className="relative grid grid-cols-1 md:grid-cols-[1fr_2fr] gap-4 h-105">
+      <div
+        className={`relative grid gap-4 h-105 ${
+          hideChannelSelector
+            ? "grid-cols-1"
+            : "grid-cols-1 md:grid-cols-[1fr_2fr]"
+        }`}
+      >
         {/* Mobile backdrop */}
-        {showChannelDrawer && (
+        {!hideChannelSelector && showChannelDrawer && (
           <div
             className="md:hidden absolute inset-0 z-10 bg-black/30 rounded-lg"
             onClick={() => setShowChannelDrawer(false)}
@@ -279,188 +289,195 @@ export function ChatPanel({
         )}
 
         {/* Channel sidebar */}
-        <div
-          className={`flex flex-col overflow-hidden border border-neutral-200 rounded-lg md:flex ${
-            showChannelDrawer
-              ? "absolute inset-y-0 left-0 z-20 w-72 bg-white shadow-xl"
-              : "hidden md:flex"
-          }`}
-        >
-          {showChannelSearch && (
-            <div className="p-2 border-b border-neutral-100">
-              <div className="relative">
-                <Search className="size-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
-                <input
-                  ref={channelSearchRef}
-                  value={channelSearch}
-                  onChange={(e) => setChannelSearch(e.target.value)}
-                  placeholder="Søg i beskeder…"
-                  className="w-full h-8 pl-8 pr-3 text-xs rounded-md border border-neutral-200 outline-none bg-transparent placeholder:text-neutral-400 focus:border-neutral-400 font-[inherit]"
-                />
+        {!hideChannelSelector && (
+          <div
+            className={`flex flex-col overflow-hidden border border-neutral-200 rounded-lg md:flex ${
+              showChannelDrawer
+                ? "absolute inset-y-0 left-0 z-20 w-72 bg-white shadow-xl"
+                : "hidden md:flex"
+            }`}
+          >
+            {showChannelSearch && (
+              <div className="p-2 border-b border-neutral-100">
+                <div className="relative">
+                  <Search className="size-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
+                  <input
+                    ref={channelSearchRef}
+                    value={channelSearch}
+                    onChange={(e) => setChannelSearch(e.target.value)}
+                    placeholder="Søg i beskeder…"
+                    className="w-full h-8 pl-8 pr-3 text-xs rounded-md border border-neutral-200 outline-none bg-transparent placeholder:text-neutral-400 focus:border-neutral-400 font-[inherit]"
+                  />
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {showChannelSearch && channelSearch.trim().length > 1 ? (
-            <div className="flex flex-col overflow-y-auto flex-1">
-              {messageSearchResults.length === 0 && (
-                <p className="text-xs text-neutral-400 text-center py-4">
-                  Ingen beskeder fundet
-                </p>
-              )}
-              {messageSearchResults.map((msg) => {
-                const ch = channels.find((c) => c.id === msg.channel_id);
-                const isActive = activeChannelId === msg.channel_id;
-                const color =
-                  ch?.type === "all_members"
-                    ? "var(--color-brand-red)"
-                    : "var(--color-brand-teal)";
-                const query = channelSearch.toLowerCase();
-                const bodyLower = msg.body.toLowerCase();
-                const idx = bodyLower.indexOf(query);
-                const before = msg.body.slice(0, idx);
-                const match = msg.body.slice(idx, idx + channelSearch.length);
-                const after = msg.body.slice(idx + channelSearch.length);
-                return (
-                  <button
-                    key={msg.id}
-                    onClick={() => {
-                      setShowChannelSearch(false);
-                      setChannelSearch("");
-                      setShowChannelDrawer(false);
-                      if (msg.channel_id !== activeChannelId) {
-                        pendingScrollMsgId.current = msg.id;
-                        setActiveChannelId(msg.channel_id);
-                      } else {
-                        const el = messagesContainerRef.current?.querySelector(
-                          `[data-msg-id="${msg.id}"]`,
-                        ) as HTMLElement | null;
-                        if (el) {
-                          el.scrollIntoView({ block: "center" });
-                          setHighlightMessageId(msg.id);
-                          setTimeout(() => setHighlightMessageId(null), 2000);
+            {showChannelSearch && channelSearch.trim().length > 1 ? (
+              <div className="flex flex-col overflow-y-auto flex-1">
+                {messageSearchResults.length === 0 && (
+                  <p className="text-xs text-neutral-400 text-center py-4">
+                    Ingen beskeder fundet
+                  </p>
+                )}
+                {messageSearchResults.map((msg) => {
+                  const ch = channels.find((c) => c.id === msg.channel_id);
+                  const isActive = activeChannelId === msg.channel_id;
+                  const color =
+                    ch?.type === "all_members"
+                      ? "var(--color-brand-red)"
+                      : "var(--color-brand-teal)";
+                  const query = channelSearch.toLowerCase();
+                  const bodyLower = msg.body.toLowerCase();
+                  const idx = bodyLower.indexOf(query);
+                  const before = msg.body.slice(0, idx);
+                  const match = msg.body.slice(idx, idx + channelSearch.length);
+                  const after = msg.body.slice(idx + channelSearch.length);
+                  return (
+                    <button
+                      key={msg.id}
+                      onClick={() => {
+                        setShowChannelSearch(false);
+                        setChannelSearch("");
+                        setShowChannelDrawer(false);
+                        if (msg.channel_id !== activeChannelId) {
+                          pendingScrollMsgId.current = msg.id;
+                          setActiveChannelId(msg.channel_id);
+                        } else {
+                          const el =
+                            messagesContainerRef.current?.querySelector(
+                              `[data-msg-id="${msg.id}"]`,
+                            ) as HTMLElement | null;
+                          if (el) {
+                            el.scrollIntoView({ block: "center" });
+                            setHighlightMessageId(msg.id);
+                            setTimeout(() => setHighlightMessageId(null), 2000);
+                          }
                         }
-                      }
-                    }}
-                    className={`text-left flex flex-col gap-0.5 px-3 py-2 border-b border-neutral-100 hover:bg-neutral-50 transition-colors ${
-                      isActive ? "bg-neutral-50" : ""
-                    }`}
-                  >
-                    <div className="flex items-center gap-1.5">
-                      <span
-                        className="text-[0.6rem] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-full"
-                        style={{ color, background: color + "18" }}
-                      >
-                        {ch?.name}
-                      </span>
-                      <span className="text-[0.6rem] text-neutral-400">
-                        {msg.sender_name}
-                      </span>
-                    </div>
-                    <p className="text-xs text-neutral-600 leading-4 line-clamp-2">
-                      {before}
-                      <mark className="bg-yellow-200 text-neutral-900 rounded-sm px-0">
-                        {match}
-                      </mark>
-                      {after}
-                    </p>
-                  </button>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="flex flex-col p-2 gap-1 overflow-y-auto flex-1">
-              {loading
-                ? Array.from({ length: 4 }).map((_, i) => (
-                    <div
-                      key={i}
-                      className="flex items-center gap-3 px-3 py-2 rounded-lg"
+                      }}
+                      className={`text-left flex flex-col gap-0.5 px-3 py-2 border-b border-neutral-100 hover:bg-neutral-50 transition-colors ${
+                        isActive ? "bg-neutral-50" : ""
+                      }`}
                     >
-                      <Skeleton className="w-8 h-8 rounded-full shrink-0" />
-                      <div className="flex flex-col gap-1.5 flex-1">
-                        <Skeleton className="h-3.5 w-24 rounded" />
-                        <Skeleton className="h-3 w-16 rounded" />
+                      <div className="flex items-center gap-1.5">
+                        <span
+                          className="text-[0.6rem] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-full"
+                          style={{ color, background: color + "18" }}
+                        >
+                          {ch?.name}
+                        </span>
+                        <span className="text-[0.6rem] text-neutral-400">
+                          {msg.sender_name}
+                        </span>
                       </div>
-                    </div>
-                  ))
-                : channels.map((ch) => {
-                    const msgs = messageMap[ch.id] ?? [];
-                    const latestId = Math.max(0, ...msgs.map((m) => m.id));
-                    const unread =
-                      ch.id !== activeChannelId &&
-                      latestId > (lastSeenIds[ch.id] ?? 0);
-                    const lastMsgObj =
-                      [...msgs].reverse().find((m) => !m.is_deleted) ?? null;
-                    const lastMsg = lastMsgObj
-                      ? lastMsgObj.type === "shift_swap"
-                        ? "📅 Vagtvagt"
-                        : lastMsgObj.body
-                      : "";
-                    const lastTime = lastMsgObj
-                      ? (() => {
-                          const d = new Date(lastMsgObj.sent_at);
-                          const now = new Date();
-                          const diffDays = Math.floor(
-                            (now.getTime() - d.getTime()) / 86_400_000,
-                          );
-                          if (diffDays === 0)
-                            return d.toLocaleTimeString("da-DK", {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            });
-                          if (diffDays < 7)
+                      <p className="text-xs text-neutral-600 leading-4 line-clamp-2">
+                        {before}
+                        <mark className="bg-yellow-200 text-neutral-900 rounded-sm px-0">
+                          {match}
+                        </mark>
+                        {after}
+                      </p>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="flex flex-col p-2 gap-1 overflow-y-auto flex-1">
+                {loading
+                  ? Array.from({ length: 4 }).map((_, i) => (
+                      <div
+                        key={i}
+                        className="flex items-center gap-3 px-3 py-2 rounded-lg"
+                      >
+                        <Skeleton className="w-8 h-8 rounded-full shrink-0" />
+                        <div className="flex flex-col gap-1.5 flex-1">
+                          <Skeleton className="h-3.5 w-24 rounded" />
+                          <Skeleton className="h-3 w-16 rounded" />
+                        </div>
+                      </div>
+                    ))
+                  : channels.map((ch) => {
+                      const msgs = messageMap[ch.id] ?? [];
+                      const latestId = Math.max(0, ...msgs.map((m) => m.id));
+                      const unread =
+                        ch.id !== activeChannelId &&
+                        latestId > (lastSeenIds[ch.id] ?? 0);
+                      const lastMsgObj =
+                        [...msgs].reverse().find((m) => !m.is_deleted) ?? null;
+                      const lastMsg = lastMsgObj
+                        ? lastMsgObj.type === "shift_swap"
+                          ? "📅 Vagtvagt"
+                          : lastMsgObj.body
+                        : "";
+                      const lastTime = lastMsgObj
+                        ? (() => {
+                            const d = new Date(lastMsgObj.sent_at);
+                            const now = new Date();
+                            const diffDays = Math.floor(
+                              (now.getTime() - d.getTime()) / 86_400_000,
+                            );
+                            if (diffDays === 0)
+                              return d.toLocaleTimeString("da-DK", {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              });
+                            if (diffDays < 7)
+                              return d.toLocaleDateString("da-DK", {
+                                weekday: "short",
+                              });
                             return d.toLocaleDateString("da-DK", {
-                              weekday: "short",
+                              day: "numeric",
+                              month: "numeric",
                             });
-                          return d.toLocaleDateString("da-DK", {
-                            day: "numeric",
-                            month: "numeric",
-                          });
-                        })()
-                      : "";
-                    return (
-                      <GroupChatItem
-                        key={ch.id}
-                        active={activeChannelId === ch.id}
-                        name={ch.name}
-                        color={ch.type === "all_members" ? "red" : "teal"}
-                        badgeLabel={
-                          ch.type === "all_members" ? "Fælles" : "Vagter"
-                        }
-                        badgeColor={ch.type === "all_members" ? "red" : "teal"}
-                        lastMsg={lastMsg}
-                        lastTime={lastTime}
-                        unread={unread}
-                        onClick={() => {
-                          setLastSeenIds((prev) => ({
-                            ...prev,
-                            [ch.id]: latestId,
-                          }));
-                          setActiveChannelId(ch.id);
-                          setShowChannelSearch(false);
-                          setChannelSearch("");
-                          setShowChannelDrawer(false);
-                        }}
-                      />
-                    );
-                  })}
-            </div>
-          )}
-        </div>
+                          })()
+                        : "";
+                      return (
+                        <GroupChatItem
+                          key={ch.id}
+                          active={activeChannelId === ch.id}
+                          name={ch.name}
+                          color={ch.type === "all_members" ? "red" : "teal"}
+                          badgeLabel={
+                            ch.type === "all_members" ? "Fælles" : "Vagter"
+                          }
+                          badgeColor={
+                            ch.type === "all_members" ? "red" : "teal"
+                          }
+                          lastMsg={lastMsg}
+                          lastTime={lastTime}
+                          unread={unread}
+                          onClick={() => {
+                            setLastSeenIds((prev) => ({
+                              ...prev,
+                              [ch.id]: latestId,
+                            }));
+                            setActiveChannelId(ch.id);
+                            setShowChannelSearch(false);
+                            setChannelSearch("");
+                            setShowChannelDrawer(false);
+                          }}
+                        />
+                      );
+                    })}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Chat window */}
         <div className="border border-neutral-200 rounded-lg flex flex-col overflow-hidden">
           {/* Window header */}
           <div className="border-b border-neutral-200 flex p-3 justify-between items-center shrink-0">
             <div className="flex items-center gap-3">
-              <button
-                onClick={() => setShowChannelDrawer(true)}
-                className="md:hidden flex items-center gap-1.5 px-2.5 h-8 rounded-md border border-neutral-200 bg-white text-neutral-600 text-xs font-medium hover:bg-neutral-50 transition-colors cursor-pointer shrink-0"
-                aria-label="Åbn samtaler"
-              >
-                <MessagesSquare className="size-3.5" />
-                Samtaler
-              </button>
+              {!hideChannelSelector && (
+                <button
+                  onClick={() => setShowChannelDrawer(true)}
+                  className="md:hidden flex items-center gap-1.5 px-2.5 h-8 rounded-md border border-neutral-200 bg-white text-neutral-600 text-xs font-medium hover:bg-neutral-50 transition-colors cursor-pointer shrink-0"
+                  aria-label="Åbn samtaler"
+                >
+                  <MessagesSquare className="size-3.5" />
+                  Samtaler
+                </button>
+              )}
               <div
                 className={`w-10 h-10 rounded-full text-white flex items-center justify-center shrink-0 ${
                   activeChannel?.type === "all_members"

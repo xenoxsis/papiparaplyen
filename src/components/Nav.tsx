@@ -12,6 +12,7 @@ import {
   LogOut,
   Menu,
   Settings,
+  Shield,
   ShieldCheck,
   User,
   X,
@@ -152,6 +153,14 @@ export default function Nav() {
                         Vagtplan
                       </Link>
                       <Link
+                        href="/member/vagter"
+                        onClick={() => setOpen(false)}
+                        className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-neutral-700 hover:bg-neutral-100 transition-colors"
+                      >
+                        <Shield className="size-4 text-neutral-500" />
+                        Vagt Info
+                      </Link>
+                      <Link
                         href="/member/admin"
                         onClick={() => setOpen(false)}
                         className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-neutral-700 hover:bg-neutral-100 transition-colors"
@@ -171,6 +180,17 @@ export default function Nav() {
                       >
                         <ShieldCheck className="size-4 text-neutral-500" />
                         Vagtplan
+                      </Link>
+                    )}
+                  {!user.roles.includes("Administrator") &&
+                    user.roles.includes("Vagt") && (
+                      <Link
+                        href="/member/vagter"
+                        onClick={() => setOpen(false)}
+                        className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-neutral-700 hover:bg-neutral-100 transition-colors"
+                      >
+                        <Shield className="size-4 text-neutral-500" />
+                        Vagt Info
                       </Link>
                     )}
                 </div>
@@ -249,6 +269,17 @@ export default function Nav() {
                 >
                   <ShieldCheck className="size-4 text-neutral-500" />
                   Vagtplan
+                </Link>
+              )}
+              {(user.roles.includes("Administrator") ||
+                user.roles.includes("Vagt")) && (
+                <Link
+                  href="/member/vagter"
+                  onClick={() => setMenuOpen(false)}
+                  className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm text-neutral-700 hover:bg-neutral-100 transition-colors"
+                >
+                  <Shield className="size-4 text-neutral-500" />
+                  Vagt Info
                 </Link>
               )}
               {user.roles.includes("Administrator") && (

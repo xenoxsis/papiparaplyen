@@ -267,6 +267,50 @@ export const getEmailPrefs = () => api<ApiEmailPrefs>("/api/auth/email-prefs");
 export const patchEmailPrefs = (prefs: Partial<ApiEmailPrefs>) =>
   apiPatch<{ ok: boolean }>("/api/auth/email-prefs", prefs);
 
+// ── Vagter page ───────────────────────────────────────────────────────────────
+
+export type ApiVagterSettings = {
+  door_code: string;
+  locker_code: string;
+  shift_note: string;
+};
+
+export type ApiChecklistItem = {
+  id: number;
+  text: string;
+  sort_order: number;
+  is_header: boolean;
+};
+
+export type ApiVagterPageData = {
+  settings: ApiVagterSettings;
+  checklist: ApiChecklistItem[];
+};
+
+export const getVagterPageData = () => api<ApiVagterPageData>("/api/vagter");
+
+export const updateVagterSettings = (patch: Partial<ApiVagterSettings>) =>
+  apiPut<{ ok: boolean }>("/api/vagter/settings", patch);
+
+export const addChecklistItem = (
+  text: string,
+  sort_order?: number,
+  is_header?: boolean,
+) =>
+  apiPost<ApiChecklistItem>("/api/vagter/checklist", {
+    text,
+    sort_order,
+    is_header,
+  });
+
+export const updateChecklistItem = (
+  id: number,
+  patch: { text?: string; sort_order?: number; is_header?: boolean },
+) => apiPatch<ApiChecklistItem>(`/api/vagter/checklist/${id}`, patch);
+
+export const deleteChecklistItem = (id: number) =>
+  apiDelete<{ ok: boolean }>(`/api/vagter/checklist/${id}`);
+
 // ── Channel Members ───────────────────────────────────────────────────────────
 
 export type ApiChannelMember = {
