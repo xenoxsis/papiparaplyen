@@ -256,6 +256,20 @@ export default function SchedulePage() {
                 </span>
                 ? Dette kan ikke fortrydes.
               </p>
+              {night?.vagt_member_id && (
+                <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2.5">
+                  <span className="text-amber-500 shrink-0 mt-0.5 text-base leading-4">
+                    ⚠️
+                  </span>
+                  <p className="text-xs text-amber-800 leading-5">
+                    <span className="font-semibold">
+                      {night.assigned_member_name ?? "En vagt"}
+                    </span>{" "}
+                    er tildelt denne aften og vil blive afmeldt og modtage en
+                    notifikation og e-mail.
+                  </p>
+                </div>
+              )}
               <div className="flex gap-2 justify-end">
                 <Button
                   variant="outline"

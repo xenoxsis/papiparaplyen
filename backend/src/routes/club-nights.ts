@@ -9,6 +9,7 @@ import {
   queueNewNightEmail,
   sendShiftAssignedEmail,
   sendShiftUnassignedEmail,
+  sendShiftDeletedEmail,
 } from "../scheduleEmails";
 
 const router = Router();
@@ -452,12 +453,17 @@ router.delete("/:id", requireAuth, async (req, res) => {
   const pool = await getPool();
   const nightId = Number(req.params.id);
 
-  const nightCheck = await pool
-    .request()
-    .input("id", sql.Int, nightId)
-    .query("SELECT 1 FROM dbo.club_nights WHERE id = @id");
+  const nightCheck = await pool.request().input("id", sql.Int, nightId).query(`
+    SELECT n.id, n.name, CONVERT(varchar(10), n.date, 120) AS date,
+           n.time_from, n.time_to, n.location, n.vagt_member_id
+    FROM dbo.club_nights n
+    WHERE n.id = @id
+  `);
   if (nightCheck.recordset.length === 0)
     return res.status(404).json({ error: "Not found" });
+
+  const night = nightCheck.recordset[0];
+  const assignedVagtId: number | null = night.vagt_member_id ?? null;
 
   await pool
     .request()
@@ -469,6 +475,25 @@ router.delete("/:id", requireAuth, async (req, res) => {
     .request()
     .input("id", sql.Int, nightId)
     .query("DELETE FROM dbo.club_nights WHERE id = @id");
+
+  // Notify + email the displaced vagt
+  if (assignedVagtId !== null) {
+    await createNotification(
+      assignedVagtId,
+      "shift_deleted",
+      `Klubaften du var tildelt er slettet: ${night.name}`,
+      "/member/schedule",
+    );
+    sendShiftDeletedEmail(assignedVagtId, {
+      name: night.name,
+      date: night.date,
+      time_from: night.time_from,
+      time_to: night.time_to,
+      location: night.location,
+    }).catch((err) =>
+      console.error("[scheduleEmails] shift-deleted send failed:", err),
+    );
+  }
 
   return res.status(200).json({ ok: true });
 });

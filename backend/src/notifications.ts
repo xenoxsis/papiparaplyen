@@ -7,6 +7,7 @@ export type NotificationType =
   | "swap_cancelled"
   | "shift_assigned"
   | "shift_unassigned"
+  | "shift_deleted"
   | "nights_added"
   | "mentioned";
 

@@ -23,6 +23,7 @@ import {
   newNightsDigestEmailHtml,
   shiftAssignedEmailHtml,
   shiftUnassignedEmailHtml,
+  shiftDeletedEmailHtml,
   mentionEmailHtml,
   NightSummary,
 } from "./email";
@@ -134,6 +135,42 @@ export async function sendShiftAssignedEmail(
     member.email,
     subject,
     shiftAssignedEmailHtml(member.name, night),
+  );
+}
+
+// ── Shift deleted email ───────────────────────────────────────────────────
+
+/**
+ * Send an immediate email to a vagt whose assigned night was deleted by an admin.
+ */
+export async function sendShiftDeletedEmail(
+  memberId: number,
+  night: NightSummary,
+): Promise<void> {
+  const pool = await getPool();
+
+  const result = await pool
+    .request()
+    .input("memberId", sql.Int, memberId)
+    .query(
+      "SELECT m.name, m.email, ISNULL(u.email_on_shift, 1) AS email_on_shift FROM dbo.members m LEFT JOIN dbo.users u ON u.member_id = m.id WHERE m.id = @memberId",
+    );
+
+  const member:
+    | { name: string; email: string; email_on_shift: boolean | number }
+    | undefined = result.recordset[0];
+  if (!member?.email) return;
+  if (member.email_on_shift !== true && member.email_on_shift !== 1) return;
+
+  const subject = `Klubaften slettet: ${night.name}`;
+  console.log(
+    `[scheduleEmails] Sending shift-deleted email to ${member.email} for "${night.name}"`,
+  );
+
+  await sendEmail(
+    member.email,
+    subject,
+    shiftDeletedEmailHtml(member.name, night),
   );
 }
 

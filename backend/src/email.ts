@@ -198,6 +198,30 @@ export function shiftUnassignedEmailHtml(
   `;
 }
 
+export function shiftDeletedEmailHtml(
+  memberName: string,
+  night: NightSummary,
+): string {
+  return `
+    <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px">
+      <h2 style="color:#1a1a1a;margin-bottom:4px">En klubaften er blevet slettet</h2>
+      <p style="color:#555">Hej ${memberName},</p>
+      <p style="color:#555">En klubaften du var tildelt som vagt er blevet slettet af en administrator. Du behøver ikke foretage dig noget.</p>
+      <div style="margin:16px 0;padding:16px;background:#f9f9f9;border-radius:8px;border-left:4px solid #e63946;font-size:14px">
+        <p style="margin:0 0 6px;font-weight:700;font-size:16px;color:#1a1a1a">${night.name}</p>
+        <p style="margin:0 0 4px;color:#555">📅 ${formatDanishDate(night.date)}</p>
+        <p style="margin:0 0 4px;color:#555">🕐 ${night.time_from}–${night.time_to}</p>
+        <p style="margin:0;color:#555">📍 ${night.location}</p>
+      </div>
+      <a href="${process.env.FRONTEND_URL ?? "http://localhost:3000"}/member/schedule"
+         style="display:inline-block;margin:8px 0 16px;padding:10px 20px;background:#e63946;color:white;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px">
+        Gå til vagtplan
+      </a>
+      <p style="color:#999;font-size:12px">Du modtager denne e-mail fordi du er tilknyttet Pap i Paraplyen som vagt.</p>
+    </div>
+  `;
+}
+
 export function shiftAssignedEmailHtml(
   memberName: string,
   night: NightSummary,
