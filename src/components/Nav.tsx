@@ -88,14 +88,16 @@ export default function Nav() {
         {/* Spacer */}
         <div className="flex-1" />
 
-        {/* Mobile hamburger button */}
-        <button
-          className="sm:hidden flex items-center justify-center p-2 rounded-lg text-neutral-700 hover:bg-neutral-100 transition-colors"
-          onClick={() => setMenuOpen((v) => !v)}
-          aria-label="Toggle menu"
-        >
-          {menuOpen ? <X className="size-5" /> : <Menu className="size-5" />}
-        </button>
+        {/* Mobile hamburger button — only shown when logged out */}
+        {!user && (
+          <button
+            className="sm:hidden flex items-center justify-center p-2 rounded-lg text-neutral-700 hover:bg-neutral-100 transition-colors"
+            onClick={() => setMenuOpen((v) => !v)}
+            aria-label="Toggle menu"
+          >
+            {menuOpen ? <X className="size-5" /> : <Menu className="size-5" />}
+          </button>
+        )}
 
         {user && (
           <NotificationBell
@@ -116,10 +118,14 @@ export default function Nav() {
             >
               {user.initials}
             </button>
-            {/* Mobile: non-interactive avatar */}
-            <div className="sm:hidden w-9 h-9 rounded-full bg-brand-red text-white flex items-center justify-center text-[0.65rem] font-bold select-none">
+            {/* Mobile: avatar button that toggles the dropdown menu */}
+            <button
+              onClick={() => setMenuOpen((v) => !v)}
+              className={`sm:hidden w-9 h-9 rounded-full bg-brand-red text-white flex items-center justify-center text-[0.65rem] font-bold select-none cursor-pointer transition-all ${menuOpen ? "ring-2 ring-brand-red/40" : ""}`}
+              aria-label="Toggle menu"
+            >
               {user.initials}
-            </div>
+            </button>
 
             {open && (
               <div className="hidden sm:block absolute right-0 top-full mt-2 w-52 bg-white border border-neutral-200 rounded-xl shadow-lg overflow-hidden z-50">
