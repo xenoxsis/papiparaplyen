@@ -23,6 +23,8 @@ import {
   getClubNights,
   postClubNight,
   postClubNightOptOut,
+  putClubNight,
+  type ApiClubNight,
 } from "@/lib/api";
 
 import { useScheduleData } from "./useScheduleData";
@@ -66,6 +68,7 @@ export default function SchedulePage() {
   const [filterMissingVagt, setFilterMissingVagt] = useState(false);
   const [filterUnreviewed, setFilterUnreviewed] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [editingNight, setEditingNight] = useState<ApiClubNight | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   const [assignModalNightId, setAssignModalNightId] = useState<number | null>(
     null,
@@ -130,6 +133,31 @@ export default function SchedulePage() {
   if (!authorized) return null;
   return (
     <main className="bg-neutral-100 min-h-[calc(100vh-3.5rem)] p-4 sm:p-8 flex flex-col gap-6 sm:gap-8">
+      {/* Edit club night modal */}
+      {isAdmin && editingNight && (
+        <ClubNightModal
+          night={editingNight}
+          onClose={() => setEditingNight(null)}
+          onEdit={async (data) => {
+            try {
+              const updated = await putClubNight(editingNight.id, {
+                name: data.name,
+                time_from: data.timeFrom,
+                time_to: data.timeTo,
+                location: data.location,
+              });
+              setNights((prev) =>
+                prev.map((n) => (n.id === updated.id ? updated : n)),
+              );
+            } catch (err) {
+              console.error(err);
+              toast.error("Noget gik galt. Prøv igen.");
+            }
+            setEditingNight(null);
+          }}
+        />
+      )}
+
       {/* Add club night modal */}
       {isAdmin && showAddModal && (
         <ClubNightModal
@@ -483,6 +511,7 @@ export default function SchedulePage() {
                         onDrop={() => draft.handleDrop(night.id)}
                         onAssign={() => setAssignModalNightId(night.id)}
                         onRemoveVagt={() => draft.removeVagt(night.id)}
+                        onEdit={() => setEditingNight(night)}
                         onDelete={() => setDeleteConfirmId(night.id)}
                         onToggleOptOut={() => toggleOptOut(night.id, myOptOut)}
                       />

@@ -8,6 +8,7 @@ import {
   Clock,
   MapPin,
   MessagesSquare,
+  Pencil,
   Trash2,
   UserMinus,
   UserPlus,
@@ -35,6 +36,7 @@ interface ScheduleNightCardProps {
   onDrop?: () => void;
   onAssign: () => void;
   onRemoveVagt: () => void;
+  onEdit: () => void;
   onDelete: () => void;
   onToggleOptOut: () => void;
 }
@@ -56,6 +58,7 @@ export function ScheduleNightCard({
   onDrop,
   onAssign,
   onRemoveVagt,
+  onEdit,
   onDelete,
   onToggleOptOut,
 }: ScheduleNightCardProps) {
@@ -218,13 +221,22 @@ export function ScheduleNightCard({
           </div>
         </div>
         {isAdmin && (
-          <button
-            onClick={onDelete}
-            className="shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-md border-none bg-transparent text-neutral-400 hover:text-brand-red hover:bg-brand-red/10 transition-colors cursor-pointer"
-            title="Slet klubaften"
-          >
-            <Trash2 className="size-3.5" />
-          </button>
+          <div className="shrink-0 flex items-center gap-1">
+            <button
+              onClick={onEdit}
+              className="inline-flex items-center justify-center w-7 h-7 rounded-md border-none bg-transparent text-neutral-400 hover:text-brand-teal hover:bg-brand-teal/10 transition-colors cursor-pointer"
+              title="Rediger klubaften"
+            >
+              <Pencil className="size-3.5" />
+            </button>
+            <button
+              onClick={onDelete}
+              className="inline-flex items-center justify-center w-7 h-7 rounded-md border-none bg-transparent text-neutral-400 hover:text-brand-red hover:bg-brand-red/10 transition-colors cursor-pointer"
+              title="Slet klubaften"
+            >
+              <Trash2 className="size-3.5" />
+            </button>
+          </div>
         )}
       </div>
 

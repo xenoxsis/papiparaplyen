@@ -1,11 +1,18 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { CalendarDays, Clock, MapPin, User, X } from "lucide-react";
+import {
+  AlertTriangle,
+  CalendarDays,
+  Clock,
+  MapPin,
+  User,
+  X,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { getMembers, type ApiMember } from "@/lib/api";
+import { getMembers, type ApiClubNight, type ApiMember } from "@/lib/api";
 
 // ── Default times (configure here at build time) ─────────────────────────────
 const DEFAULT_TIMES: Record<"sunday" | "other", { from: string; to: string }> =
@@ -43,11 +50,13 @@ export function ClubNightModal({
   existingDates = [],
   onClose,
   onAdd,
+  night,
+  onEdit,
 }: {
-  nextNumber: number;
+  nextNumber?: number;
   existingDates?: string[];
   onClose: () => void;
-  onAdd: (data: {
+  onAdd?: (data: {
     name: string;
     date: string;
     timeFrom: string;
@@ -55,21 +64,45 @@ export function ClubNightModal({
     location: string;
     vagt_member_id: number | null;
   }) => void;
+  /** When provided, the modal runs in edit mode */
+  night?: ApiClubNight;
+  onEdit?: (data: {
+    name: string;
+    timeFrom: string;
+    timeTo: string;
+    location: string;
+  }) => void;
 }) {
-  const [name, setName] = useState("Klubaften");
+  const isEditMode = night !== undefined;
+
+  const [name, setName] = useState(night?.name ?? "Klubaften");
   const [date, setDate] = useState(today());
   const [timeFrom, setTimeFrom] = useState(
-    () => defaultTimesForDate(today()).from,
+    night?.time_from ?? defaultTimesForDate(today()).from,
   );
-  const [timeTo, setTimeTo] = useState(() => defaultTimesForDate(today()).to);
-  const [location, setLocation] = useState("Cafe Paraplyen");
+  const [timeTo, setTimeTo] = useState(
+    night?.time_to ?? defaultTimesForDate(today()).to,
+  );
+  const [location, setLocation] = useState(night?.location ?? "Cafe Paraplyen");
   const [vagtId, setVagtId] = useState<string>("none");
   const [vagter, setVagter] = useState<ApiMember[]>([]);
   const overlayRef = useRef<HTMLDivElement>(null);
 
-  const isDuplicate = existingDates.includes(date);
-  const isPast = date < today();
+  const isDuplicate = !isEditMode && existingDates.includes(date);
+  const isPast = !isEditMode && date < today();
   const isBlocked = isDuplicate || isPast;
+
+  // Detect destructive changes (time or location changed) in edit mode
+  const hasDestructiveChange = useMemo(() => {
+    if (!isEditMode || !night) return false;
+    return (
+      timeFrom !== night.time_from ||
+      timeTo !== night.time_to ||
+      location !== night.location
+    );
+  }, [isEditMode, night, timeFrom, timeTo, location]);
+
+  const showWarning = hasDestructiveChange && !!night?.vagt_member_id;
 
   useEffect(() => {
     getMembers()
@@ -97,14 +130,18 @@ export function ClubNightModal({
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (isBlocked) return;
-    onAdd({
-      name,
-      date,
-      timeFrom,
-      timeTo,
-      location,
-      vagt_member_id: vagtId === "none" ? null : Number(vagtId),
-    });
+    if (isEditMode) {
+      onEdit?.({ name, timeFrom, timeTo, location });
+    } else {
+      onAdd?.({
+        name,
+        date,
+        timeFrom,
+        timeTo,
+        location,
+        vagt_member_id: vagtId === "none" ? null : Number(vagtId),
+      });
+    }
     onClose();
   }
 
@@ -119,7 +156,9 @@ export function ClubNightModal({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <CalendarDays className="size-5 text-brand-red" />
-            <h2 className="font-semibold text-neutral-900">Tilføj klubaften</h2>
+            <h2 className="font-semibold text-neutral-900">
+              {isEditMode ? "Rediger klubaften" : "Tilføj klubaften"}
+            </h2>
           </div>
           <button
             onClick={onClose}
@@ -142,40 +181,44 @@ export function ClubNightModal({
             />
           </div>
 
-          {/* Dato */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-neutral-700 uppercase tracking-wider flex items-center gap-1.5">
-              <CalendarDays className="size-3.5" /> Dato
-            </label>
-            <Input
-              type="date"
-              value={date}
-              min={today()}
-              onChange={(e) => {
-                const d = e.target.value;
-                setDate(d);
-                const defaults = defaultTimesForDate(d);
-                setTimeFrom(defaults.from);
-                setTimeTo(defaults.to);
-              }}
-              required
-            />
-            {date && (
-              <p className="text-xs text-neutral-500">{dayNameForDate(date)}</p>
-            )}
-            {isDuplicate && (
-              <p className="text-xs text-brand-red flex items-center gap-1">
-                <CalendarDays className="size-3.5 shrink-0" />
-                Der er allerede en klubaften på denne dato.
-              </p>
-            )}
-            {isPast && (
-              <p className="text-xs text-brand-red flex items-center gap-1">
-                <CalendarDays className="size-3.5 shrink-0" />
-                Datoen kan ikke være i fortiden.
-              </p>
-            )}
-          </div>
+          {/* Dato — hidden in edit mode */}
+          {!isEditMode && (
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-neutral-700 uppercase tracking-wider flex items-center gap-1.5">
+                <CalendarDays className="size-3.5" /> Dato
+              </label>
+              <Input
+                type="date"
+                value={date}
+                min={today()}
+                onChange={(e) => {
+                  const d = e.target.value;
+                  setDate(d);
+                  const defaults = defaultTimesForDate(d);
+                  setTimeFrom(defaults.from);
+                  setTimeTo(defaults.to);
+                }}
+                required
+              />
+              {date && (
+                <p className="text-xs text-neutral-500">
+                  {dayNameForDate(date)}
+                </p>
+              )}
+              {isDuplicate && (
+                <p className="text-xs text-brand-red flex items-center gap-1">
+                  <CalendarDays className="size-3.5 shrink-0" />
+                  Der er allerede en klubaften på denne dato.
+                </p>
+              )}
+              {isPast && (
+                <p className="text-xs text-brand-red flex items-center gap-1">
+                  <CalendarDays className="size-3.5 shrink-0" />
+                  Datoen kan ikke være i fortiden.
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Tid */}
           <div className="flex flex-col gap-1.5">
@@ -213,27 +256,46 @@ export function ClubNightModal({
             />
           </div>
 
-          {/* Vagt */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-neutral-700 uppercase tracking-wider flex items-center gap-1.5">
-              <User className="size-3.5" /> Vagt{" "}
-              <span className="normal-case text-neutral-400 font-normal">
-                (valgfri)
-              </span>
-            </label>
-            <select
-              value={vagtId}
-              onChange={(e) => setVagtId(e.target.value)}
-              className="h-10 rounded-md border border-neutral-200 bg-white px-3 text-sm text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:ring-offset-0"
-            >
-              <option value="none">Ingen vagt valgt</option>
-              {vagter.map((v) => (
-                <option key={v.id} value={String(v.id)}>
-                  {v.name}
-                </option>
-              ))}
-            </select>
-          </div>
+          {/* Vagt — only shown in add mode */}
+          {!isEditMode && (
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-neutral-700 uppercase tracking-wider flex items-center gap-1.5">
+                <User className="size-3.5" /> Vagt{" "}
+                <span className="normal-case text-neutral-400 font-normal">
+                  (valgfri)
+                </span>
+              </label>
+              <select
+                value={vagtId}
+                onChange={(e) => setVagtId(e.target.value)}
+                className="h-10 rounded-md border border-neutral-200 bg-white px-3 text-sm text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:ring-offset-0"
+              >
+                <option value="none">Ingen vagt valgt</option>
+                {vagter.map((v) => (
+                  <option key={v.id} value={String(v.id)}>
+                    {v.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* Destructive-change warning */}
+          {showWarning && (
+            <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2.5">
+              <AlertTriangle className="size-4 text-amber-500 shrink-0 mt-0.5" />
+              <p className="text-xs text-amber-800 leading-5">
+                <span className="font-semibold">
+                  {night?.assigned_member_name ?? "Den tildelte vagt"}
+                </span>{" "}
+                er tildelt denne aften. Ændringer i tid eller sted vil{" "}
+                <span className="font-semibold">
+                  fjerne vagttildelingen og nulstille alle frameldinger
+                </span>
+                .
+              </p>
+            </div>
+          )}
 
           {/* Actions */}
           <div className="flex gap-2 justify-end pt-1">
@@ -245,7 +307,7 @@ export function ClubNightModal({
               disabled={isBlocked}
               className="bg-brand-red hover:bg-red-600 text-white disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Tilføj klubaften
+              {isEditMode ? "Gem ændringer" : "Tilføj klubaften"}
             </Button>
           </div>
         </form>

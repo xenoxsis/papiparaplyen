@@ -22,6 +22,7 @@ import {
   sendEmail,
   newNightsDigestEmailHtml,
   shiftAssignedEmailHtml,
+  shiftUnassignedEmailHtml,
   mentionEmailHtml,
   NightSummary,
 } from "./email";
@@ -133,6 +134,48 @@ export async function sendShiftAssignedEmail(
     member.email,
     subject,
     shiftAssignedEmailHtml(member.name, night),
+  );
+}
+
+// ── Shift unassignment email ─────────────────────────────────────────────────
+
+/**
+ * Send an immediate email to a vagt who was unassigned because the night's
+ * time or location was edited by an admin.
+ */
+export async function sendShiftUnassignedEmail(
+  memberId: number,
+  night: NightSummary,
+): Promise<void> {
+  const pool = await getPool();
+
+  const result = await pool
+    .request()
+    .input("memberId", sql.Int, memberId)
+    .query(
+      "SELECT m.name, m.email, ISNULL(u.email_on_shift, 1) AS email_on_shift FROM dbo.members m LEFT JOIN dbo.users u ON u.member_id = m.id WHERE m.id = @memberId",
+    );
+
+  const member:
+    | { name: string; email: string; email_on_shift: boolean | number }
+    | undefined = result.recordset[0];
+  if (!member?.email) return;
+  if (member.email_on_shift !== true && member.email_on_shift !== 1) {
+    console.log(
+      `[scheduleEmails] ${member.name} has email_on_shift=false \u2014 skipping unassign email`,
+    );
+    return;
+  }
+
+  const subject = `Du er blevet afmeldt vagten: ${night.name}`;
+  console.log(
+    `[scheduleEmails] Sending shift-unassigned email to ${member.email} for "${night.name}"`,
+  );
+
+  await sendEmail(
+    member.email,
+    subject,
+    shiftUnassignedEmailHtml(member.name, night),
   );
 }
 

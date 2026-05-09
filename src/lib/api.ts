@@ -32,6 +32,12 @@ const apiPatch = <T>(path: string, body?: unknown) =>
 
 const apiDelete = <T>(path: string) => api<T>(path, { method: "DELETE" });
 
+const apiPut = <T>(path: string, body?: unknown) =>
+  api<T>(path, {
+    method: "PUT",
+    ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+  });
+
 // ── Types ────────────────────────────────────────────────────────────────────
 
 export type ApiMember = {
@@ -125,6 +131,15 @@ export const postClubNight = (body: Partial<ApiClubNight>) =>
   apiPost<ApiClubNight>("/api/club-nights", body);
 export const patchClubNight = (id: number, body: Partial<ApiClubNight>) =>
   apiPatch<ApiClubNight>(`/api/club-nights/${id}`, body);
+export const putClubNight = (
+  id: number,
+  body: {
+    name?: string;
+    time_from?: string;
+    time_to?: string;
+    location?: string;
+  },
+) => apiPut<ApiClubNight>(`/api/club-nights/${id}`, body);
 export const deleteClubNight = (id: number) =>
   apiDelete<{ ok: boolean }>(`/api/club-nights/${id}`);
 export const postClubNightOptOut = (nightId: number) =>

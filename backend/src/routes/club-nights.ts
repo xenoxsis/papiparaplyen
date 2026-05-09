@@ -5,7 +5,11 @@ import {
   createNotification,
   createNotificationForMany,
 } from "../notifications";
-import { queueNewNightEmail, sendShiftAssignedEmail } from "../scheduleEmails";
+import {
+  queueNewNightEmail,
+  sendShiftAssignedEmail,
+  sendShiftUnassignedEmail,
+} from "../scheduleEmails";
 
 const router = Router();
 
@@ -354,6 +358,91 @@ router.delete("/:id/opt-out", requireAuth, async (req, res) => {
     );
 
   return res.status(200).json({ ok: true });
+});
+
+// PUT /api/club-nights/:id — admin only — edit metadata (name, time_from, time_to, location)
+router.put("/:id", requireAuth, async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
+
+  const pool = await getPool();
+  const nightId = Number(req.params.id);
+
+  const nightCheck = await pool.request().input("id", sql.Int, nightId).query(`
+    SELECT n.id, n.name, n.time_from, n.time_to, n.location, n.vagt_member_id,
+           CONVERT(varchar(10), n.date, 120) AS date,
+           vm.name AS assigned_member_name
+    FROM dbo.club_nights n
+    LEFT JOIN dbo.members vm ON vm.id = n.vagt_member_id
+    WHERE n.id = @id
+  `);
+  if (nightCheck.recordset.length === 0)
+    return res.status(404).json({ error: "Not found" });
+
+  const current = nightCheck.recordset[0];
+  const { name, time_from, time_to, location } = req.body as {
+    name?: string;
+    time_from?: string;
+    time_to?: string;
+    location?: string;
+  };
+
+  // Destructive change = time or location changed while a vagt is assigned
+  const destructive =
+    (time_from !== undefined && time_from !== current.time_from) ||
+    (time_to !== undefined && time_to !== current.time_to) ||
+    (location !== undefined && location !== current.location);
+  const hadVagt = current.vagt_member_id !== null;
+
+  if (destructive && hadVagt) {
+    // Clear assignment + confirmation
+    await pool
+      .request()
+      .input("updatedAt", sql.DateTime2, new Date().toISOString())
+      .input("id", sql.Int, nightId)
+      .query(
+        "UPDATE dbo.club_nights SET vagt_member_id = NULL, vagt_confirmed = 0, updated_at = @updatedAt WHERE id = @id",
+      );
+    // Delete all opt-outs
+    await pool
+      .request()
+      .input("nightId", sql.Int, nightId)
+      .query(
+        "DELETE FROM dbo.club_night_opt_outs WHERE club_night_id = @nightId",
+      );
+    // Notify the previously assigned member
+    await createNotification(
+      current.vagt_member_id,
+      "shift_unassigned",
+      `Du er blevet fjernet fra vagten pga. ændringer i tid/sted: ${current.name}`,
+      "/member/schedule",
+    );
+    // Send unassignment email (fire-and-forget)
+    sendShiftUnassignedEmail(current.vagt_member_id, {
+      name: current.name,
+      date: current.date,
+      time_from: time_from ?? current.time_from,
+      time_to: time_to ?? current.time_to,
+      location: location ?? current.location,
+    }).catch((err) =>
+      console.error("[scheduleEmails] shift-unassigned send failed:", err),
+    );
+  }
+
+  await pool
+    .request()
+    .input("name", sql.NVarChar, name ?? current.name)
+    .input("timeFrom", sql.NVarChar, time_from ?? current.time_from)
+    .input("timeTo", sql.NVarChar, time_to ?? current.time_to)
+    .input("location", sql.NVarChar, location ?? current.location)
+    .input("updatedAt", sql.DateTime2, new Date().toISOString())
+    .input("id", sql.Int, nightId).query(`
+      UPDATE dbo.club_nights
+      SET name = @name, time_from = @timeFrom, time_to = @timeTo,
+          location = @location, updated_at = @updatedAt
+      WHERE id = @id
+    `);
+
+  return res.json(await fetchNightWithOptOuts(pool, nightId));
 });
 
 // DELETE /api/club-nights/:id — admin only
