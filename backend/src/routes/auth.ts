@@ -120,8 +120,8 @@ router.post("/register", async (req, res) => {
       .input("email", sql.NVarChar, normalizedEmail)
       .input("password", sql.NVarChar, hashedPassword)
       .input("memberId", sql.Int, newMemberId).query(`
-        INSERT INTO dbo.users (email, password, provider, provider_id, member_id, banned)
-        VALUES (@email, @password, 'local', NULL, @memberId, 0)
+        INSERT INTO dbo.users (email, password, provider, provider_id, member_id, banned, email_on_mention, email_on_nights, email_on_shift)
+        VALUES (@email, @password, 'local', NULL, @memberId, 0, 0, 0, 0)
       `);
 
     await transaction.commit();
@@ -184,10 +184,10 @@ router.post("/change-password", requireAuth, async (req, res) => {
       .status(400)
       .json({ error: "currentPassword and newPassword are required" });
   }
-  if ((newPassword as string).length < 6) {
+  if ((newPassword as string).length < 10) {
     return res
       .status(400)
-      .json({ error: "newPassword must be at least 6 characters" });
+      .json({ error: "newPassword must be at least 10 characters" });
   }
 
   const pool = await getPool();
@@ -234,7 +234,7 @@ router.get("/email-prefs", requireAuth, async (_req, res) => {
     .request()
     .input("memberId", sql.Int, memberId)
     .query(
-      "SELECT email_on_mention, email_on_nights, email_on_shift FROM dbo.users WHERE member_id = @memberId",
+      "SELECT email_on_mention, email_on_nights, email_on_shift, email_consent_at FROM dbo.users WHERE member_id = @memberId",
     );
   if (result.recordset.length === 0)
     return res.status(404).json({ error: "Not found" });
@@ -244,6 +244,8 @@ router.get("/email-prefs", requireAuth, async (_req, res) => {
       row.email_on_mention === true || row.email_on_mention === 1,
     email_on_nights: row.email_on_nights === true || row.email_on_nights === 1,
     email_on_shift: row.email_on_shift === true || row.email_on_shift === 1,
+    needs_consent:
+      row.email_consent_at === null || row.email_consent_at === undefined,
   });
 });
 
@@ -265,6 +267,18 @@ router.patch("/email-prefs", requireAuth, async (req, res) => {
   if (typeof req.body.email_on_shift === "boolean") {
     request.input("emailOnShift", sql.Bit, req.body.email_on_shift ? 1 : 0);
     updates.push("email_on_shift = @emailOnShift");
+  }
+
+  // Stamp consent timestamp on explicit confirmation or when opting into any pref (GDPR Art. 7)
+  const shouldStampConsent =
+    req.body.consent_confirmed === true ||
+    [
+      req.body.email_on_mention,
+      req.body.email_on_nights,
+      req.body.email_on_shift,
+    ].some((v) => v === true);
+  if (shouldStampConsent) {
+    updates.push("email_consent_at = COALESCE(email_consent_at, GETDATE())");
   }
 
   if (updates.length > 0) {
@@ -338,10 +352,10 @@ router.post("/reset-password", async (req, res) => {
       .status(400)
       .json({ error: "token and newPassword are required" });
   }
-  if ((newPassword as string).length < 6) {
+  if ((newPassword as string).length < 10) {
     return res
       .status(400)
-      .json({ error: "Adgangskode skal være mindst 6 tegn" });
+      .json({ error: "Adgangskode skal være mindst 10 tegn" });
   }
 
   const pool = await getPool();
@@ -382,6 +396,126 @@ router.post("/reset-password", async (req, res) => {
     .query("UPDATE dbo.password_reset_tokens SET used = 1 WHERE id = @id");
 
   return res.json({ ok: true });
+});
+
+// GET /api/auth/me/export — GDPR Art. 20 data portability
+router.get("/me/export", requireAuth, async (_req, res) => {
+  const memberId: number = res.locals.jwt.memberId;
+  const pool = await getPool();
+
+  const [member, userRow, messages, notifications, shifts] = await Promise.all([
+    pool
+      .request()
+      .input("id", sql.Int, memberId)
+      .query(
+        "SELECT id, name, initials, email, joined_date FROM dbo.members WHERE id = @id",
+      ),
+    pool
+      .request()
+      .input("id", sql.Int, memberId)
+      .query(
+        "SELECT provider, email_on_mention, email_on_nights, email_on_shift, email_consent_at FROM dbo.users WHERE member_id = @id",
+      ),
+    pool
+      .request()
+      .input("id", sql.Int, memberId)
+      .query(
+        "SELECT id, channel_id, body, sent_at, edited_at FROM dbo.messages WHERE sender_id = @id AND is_deleted = 0 ORDER BY sent_at",
+      ),
+    pool
+      .request()
+      .input("id", sql.Int, memberId)
+      .query(
+        "SELECT id, type, content, created_at, read_at FROM dbo.notifications WHERE member_id = @id ORDER BY created_at",
+      ),
+    pool
+      .request()
+      .input("id", sql.Int, memberId)
+      .query(
+        "SELECT n.id, n.number, n.name, n.date, n.time_from, n.time_to FROM dbo.club_nights n WHERE n.vagt_member_id = @id ORDER BY n.date",
+      ),
+  ]);
+
+  return res.json({
+    exported_at: new Date().toISOString(),
+    member: member.recordset[0] ?? null,
+    account: userRow.recordset[0] ?? null,
+    messages: messages.recordset,
+    notifications: notifications.recordset,
+    shifts: shifts.recordset,
+  });
+});
+
+// DELETE /api/auth/me — GDPR Art. 17 right to erasure
+router.delete("/me", requireAuth, async (_req, res) => {
+  const memberId: number = res.locals.jwt.memberId;
+  const pool = await getPool();
+
+  // Prevent erasure of the protected superuser account
+  const SUPERUSER_EMAIL = process.env.SUPERUSER_EMAIL ?? "";
+  const memberRow = await pool
+    .request()
+    .input("id", sql.Int, memberId)
+    .query("SELECT email FROM dbo.members WHERE id = @id");
+  if (
+    memberRow.recordset[0]?.email?.toLowerCase() ===
+    SUPERUSER_EMAIL.toLowerCase()
+  ) {
+    return res.status(403).json({ error: "This account is protected" });
+  }
+
+  const transaction = pool.transaction();
+  await transaction.begin();
+  try {
+    // Anonymise message content authored by this member
+    await transaction
+      .request()
+      .input("memberId", sql.Int, memberId)
+      .query(
+        "UPDATE dbo.messages SET body = NULL, is_deleted = 1 WHERE sender_id = @memberId",
+      );
+
+    // Remove notifications
+    await transaction
+      .request()
+      .input("memberId", sql.Int, memberId)
+      .query("DELETE FROM dbo.notifications WHERE member_id = @memberId");
+
+    // Remove password reset tokens
+    await transaction
+      .request()
+      .input("memberId", sql.Int, memberId)
+      .query(
+        "DELETE FROM dbo.password_reset_tokens WHERE member_id = @memberId",
+      );
+
+    // Remove role assignments
+    await transaction
+      .request()
+      .input("memberId", sql.Int, memberId)
+      .query("DELETE FROM dbo.member_roles WHERE member_id = @memberId");
+
+    // Remove user account row (passwords, OAuth tokens)
+    await transaction
+      .request()
+      .input("memberId", sql.Int, memberId)
+      .query("DELETE FROM dbo.users WHERE member_id = @memberId");
+
+    // Anonymise member row — preserve id for referential integrity (shifts etc.)
+    await transaction.request().input("memberId", sql.Int, memberId).query(`
+        UPDATE dbo.members
+        SET name = 'Deleted User', initials = '??', email = NULL
+        WHERE id = @memberId
+      `);
+
+    await transaction.commit();
+  } catch (err) {
+    await transaction.rollback();
+    throw err;
+  }
+
+  clearAuthCookie(res);
+  return res.json({ ok: true, message: "Account and personal data erased" });
 });
 
 export default router;

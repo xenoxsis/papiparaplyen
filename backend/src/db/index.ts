@@ -10,8 +10,10 @@ const config: sql.config = {
   user: process.env.DB_USER ?? "paraplyen_app",
   password: process.env.DB_PASSWORD,
   options: {
-    encrypt: false,
-    trustServerCertificate: true,
+    encrypt: process.env.DB_ENCRYPT !== "false",
+    trustServerCertificate:
+      process.env.DB_TRUST_SERVER_CERTIFICATE === "true" ||
+      process.env.NODE_ENV !== "production",
   },
 };
 

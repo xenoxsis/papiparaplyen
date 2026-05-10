@@ -347,6 +347,10 @@ function CodeRow({
           }}
           onTouchEnd={stopReveal}
           onTouchCancel={stopReveal}
+          onContextMenu={(e) => {
+            e.preventDefault();
+            stopReveal();
+          }}
           className="text-neutral-400 hover:text-neutral-700 transition-colors shrink-0 select-none touch-none"
           aria-label={show ? "Skjul kode" : "Hold nede for at se kode"}
         >

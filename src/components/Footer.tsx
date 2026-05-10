@@ -44,6 +44,12 @@ export default function Footer() {
 
       <div className="max-w-285 mx-auto px-4 sm:px-8 py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 text-xs text-white/60">
         <span>© 2026 Pap i Paraplyen. Alle rettigheder forbeholdes.</span>
+        <Link
+          href="/privacy"
+          className="hover:text-white/90 transition-colors underline underline-offset-2"
+        >
+          Privatlivspolitik
+        </Link>
       </div>
     </footer>
   );

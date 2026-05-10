@@ -73,9 +73,12 @@ app.get("/health", (_, res) => res.json({ ok: true }));
 // Global error handler — catches errors forwarded via next(err)
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
-  console.error("[server] Unhandled error:", err);
-  const message = err instanceof Error ? err.message : "Internal server error";
-  res.status(500).json({ error: message });
+  // Scrub potential PII (email addresses) from logged error messages
+  const scrub = (s: string) => s.replace(/[\w.+-]+@[\w-]+\.[\w.]+/g, "[email]");
+  const safeMsg =
+    err instanceof Error ? scrub(err.message) : "Internal server error";
+  console.error("[server] Unhandled error:", safeMsg);
+  res.status(500).json({ error: safeMsg });
 });
 
 // Warm up DB connection then start listening

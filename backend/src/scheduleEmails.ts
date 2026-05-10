@@ -263,3 +263,44 @@ export async function sendMentionEmail(
     mentionEmailHtml(member.name, senderName, channelName, messageBody),
   );
 }
+
+// ── GDPR data-retention cleanup jobs ─────────────────────────────────────────
+
+const RETENTION_INTERVAL_MS = 24 * 60 * 60 * 1000; // run once per day
+
+async function runRetentionCleanup(): Promise<void> {
+  try {
+    const pool = await getPool();
+
+    // Purge used/expired password reset tokens older than 30 days (GDPR Art. 5)
+    const tokenResult = await pool.request().query(`
+      DELETE FROM dbo.password_reset_tokens
+      WHERE (used = 1 OR expires_at < GETDATE())
+        AND expires_at < DATEADD(day, -30, GETDATE())
+    `);
+    if (tokenResult.rowsAffected[0] > 0) {
+      console.log(
+        `[retention] Purged ${tokenResult.rowsAffected[0]} expired password_reset_tokens`,
+      );
+    }
+
+    // Purge notifications older than 90 days (GDPR Art. 5)
+    const notifResult = await pool.request().query(`
+      DELETE FROM dbo.notifications
+      WHERE created_at < DATEADD(day, -90, GETDATE())
+    `);
+    if (notifResult.rowsAffected[0] > 0) {
+      console.log(
+        `[retention] Purged ${notifResult.rowsAffected[0]} old notifications`,
+      );
+    }
+  } catch (err) {
+    console.error("[retention] Cleanup job failed:", err);
+  }
+}
+
+// Run immediately on startup, then on a daily schedule
+runRetentionCleanup().catch(console.error);
+setInterval(() => {
+  runRetentionCleanup().catch(console.error);
+}, RETENTION_INTERVAL_MS);

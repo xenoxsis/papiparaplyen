@@ -505,7 +505,9 @@ router.delete(
     await pool
       .request()
       .input("id", sql.Int, messageId)
-      .query("UPDATE dbo.messages SET is_deleted = 1 WHERE id = @id");
+      .query(
+        "UPDATE dbo.messages SET is_deleted = 1, body = NULL WHERE id = @id",
+      );
 
     const row = await pool.request().input("id", sql.Int, messageId).query(`
       SELECT m.id, m.channel_id, m.sender_id, m.body, m.sent_at,

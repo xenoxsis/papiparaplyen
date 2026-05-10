@@ -260,12 +260,14 @@ export type ApiEmailPrefs = {
   email_on_mention: boolean;
   email_on_nights: boolean;
   email_on_shift: boolean;
+  needs_consent?: boolean;
 };
 
 export const getEmailPrefs = () => api<ApiEmailPrefs>("/api/auth/email-prefs");
 
-export const patchEmailPrefs = (prefs: Partial<ApiEmailPrefs>) =>
-  apiPatch<{ ok: boolean }>("/api/auth/email-prefs", prefs);
+export const patchEmailPrefs = (
+  prefs: Partial<ApiEmailPrefs> & { consent_confirmed?: boolean },
+) => apiPatch<{ ok: boolean }>("/api/auth/email-prefs", prefs);
 
 // ── Vagter page ───────────────────────────────────────────────────────────────
 

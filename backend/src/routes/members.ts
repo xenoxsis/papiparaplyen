@@ -7,7 +7,7 @@ const SUPERUSER_EMAIL = process.env.SUPERUSER_EMAIL ?? "REDACTED";
 const router = Router();
 
 // GET /api/members
-router.get("/", async (_req, res) => {
+router.get("/", requireAuth, async (_req, res) => {
   const pool = await getPool();
   const result = await pool.request().query(`
     SELECT m.id, m.name, m.initials, m.email, m.joined_date,
@@ -32,7 +32,7 @@ router.get("/", async (_req, res) => {
 });
 
 // GET /api/members/:id
-router.get("/:id", async (req, res) => {
+router.get("/:id", requireAuth, async (req, res) => {
   const pool = await getPool();
   const result = await pool
     .request()

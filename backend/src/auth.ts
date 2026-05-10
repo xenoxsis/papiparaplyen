@@ -58,11 +58,11 @@ export function verifyToken(token: string): JwtPayload | null {
 }
 
 /** Express middleware: requires a valid JWT. Sets res.locals.jwt on success. */
-export function requireAuth(
+export async function requireAuth(
   req: Request,
   res: Response,
   next: NextFunction,
-): void {
+): Promise<void> {
   const token = extractToken(req);
   if (!token) {
     res.status(401).json({ error: "Unauthorized" });
@@ -71,6 +71,21 @@ export function requireAuth(
   const payload = verifyToken(token);
   if (!payload) {
     res.status(401).json({ error: "Invalid or expired token" });
+    return;
+  }
+  try {
+    // Real-time banned check — ensures ban takes effect before JWT expiry
+    const pool = await getPool();
+    const banCheck = await pool
+      .request()
+      .input("memberId", sql.Int, payload.memberId)
+      .query("SELECT banned FROM dbo.users WHERE member_id = @memberId");
+    if (banCheck.recordset[0]?.banned) {
+      res.status(403).json({ error: "Account banned" });
+      return;
+    }
+  } catch (err) {
+    next(err);
     return;
   }
   res.locals.jwt = payload;
