@@ -14,6 +14,7 @@ import {
   type ApiScheduleReview,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
+import { useUserSSE } from "@/lib/UserSSEContext";
 
 export function useScheduleData(isAdmin: boolean) {
   const { user } = useAuth();
@@ -110,6 +111,37 @@ export function useScheduleData(isAdmin: boolean) {
     setNights(updated);
     return updated;
   }
+
+  // Real-time updates via SSE
+  useUserSSE((evt) => {
+    if (evt.event !== "schedule_updated") return;
+    const d = evt.data;
+    if (d.type === "night_confirmed") {
+      const night = d.night;
+      setNights((prev) => prev.map((n) => (n.id === night.id ? night : n)));
+    } else if (d.type === "review_submitted") {
+      const { memberId, memberName, memberInitials, reviewedAt } = d;
+      setReviews((prev) => {
+        const exists = prev.some((r) => r.member_id === memberId);
+        if (exists) {
+          return prev.map((r) =>
+            r.member_id === memberId ? { ...r, reviewed_at: reviewedAt } : r,
+          );
+        }
+        return [
+          ...prev,
+          {
+            id: null,
+            member_id: memberId,
+            reviewed_at: reviewedAt,
+            member_name: memberName,
+            member_initials: memberInitials,
+            is_virtual: false,
+          },
+        ];
+      });
+    }
+  });
 
   return {
     nights,

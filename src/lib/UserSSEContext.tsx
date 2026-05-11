@@ -23,6 +23,7 @@ import {
   useCallback,
   ReactNode,
 } from "react";
+import type { ApiClubNight } from "@/lib/api";
 
 export type UserSSEEvent =
   | { event: "notification"; data: unknown }
@@ -33,7 +34,19 @@ export type UserSSEEvent =
       event: "typing";
       data: { channelId: number; memberId: number; name: string };
     }
-  | { event: "roles_changed"; data?: unknown };
+  | { event: "roles_changed"; data?: unknown }
+  | {
+      event: "schedule_updated";
+      data:
+        | { type: "night_confirmed"; night: ApiClubNight }
+        | {
+            type: "review_submitted";
+            memberId: number;
+            memberName: string;
+            memberInitials: string;
+            reviewedAt: string;
+          };
+    };
 
 type Handler = (evt: UserSSEEvent) => void;
 

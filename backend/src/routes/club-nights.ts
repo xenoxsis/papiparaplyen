@@ -12,6 +12,7 @@ import {
   sendShiftDeletedEmail,
 } from "../scheduleEmails";
 import { logEvent } from "../audit";
+import { broadcastToUser, getConnectedUserIds } from "../broadcaster";
 
 const router = Router();
 
@@ -409,6 +410,11 @@ router.post("/:id/confirm", requireAuth, async (req, res) => {
     actorMemberId: caller,
     detail: { nightId, name: confirmedNight.name, date: confirmedNight.date },
   });
+  const payload = {
+    event: "schedule_updated",
+    data: { type: "night_confirmed", night: confirmedNight },
+  };
+  for (const uid of getConnectedUserIds()) broadcastToUser(uid, payload);
   return res.json(confirmedNight);
 });
 

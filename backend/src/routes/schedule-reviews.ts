@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { getPool, sql } from "../db";
 import { callerId, isAdmin, requireAuth } from "../auth";
+import { broadcastToUser, getConnectedUserIds } from "../broadcaster";
 
 const router = Router();
 
@@ -37,6 +38,23 @@ router.post("/", requireAuth, async (req, res) => {
       );
   }
 
+  // Enrich with member details for the broadcast
+  const memberRow = await pool
+    .request()
+    .input("memberId", sql.Int, caller)
+    .query("SELECT name, initials FROM dbo.members WHERE id = @memberId");
+  const member = memberRow.recordset[0];
+  const payload = {
+    event: "schedule_updated",
+    data: {
+      type: "review_submitted",
+      memberId: caller,
+      memberName: member?.name ?? "",
+      memberInitials: member?.initials ?? "",
+      reviewedAt: now,
+    },
+  };
+  for (const uid of getConnectedUserIds()) broadcastToUser(uid, payload);
   return res.json({ ok: true, reviewed_at: now });
 });
 
