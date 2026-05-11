@@ -499,7 +499,7 @@ export default function SchedulePage() {
             </div>
           </CardHeader>
 
-          <CardContent className="flex p-0 flex-col gap-3">
+          <CardContent className="flex p-0 flex-col gap-3 flex-1 min-h-0">
             {/* Vagt review banner */}
             {hasUnreviewedNights && !isTilskuer && (
               <div className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-lg border border-brand-orange/40 bg-brand-orange/10 p-3">
@@ -521,10 +521,10 @@ export default function SchedulePage() {
                 </button>
               </div>
             )}
-            <div className="relative">
+            <div className="relative flex-1 min-h-0 flex flex-col">
               <div
-                className="flex flex-col gap-3 overflow-y-auto"
-                style={{ maxHeight: "calc(5.5 * 5.5rem + 5 * 0.75rem)" }}
+                className="flex flex-col gap-3 overflow-y-auto flex-1 min-h-0"
+                style={{ maxHeight: "calc(8 * 5.5rem + 7 * 0.75rem)" }}
               >
                 {scheduleLoading ? (
                   Array.from({ length: 6 }).map((_, i) => (
