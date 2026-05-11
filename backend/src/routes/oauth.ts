@@ -27,7 +27,7 @@ async function findOrCreateUser(
       SELECT u.id, u.banned, u.member_id, m.name, m.initials
       FROM dbo.users u
       JOIN dbo.members m ON m.id = u.member_id
-      WHERE u.email = @email
+      WHERE m.email = @email
     `);
 
   if (existing.recordset.length > 0) {
@@ -71,12 +71,11 @@ async function findOrCreateUser(
 
     await transaction
       .request()
-      .input("email", sql.NVarChar, normalizedEmail)
       .input("provider", sql.NVarChar, provider)
       .input("providerId", sql.NVarChar, providerId)
       .input("memberId", sql.Int, newMemberId).query(`
-        INSERT INTO dbo.users (email, password, provider, provider_id, member_id, banned, email_on_mention, email_on_nights, email_on_shift)
-        VALUES (@email, '', @provider, @providerId, @memberId, 0, 0, 0, 0)
+        INSERT INTO dbo.users (password, provider, provider_id, member_id, banned, email_on_mention, email_on_nights, email_on_shift)
+        VALUES ('', @provider, @providerId, @memberId, 0, 0, 0, 0)
       `);
 
     await transaction.commit();

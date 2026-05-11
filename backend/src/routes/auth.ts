@@ -117,11 +117,10 @@ router.post("/register", async (req, res) => {
 
     await transaction
       .request()
-      .input("email", sql.NVarChar, normalizedEmail)
       .input("password", sql.NVarChar, hashedPassword)
       .input("memberId", sql.Int, newMemberId).query(`
-        INSERT INTO dbo.users (email, password, provider, provider_id, member_id, banned, email_on_mention, email_on_nights, email_on_shift)
-        VALUES (@email, @password, 'local', NULL, @memberId, 0, 0, 0, 0)
+        INSERT INTO dbo.users (password, provider, provider_id, member_id, banned, email_on_mention, email_on_nights, email_on_shift)
+        VALUES (@password, 'local', NULL, @memberId, 0, 0, 0, 0)
       `);
 
     await transaction.commit();

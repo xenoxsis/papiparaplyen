@@ -54,17 +54,15 @@ GO
 -- ---------------------------------------------------------------
 CREATE TABLE dbo.users (
     id          INT            NOT NULL IDENTITY(1,1),
-    email       NVARCHAR(255)  NOT NULL,
     password    NVARCHAR(255)  NOT NULL,   -- bcrypt hash ($2b$...)
     provider    NVARCHAR(50)   NOT NULL DEFAULT 'local',
     provider_id NVARCHAR(255)  NULL,
     member_id   INT            NOT NULL,
     banned      BIT            NOT NULL DEFAULT 0,
-    email_on_mention BIT       NOT NULL DEFAULT 1,
-    email_on_nights  BIT       NOT NULL DEFAULT 1,
-    email_on_shift   BIT       NOT NULL DEFAULT 1,
+    email_on_mention BIT       NOT NULL DEFAULT 0,
+    email_on_nights  BIT       NOT NULL DEFAULT 0,
+    email_on_shift   BIT       NOT NULL DEFAULT 0,
     CONSTRAINT PK_users             PRIMARY KEY (id),
-    CONSTRAINT UQ_users_email       UNIQUE      (email),
     CONSTRAINT FK_users_members     FOREIGN KEY (member_id) REFERENCES dbo.members (id)
 );
 GO
