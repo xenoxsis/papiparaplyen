@@ -126,6 +126,7 @@ export default async function Home() {
               src="https://images.unsplash.com/photo-1610890716171-6b1bb98ffd09?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&w=800"
               alt="People playing board games at a table"
               fill
+              sizes="(max-width: 640px) 100vw, 800px"
               className="object-cover"
             />
             <div className="absolute left-4 right-4 bottom-4 bg-white/90 rounded-lg p-4 flex items-center gap-2 font-medium text-sm text-neutral-900">
