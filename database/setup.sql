@@ -53,17 +53,32 @@ GO
 -- users
 -- ---------------------------------------------------------------
 CREATE TABLE dbo.users (
-    id          INT            NOT NULL IDENTITY(1,1),
-    password    NVARCHAR(255)  NOT NULL,   -- bcrypt hash ($2b$...)
-    provider    NVARCHAR(50)   NOT NULL DEFAULT 'local',
-    provider_id NVARCHAR(255)  NULL,
-    member_id   INT            NOT NULL,
-    banned      BIT            NOT NULL DEFAULT 0,
-    email_on_mention BIT       NOT NULL DEFAULT 0,
-    email_on_nights  BIT       NOT NULL DEFAULT 0,
-    email_on_shift   BIT       NOT NULL DEFAULT 0,
+    id               INT            NOT NULL IDENTITY(1,1),
+    password         NVARCHAR(255)  NULL,      -- bcrypt hash; NULL for pure-OAuth accounts
+    member_id        INT            NOT NULL,
+    banned           BIT            NOT NULL DEFAULT 0,
+    email_on_mention BIT            NOT NULL DEFAULT 0,
+    email_on_nights  BIT            NOT NULL DEFAULT 0,
+    email_on_shift   BIT            NOT NULL DEFAULT 0,
+    email_consent_at DATETIME2      NULL,
     CONSTRAINT PK_users             PRIMARY KEY (id),
     CONSTRAINT FK_users_members     FOREIGN KEY (member_id) REFERENCES dbo.members (id)
+);
+GO
+
+-- ---------------------------------------------------------------
+-- user_oauth_providers
+-- One user can have multiple OAuth providers linked simultaneously.
+-- ---------------------------------------------------------------
+CREATE TABLE dbo.user_oauth_providers (
+    id          INT           NOT NULL IDENTITY(1,1),
+    user_id     INT           NOT NULL,
+    provider    NVARCHAR(50)  NOT NULL,
+    provider_id NVARCHAR(255) NOT NULL,
+    linked_at   DATETIME2     NOT NULL DEFAULT GETUTCDATE(),
+    CONSTRAINT PK_user_oauth_providers       PRIMARY KEY (id),
+    CONSTRAINT UQ_user_oauth_providers       UNIQUE (provider, provider_id),
+    CONSTRAINT FK_user_oauth_providers_users FOREIGN KEY (user_id) REFERENCES dbo.users (id)
 );
 GO
 

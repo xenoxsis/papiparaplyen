@@ -20,19 +20,59 @@ async function findOrCreateUser(
   const pool = await getPool();
   const normalizedEmail = email.toLowerCase().trim();
 
-  // Try to find existing user
-  const existing = await pool
+  // 1. Fast path: look up by provider + provider_id in user_oauth_providers
+  const byProvider = await pool
+    .request()
+    .input("provider", sql.NVarChar, provider)
+    .input("providerId", sql.NVarChar, providerId).query(`
+      SELECT u.id AS user_id, u.banned, u.member_id, m.name, m.initials
+      FROM dbo.user_oauth_providers op
+      JOIN dbo.users u   ON u.id = op.user_id
+      JOIN dbo.members m ON m.id = u.member_id
+      WHERE op.provider = @provider AND op.provider_id = @providerId
+    `);
+
+  if (byProvider.recordset.length > 0) {
+    const row = byProvider.recordset[0];
+    if (row.banned) throw new Error("Account banned");
+    const roles = await getMemberRoles(row.member_id as number);
+    const token = signToken({ memberId: row.member_id as number, roles });
+    return {
+      id: row.member_id as number,
+      name: row.name as string,
+      initials: row.initials as string,
+      roles,
+      token,
+    };
+  }
+
+  // 2. Fall back: look up by email — link this provider to the existing account
+  const byEmail = await pool
     .request()
     .input("email", sql.NVarChar, normalizedEmail).query(`
-      SELECT u.id, u.banned, u.member_id, m.name, m.initials
+      SELECT u.id AS user_id, u.banned, u.member_id, m.name, m.initials
       FROM dbo.users u
       JOIN dbo.members m ON m.id = u.member_id
       WHERE m.email = @email
     `);
 
-  if (existing.recordset.length > 0) {
-    const row = existing.recordset[0];
+  if (byEmail.recordset.length > 0) {
+    const row = byEmail.recordset[0];
     if (row.banned) throw new Error("Account banned");
+
+    // Link the OAuth provider to the existing account (idempotent)
+    await pool
+      .request()
+      .input("userId", sql.Int, row.user_id)
+      .input("provider", sql.NVarChar, provider)
+      .input("providerId", sql.NVarChar, providerId).query(`
+        IF NOT EXISTS (
+          SELECT 1 FROM dbo.user_oauth_providers
+          WHERE user_id = @userId AND provider = @provider
+        )
+          INSERT INTO dbo.user_oauth_providers (user_id, provider, provider_id)
+          VALUES (@userId, @provider, @providerId)
+      `);
 
     const roles = await getMemberRoles(row.member_id as number);
     const token = signToken({ memberId: row.member_id as number, roles });
@@ -45,7 +85,7 @@ async function findOrCreateUser(
     };
   }
 
-  // Auto-create new member + user
+  // 3. Brand-new user: create member + users row + oauth provider link
   const parts = displayName.trim().split(/\s+/);
   const initials =
     parts.length >= 2
@@ -69,13 +109,23 @@ async function findOrCreateUser(
 
     const newMemberId: number = memberResult.recordset[0].id;
 
+    const userResult = await transaction
+      .request()
+      .input("memberId", sql.Int, newMemberId).query(`
+        INSERT INTO dbo.users (password, member_id, banned, email_on_mention, email_on_nights, email_on_shift)
+        OUTPUT INSERTED.id
+        VALUES (NULL, @memberId, 0, 0, 0, 0)
+      `);
+
+    const newUserId: number = userResult.recordset[0].id;
+
     await transaction
       .request()
+      .input("userId", sql.Int, newUserId)
       .input("provider", sql.NVarChar, provider)
-      .input("providerId", sql.NVarChar, providerId)
-      .input("memberId", sql.Int, newMemberId).query(`
-        INSERT INTO dbo.users (password, provider, provider_id, member_id, banned, email_on_mention, email_on_nights, email_on_shift)
-        VALUES ('', @provider, @providerId, @memberId, 0, 0, 0, 0)
+      .input("providerId", sql.NVarChar, providerId).query(`
+        INSERT INTO dbo.user_oauth_providers (user_id, provider, provider_id)
+        VALUES (@userId, @provider, @providerId)
       `);
 
     await transaction.commit();

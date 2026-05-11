@@ -45,6 +45,11 @@ router.post("/login", async (req, res) => {
   const row = userResult.recordset[0];
   if (row.banned) return res.status(403).json({ error: "Account banned" });
 
+  // Account has no password — it was created via OAuth only
+  if (!row.password) {
+    return res.status(401).json({ error: "Invalid credentials" });
+  }
+
   const passwordMatch = await bcrypt.compare(password, row.password);
   if (!passwordMatch)
     return res.status(401).json({ error: "Invalid credentials" });
@@ -119,8 +124,8 @@ router.post("/register", async (req, res) => {
       .request()
       .input("password", sql.NVarChar, hashedPassword)
       .input("memberId", sql.Int, newMemberId).query(`
-        INSERT INTO dbo.users (password, provider, provider_id, member_id, banned, email_on_mention, email_on_nights, email_on_shift)
-        VALUES (@password, 'local', NULL, @memberId, 0, 0, 0, 0)
+        INSERT INTO dbo.users (password, member_id, banned, email_on_mention, email_on_nights, email_on_shift)
+        VALUES (@password, @memberId, 0, 0, 0, 0)
       `);
 
     await transaction.commit();
@@ -195,18 +200,34 @@ router.post("/change-password", requireAuth, async (req, res) => {
   const userResult = await pool
     .request()
     .input("memberId", sql.Int, memberId)
-    .query(
-      "SELECT id, password, provider FROM dbo.users WHERE member_id = @memberId",
-    );
+    .query("SELECT id, password FROM dbo.users WHERE member_id = @memberId");
 
   if (userResult.recordset.length === 0) {
     return res.status(404).json({ error: "User not found" });
   }
 
   const row = userResult.recordset[0];
-  if (row.provider !== "local") {
+  if (!row.password) {
+    // Look up linked OAuth providers for an informative error message
+    const opResult = await pool
+      .request()
+      .input("userId", sql.Int, row.id)
+      .query(
+        "SELECT provider FROM dbo.user_oauth_providers WHERE user_id = @userId",
+      );
+    const names = opResult.recordset
+      .map((p: { provider: string }) =>
+        p.provider === "google"
+          ? "Google"
+          : p.provider === "facebook"
+            ? "Facebook"
+            : p.provider,
+      )
+      .join(" og ");
     return res.status(400).json({
-      error: `Din konto bruger ${row.provider === "google" ? "Google" : "Facebook"} login og har ingen adgangskode`,
+      error: names
+        ? `Din konto bruger ${names} login og har ingen adgangskode`
+        : "Din konto har ingen adgangskode",
     });
   }
 
@@ -303,7 +324,7 @@ router.post("/forgot-password", async (req, res) => {
   const result = await pool
     .request()
     .input("email", sql.NVarChar, normalizedEmail).query(`
-      SELECT m.id, m.email, u.provider
+      SELECT m.id, m.email, u.id AS user_id, u.password
       FROM dbo.members m
       JOIN dbo.users u ON u.member_id = m.id
       WHERE m.email = @email
@@ -314,11 +335,19 @@ router.post("/forgot-password", async (req, res) => {
 
   const FRONTEND_URL = process.env.FRONTEND_URL ?? "http://localhost:3000";
 
-  if (row.provider !== "local") {
+  if (!row.password) {
+    // Pure OAuth account — look up which providers are linked
+    const opResult = await pool
+      .request()
+      .input("userId", sql.Int, row.user_id)
+      .query(
+        "SELECT provider FROM dbo.user_oauth_providers WHERE user_id = @userId",
+      );
+    const providerName: string = opResult.recordset[0]?.provider ?? "oauth";
     await sendEmail(
       normalizedEmail,
       "Adgangskode nulstilling — Pap i Paraplyen",
-      oauthAccountEmailHtml(row.provider),
+      oauthAccountEmailHtml(providerName),
     ).catch(console.error);
     return;
   }
@@ -413,7 +442,7 @@ router.get("/me/export", requireAuth, async (_req, res) => {
       .request()
       .input("id", sql.Int, memberId)
       .query(
-        "SELECT provider, email_on_mention, email_on_nights, email_on_shift, email_consent_at FROM dbo.users WHERE member_id = @id",
+        "SELECT email_on_mention, email_on_nights, email_on_shift, email_consent_at FROM dbo.users WHERE member_id = @id",
       ),
     pool
       .request()
@@ -494,7 +523,19 @@ router.delete("/me", requireAuth, async (_req, res) => {
       .input("memberId", sql.Int, memberId)
       .query("DELETE FROM dbo.member_roles WHERE member_id = @memberId");
 
-    // Remove user account row (passwords, OAuth tokens)
+    // Remove OAuth provider links
+    const userRow = await transaction
+      .request()
+      .input("memberId", sql.Int, memberId)
+      .query("SELECT id FROM dbo.users WHERE member_id = @memberId");
+    if (userRow.recordset.length > 0) {
+      await transaction
+        .request()
+        .input("userId", sql.Int, userRow.recordset[0].id)
+        .query("DELETE FROM dbo.user_oauth_providers WHERE user_id = @userId");
+    }
+
+    // Remove user account row
     await transaction
       .request()
       .input("memberId", sql.Int, memberId)
