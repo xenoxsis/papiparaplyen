@@ -6,8 +6,10 @@ import {
   ChevronDown,
   ChevronRight,
   Filter,
+  Mail,
   RefreshCw,
   ScrollText,
+  X,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useRequireAuth } from "@/lib/useRequireAuth";
@@ -50,35 +52,100 @@ function eventColour(type: string) {
   return EVENT_COLOURS[type] ?? "bg-neutral-100 text-neutral-700";
 }
 
+// ── Email HTML preview modal ─────────────────────────────────────────────────
+
+function EmailPreviewModal({
+  html,
+  onClose,
+}: {
+  html: string;
+  onClose: () => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+      onClick={onClose}
+    >
+      <div
+        className="relative bg-white rounded-xl shadow-2xl w-full max-w-3xl mx-4 flex flex-col"
+        style={{ height: "80vh" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-200 shrink-0">
+          <span className="text-sm font-medium text-neutral-700 flex items-center gap-2">
+            <Mail className="size-4 text-purple-600" />
+            Email preview
+          </span>
+          <button
+            onClick={onClose}
+            className="text-neutral-400 hover:text-neutral-700 transition-colors"
+          >
+            <X className="size-5" />
+          </button>
+        </div>
+        <iframe
+          srcDoc={html}
+          sandbox="allow-same-origin"
+          className="flex-1 w-full rounded-b-xl"
+          title="Email preview"
+        />
+      </div>
+    </div>
+  );
+}
+
 // ── Detail cell with expand / collapse ──────────────────────────────────────
 
 function DetailCell({ detail }: { detail: Record<string, unknown> | null }) {
   const [expanded, setExpanded] = useState(false);
+  const [previewHtml, setPreviewHtml] = useState<string | null>(null);
   if (!detail) return <span className="text-neutral-400 text-xs">—</span>;
-  const json = JSON.stringify(detail, null, 2);
-  const preview = JSON.stringify(detail);
+  const htmlString = typeof detail.html === "string" ? detail.html : null;
+  // Strip html from displayed JSON to keep it readable
+  const displayDetail = htmlString
+    ? Object.fromEntries(Object.entries(detail).filter(([k]) => k !== "html"))
+    : detail;
+  const json = JSON.stringify(displayDetail, null, 2);
+  const preview = JSON.stringify(displayDetail);
   const isLong = preview.length > 60;
   return (
     <div className="max-w-xs">
-      {!isLong ? (
-        <code className="text-xs text-neutral-600 break-all">{preview}</code>
-      ) : (
-        <button
-          onClick={() => setExpanded((v) => !v)}
-          className="flex items-center gap-1 text-xs text-brand-teal hover:underline"
-        >
-          {expanded ? (
-            <ChevronDown className="size-3" />
-          ) : (
-            <ChevronRight className="size-3" />
-          )}
-          {expanded ? "Skjul" : "Vis detaljer"}
-        </button>
-      )}
+      <div className="flex items-center gap-2">
+        {isLong ? (
+          <button
+            onClick={() => setExpanded((v) => !v)}
+            className="flex items-center gap-1 text-xs text-brand-teal hover:underline"
+          >
+            {expanded ? (
+              <ChevronDown className="size-3" />
+            ) : (
+              <ChevronRight className="size-3" />
+            )}
+            {expanded ? "Skjul" : "Vis detaljer"}
+          </button>
+        ) : (
+          <code className="text-xs text-neutral-600 break-all">{preview}</code>
+        )}
+        {htmlString && (
+          <button
+            onClick={() => setPreviewHtml(htmlString)}
+            className="flex items-center gap-1 text-xs text-purple-600 hover:underline shrink-0"
+          >
+            <Mail className="size-3" />
+            Vis email
+          </button>
+        )}
+      </div>
       {expanded && (
         <pre className="mt-1 text-xs bg-neutral-50 border border-neutral-200 rounded p-2 overflow-x-auto max-h-40 whitespace-pre-wrap break-all">
           {json}
         </pre>
+      )}
+      {previewHtml && (
+        <EmailPreviewModal
+          html={previewHtml}
+          onClose={() => setPreviewHtml(null)}
+        />
       )}
     </div>
   );

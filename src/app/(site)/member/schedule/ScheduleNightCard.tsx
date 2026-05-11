@@ -121,13 +121,18 @@ export function ScheduleNightCard({
                 <div
                   role={isAdmin ? "button" : undefined}
                   tabIndex={isAdmin ? 0 : undefined}
-                  onClick={() => isAdmin && onAssign()}
+                  onClick={() =>
+                    isAdmin &&
+                    window.matchMedia("(max-width: 639px)").matches &&
+                    onAssign()
+                  }
                   onKeyDown={
                     isAdmin
                       ? (e) => {
                           if (e.key === "Enter" || e.key === " ") {
                             e.preventDefault();
-                            onAssign();
+                            if (window.matchMedia("(max-width: 639px)").matches)
+                              onAssign();
                           }
                         }
                       : undefined
@@ -173,7 +178,11 @@ export function ScheduleNightCard({
               </>
             ) : isAdmin ? (
               <button
-                onClick={onAssign}
+                onClick={() =>
+                  window.matchMedia("(max-width: 639px)").matches
+                    ? onAssign()
+                    : undefined
+                }
                 className={`self-start rounded-lg sm:rounded-full border flex px-2.5 py-1.5 sm:py-1 items-center gap-1.5 transition-colors ${
                   isOver
                     ? "border-brand-teal bg-brand-teal/10 text-brand-teal"

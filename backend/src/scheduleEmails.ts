@@ -90,6 +90,10 @@ async function sendNewNightsDigest(nights: NightSummary[]): Promise<void> {
     `[scheduleEmails] Sending new-nights digest (${nights.length} night(s)) to ${recipients.length} recipient(s)`,
   );
 
+  // Build HTML once using the first recipient's name as a representative preview
+  const previewRecipient = recipients[0]?.name ?? "Vagt";
+  const htmlPreview = newNightsDigestEmailHtml(nights, previewRecipient);
+
   await Promise.allSettled(
     recipients.map((r) =>
       sendEmail(r.email, subject, newNightsDigestEmailHtml(nights, r.name)),
@@ -100,8 +104,10 @@ async function sendNewNightsDigest(nights: NightSummary[]): Promise<void> {
     eventType: "email.sent",
     detail: {
       type: "nights_digest",
+      subject,
       nightCount: nights.length,
       recipientCount: recipients.length,
+      html: htmlPreview,
     },
   });
 }
@@ -141,19 +147,18 @@ export async function sendShiftAssignedEmail(
     `[scheduleEmails] Sending shift-assigned email to ${member.email} for "${night.name}"`,
   );
 
-  await sendEmail(
-    member.email,
-    subject,
-    shiftAssignedEmailHtml(member.name, night),
-  );
+  const assignedHtml = shiftAssignedEmailHtml(member.name, night);
+  await sendEmail(member.email, subject, assignedHtml);
   logEvent({
     eventType: "email.sent",
     targetMemberId: memberId,
     targetEmail: member.email,
     detail: {
       type: "shift_assigned",
+      subject,
       nightName: night.name,
       nightDate: night.date,
+      html: assignedHtml,
     },
   });
 }
@@ -187,19 +192,18 @@ export async function sendShiftDeletedEmail(
     `[scheduleEmails] Sending shift-deleted email to ${member.email} for "${night.name}"`,
   );
 
-  await sendEmail(
-    member.email,
-    subject,
-    shiftDeletedEmailHtml(member.name, night),
-  );
+  const deletedHtml = shiftDeletedEmailHtml(member.name, night);
+  await sendEmail(member.email, subject, deletedHtml);
   logEvent({
     eventType: "email.sent",
     targetMemberId: memberId,
     targetEmail: member.email,
     detail: {
       type: "shift_deleted",
+      subject,
       nightName: night.name,
       nightDate: night.date,
+      html: deletedHtml,
     },
   });
 }
@@ -239,19 +243,18 @@ export async function sendShiftUnassignedEmail(
     `[scheduleEmails] Sending shift-unassigned email to ${member.email} for "${night.name}"`,
   );
 
-  await sendEmail(
-    member.email,
-    subject,
-    shiftUnassignedEmailHtml(member.name, night),
-  );
+  const unassignedHtml = shiftUnassignedEmailHtml(member.name, night);
+  await sendEmail(member.email, subject, unassignedHtml);
   logEvent({
     eventType: "email.sent",
     targetMemberId: memberId,
     targetEmail: member.email,
     detail: {
       type: "shift_unassigned",
+      subject,
       nightName: night.name,
       nightDate: night.date,
+      html: unassignedHtml,
     },
   });
 }
@@ -297,16 +300,24 @@ export async function sendMentionEmail(
   const subject = `${senderName} nævnte dig i ${channelName}`;
   console.log(`[scheduleEmails] Sending mention email to ${member.email}`);
 
-  await sendEmail(
-    member.email,
-    subject,
-    mentionEmailHtml(member.name, senderName, channelName, messageBody),
+  const mentionHtml = mentionEmailHtml(
+    member.name,
+    senderName,
+    channelName,
+    messageBody,
   );
+  await sendEmail(member.email, subject, mentionHtml);
   logEvent({
     eventType: "email.sent",
     targetMemberId: memberId,
     targetEmail: member.email,
-    detail: { type: "mention", senderName, channelName },
+    detail: {
+      type: "mention",
+      subject,
+      senderName,
+      channelName,
+      html: mentionHtml,
+    },
   });
 }
 

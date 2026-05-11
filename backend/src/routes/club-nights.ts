@@ -281,6 +281,21 @@ router.patch("/:id", requireAuth, async (req, res) => {
       },
     });
   } else if (newVagt === null && previousVagt !== null) {
+    await createNotification(
+      previousVagt as number,
+      "shift_unassigned",
+      `Du er blevet fjernet fra vagten: ${updatedNight.name}`,
+      "/member/schedule",
+    );
+    sendShiftUnassignedEmail(previousVagt as number, {
+      name: updatedNight.name,
+      date: updatedNight.date,
+      time_from: updatedNight.time_from,
+      time_to: updatedNight.time_to,
+      location: updatedNight.location,
+    }).catch((err) =>
+      console.error("[scheduleEmails] shift-unassigned send failed:", err),
+    );
     logEvent({
       eventType: "shift.unassign",
       actorMemberId: callerId(res),

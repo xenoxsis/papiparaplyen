@@ -415,16 +415,22 @@ router.post("/forgot-password", async (req, res) => {
         "SELECT provider FROM dbo.user_oauth_providers WHERE user_id = @userId",
       );
     const providerName: string = opResult.recordset[0]?.provider ?? "oauth";
+    const oauthHtml = oauthAccountEmailHtml(providerName);
     await sendEmail(
       normalizedEmail,
       "Adgangskode nulstilling — Pap i Paraplyen",
-      oauthAccountEmailHtml(providerName),
+      oauthHtml,
     ).catch(console.error);
     logEvent({
       eventType: "email.sent",
       targetMemberId: row.id,
       targetEmail: normalizedEmail,
-      detail: { type: "oauth_account_notice", provider: providerName },
+      detail: {
+        type: "oauth_account_notice",
+        subject: "Adgangskode nulstilling — Pap i Paraplyen",
+        provider: providerName,
+        html: oauthHtml,
+      },
     });
     return;
   }
@@ -442,15 +448,20 @@ router.post("/forgot-password", async (req, res) => {
     `);
 
   const resetUrl = `${FRONTEND_URL}/reset-password?token=${token}`;
+  const resetHtml = resetPasswordEmailHtml(resetUrl);
   await sendEmail(
     normalizedEmail,
     "Nulstil din adgangskode — Pap i Paraplyen",
-    resetPasswordEmailHtml(resetUrl),
+    resetHtml,
   ).catch(console.error);
   logEvent({
     eventType: "email.password_reset",
     targetMemberId: row.id,
     targetEmail: normalizedEmail,
+    detail: {
+      subject: "Nulstil din adgangskode — Pap i Paraplyen",
+      html: resetHtml,
+    },
   });
 });
 
