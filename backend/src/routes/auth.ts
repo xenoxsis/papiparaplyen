@@ -198,6 +198,44 @@ router.post("/logout", (_req, res) => {
   return res.json({ ok: true });
 });
 
+// POST /api/auth/refresh — re-issue JWT with fresh roles from DB
+router.post("/refresh", requireAuth, async (_req, res) => {
+  const memberId: number = res.locals.jwt.memberId;
+  const pool = await getPool();
+  const [memberResult, rolesResult] = await Promise.all([
+    pool
+      .request()
+      .input("memberId", sql.Int, memberId)
+      .query(
+        "SELECT m.name, m.initials, m.email FROM dbo.members m WHERE m.id = @memberId",
+      ),
+    pool
+      .request()
+      .input("memberId", sql.Int, memberId)
+      .query(
+        `SELECT r.name FROM dbo.member_roles mr
+         JOIN dbo.roles r ON r.id = mr.role_id
+         WHERE mr.member_id = @memberId`,
+      ),
+  ]);
+  if (memberResult.recordset.length === 0)
+    return res.status(404).json({ error: "Not found" });
+  const row = memberResult.recordset[0];
+  const email: string = (row.email ?? "").toLowerCase();
+  const roles: string[] = rolesResult.recordset.map(
+    (r: { name: string }) => r.name,
+  );
+  const token = signToken({ memberId, roles });
+  setAuthCookie(res, token);
+  return res.json({
+    id: memberId,
+    name: row.name as string,
+    initials: row.initials as string,
+    roles,
+    is_superuser: !!SUPERUSER_EMAIL && email === SUPERUSER_EMAIL,
+  });
+});
+
 // GET /api/auth/me — return current user with fresh is_superuser flag
 router.get("/me", requireAuth, async (_req, res) => {
   const memberId: number = res.locals.jwt.memberId;

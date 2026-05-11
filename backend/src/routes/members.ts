@@ -4,6 +4,7 @@ import { getPool, sql } from "../db";
 import { requireAdmin, requireAuth } from "../auth";
 import { sendEmail, resetPasswordEmailHtml } from "../email";
 import { logEvent } from "../audit";
+import { broadcastToUser } from "../broadcaster";
 
 const SUPERUSER_EMAIL = process.env.SUPERUSER_EMAIL ?? "REDACTED";
 const FRONTEND_URL = process.env.FRONTEND_URL ?? "http://localhost:3000";
@@ -253,6 +254,10 @@ router.put("/:id/roles", requireAuth, async (req, res) => {
     ${MEMBER_GROUP_BY}
   `);
   const row = result.recordset[0];
+
+  // Notify the affected user so their frontend can refresh the token immediately
+  broadcastToUser(memberId, { event: "roles_changed" });
+
   return res.json(mapMember(row));
 });
 

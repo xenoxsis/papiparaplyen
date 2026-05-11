@@ -218,6 +218,9 @@ export const postLogout = () => apiPost<{ ok: boolean }>("/api/auth/logout");
 
 export const getMe = () => api<AuthUser>("/api/auth/me");
 
+/** Re-issues the auth cookie with fresh roles from the DB. */
+export const postRefreshAuth = () => apiPost<AuthUser>("/api/auth/refresh");
+
 export const postRegister = (name: string, email: string, password: string) =>
   apiPost<AuthUser>("/api/auth/register", { name, email, password });
 

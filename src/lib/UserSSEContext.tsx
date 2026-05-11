@@ -32,7 +32,8 @@ export type UserSSEEvent =
   | {
       event: "typing";
       data: { channelId: number; memberId: number; name: string };
-    };
+    }
+  | { event: "roles_changed"; data?: unknown };
 
 type Handler = (evt: UserSSEEvent) => void;
 
