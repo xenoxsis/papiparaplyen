@@ -4,11 +4,13 @@ import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import { Strategy as FacebookStrategy } from "passport-facebook";
 import { getPool, sql } from "../db";
 import { signToken, getMemberRoles, setAuthCookie } from "../auth";
+import { logEvent } from "../audit";
 
 const router = Router();
 
 const BASE_URL = process.env.BASE_URL ?? "http://localhost:3001";
 const FRONTEND_URL = process.env.FRONTEND_URL ?? "http://localhost:3000";
+const SUPERUSER_EMAIL = (process.env.SUPERUSER_EMAIL ?? "").toLowerCase();
 
 // ── Shared helper: find or create member + user from OAuth ────────────────────
 async function findOrCreateUser(
@@ -37,12 +39,19 @@ async function findOrCreateUser(
     if (row.banned) throw new Error("Account banned");
     const roles = await getMemberRoles(row.member_id as number);
     const token = signToken({ memberId: row.member_id as number, roles });
+    logEvent({
+      eventType: "oauth.login",
+      actorMemberId: row.member_id as number,
+      actorEmail: normalizedEmail,
+      detail: { provider },
+    });
     return {
       id: row.member_id as number,
       name: row.name as string,
       initials: row.initials as string,
       roles,
       token,
+      is_superuser: normalizedEmail === SUPERUSER_EMAIL,
     };
   }
 
@@ -76,12 +85,19 @@ async function findOrCreateUser(
 
     const roles = await getMemberRoles(row.member_id as number);
     const token = signToken({ memberId: row.member_id as number, roles });
+    logEvent({
+      eventType: "oauth.login",
+      actorMemberId: row.member_id as number,
+      actorEmail: normalizedEmail,
+      detail: { provider, linked: true },
+    });
     return {
       id: row.member_id as number,
       name: row.name as string,
       initials: row.initials as string,
       roles,
       token,
+      is_superuser: normalizedEmail === SUPERUSER_EMAIL,
     };
   }
 
@@ -131,12 +147,19 @@ async function findOrCreateUser(
     await transaction.commit();
     const roles: string[] = [];
     const token = signToken({ memberId: newMemberId, roles });
+    logEvent({
+      eventType: "oauth.register",
+      actorMemberId: newMemberId,
+      actorEmail: normalizedEmail,
+      detail: { provider },
+    });
     return {
       id: newMemberId,
       name: displayName.trim(),
       initials,
       roles,
       token,
+      is_superuser: normalizedEmail === SUPERUSER_EMAIL,
     };
   } catch (err) {
     await transaction.rollback();

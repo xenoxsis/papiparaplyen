@@ -18,6 +18,7 @@ import oauthRouter from "./routes/oauth";
 import scheduleReviewsRouter from "./routes/schedule-reviews";
 import notificationsRouter from "./routes/notifications";
 import vagterRouter from "./routes/vagter";
+import auditLogRouter from "./routes/audit-log";
 import { getPool } from "./db";
 
 const app = express();
@@ -67,6 +68,7 @@ app.use("/api/auth", oauthRouter);
 app.use("/api/schedule-reviews", scheduleReviewsRouter);
 app.use("/api/notifications", notificationsRouter);
 app.use("/api/vagter", vagterRouter);
+app.use("/api/audit-log", auditLogRouter);
 
 app.get("/health", (_, res) => res.json({ ok: true }));
 

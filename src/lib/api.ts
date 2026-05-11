@@ -105,6 +105,7 @@ export type AuthUser = {
   name: string;
   initials: string;
   roles: string[];
+  is_superuser?: boolean;
 };
 
 // ── Members ──────────────────────────────────────────────────────────────────
@@ -202,6 +203,8 @@ export const postLogin = (email: string, password: string) =>
   apiPost<AuthUser>("/api/auth/login", { email, password });
 
 export const postLogout = () => apiPost<{ ok: boolean }>("/api/auth/logout");
+
+export const getMe = () => api<AuthUser>("/api/auth/me");
 
 export const postRegister = (name: string, email: string, password: string) =>
   apiPost<AuthUser>("/api/auth/register", { name, email, password });
@@ -323,3 +326,52 @@ export type ApiChannelMember = {
 
 export const getChannelMembers = (channelId: number) =>
   api<ApiChannelMember[]>(`/api/channels/${channelId}/members`);
+
+// ── Audit Log ────────────────────────────────────────────────────────────────
+
+export type AuditLogRow = {
+  id: number;
+  event_type: string;
+  actor_member_id: number | null;
+  actor_email: string | null;
+  actor_name: string | null;
+  target_member_id: number | null;
+  target_email: string | null;
+  target_name: string | null;
+  detail: Record<string, unknown> | null;
+  ip: string | null;
+  created_at: string;
+};
+
+export type AuditLogFilters = {
+  eventType?: string;
+  actorEmail?: string;
+  targetEmail?: string;
+  from?: string;
+  to?: string;
+  search?: string;
+  page?: number;
+  limit?: number;
+};
+
+export const getAuditLog = (filters: AuditLogFilters = {}) => {
+  const params = new URLSearchParams();
+  if (filters.eventType) params.set("eventType", filters.eventType);
+  if (filters.actorEmail) params.set("actorEmail", filters.actorEmail);
+  if (filters.targetEmail) params.set("targetEmail", filters.targetEmail);
+  if (filters.from) params.set("from", filters.from);
+  if (filters.to) params.set("to", filters.to);
+  if (filters.search) params.set("search", filters.search);
+  if (filters.page !== undefined) params.set("page", String(filters.page));
+  if (filters.limit !== undefined) params.set("limit", String(filters.limit));
+  const qs = params.toString();
+  return api<{
+    rows: AuditLogRow[];
+    total: number;
+    page: number;
+    limit: number;
+  }>(`/api/audit-log${qs ? `?${qs}` : ""}`);
+};
+
+export const getAuditLogEventTypes = () =>
+  api<string[]>("/api/audit-log/event-types");

@@ -14,8 +14,10 @@ import {
   resetPasswordEmailHtml,
   oauthAccountEmailHtml,
 } from "../email";
+import { logEvent } from "../audit";
 
 const SALT_ROUNDS = 12;
+const SUPERUSER_EMAIL = (process.env.SUPERUSER_EMAIL ?? "").toLowerCase();
 
 const router = Router();
 
@@ -27,10 +29,11 @@ router.post("/login", async (req, res) => {
   }
 
   const pool = await getPool();
+  const normalizedLoginEmail = (email as string).toLowerCase();
 
   const userResult = await pool
     .request()
-    .input("email", sql.NVarChar, (email as string).toLowerCase()).query(`
+    .input("email", sql.NVarChar, normalizedLoginEmail).query(`
       SELECT u.id, u.password, u.banned, u.member_id,
              m.name, m.initials
       FROM dbo.users u
@@ -39,20 +42,50 @@ router.post("/login", async (req, res) => {
     `);
 
   if (userResult.recordset.length === 0) {
+    logEvent({
+      eventType: "login.failure",
+      actorEmail: normalizedLoginEmail,
+      ip: req.ip,
+      detail: { reason: "user_not_found" },
+    });
     return res.status(401).json({ error: "Invalid credentials" });
   }
 
   const row = userResult.recordset[0];
-  if (row.banned) return res.status(403).json({ error: "Account banned" });
+  if (row.banned) {
+    logEvent({
+      eventType: "login.failure",
+      actorEmail: normalizedLoginEmail,
+      actorMemberId: row.member_id,
+      ip: req.ip,
+      detail: { reason: "banned" },
+    });
+    return res.status(403).json({ error: "Account banned" });
+  }
 
   // Account has no password — it was created via OAuth only
   if (!row.password) {
+    logEvent({
+      eventType: "login.failure",
+      actorEmail: normalizedLoginEmail,
+      actorMemberId: row.member_id,
+      ip: req.ip,
+      detail: { reason: "no_password" },
+    });
     return res.status(401).json({ error: "Invalid credentials" });
   }
 
   const passwordMatch = await bcrypt.compare(password, row.password);
-  if (!passwordMatch)
+  if (!passwordMatch) {
+    logEvent({
+      eventType: "login.failure",
+      actorEmail: normalizedLoginEmail,
+      actorMemberId: row.member_id,
+      ip: req.ip,
+      detail: { reason: "wrong_password" },
+    });
     return res.status(401).json({ error: "Invalid credentials" });
+  }
 
   const rolesResult = await pool
     .request()
@@ -66,11 +99,18 @@ router.post("/login", async (req, res) => {
   const roles = rolesResult.recordset.map((r: { name: string }) => r.name);
   const token = signToken({ memberId: row.member_id, roles });
   setAuthCookie(res, token);
+  logEvent({
+    eventType: "login.success",
+    actorMemberId: row.member_id,
+    actorEmail: normalizedLoginEmail,
+    ip: req.ip,
+  });
   return res.json({
     id: row.member_id,
     name: row.name,
     initials: row.initials,
     roles,
+    is_superuser: normalizedLoginEmail === SUPERUSER_EMAIL,
   });
 });
 
@@ -133,11 +173,18 @@ router.post("/register", async (req, res) => {
     const roles = await getMemberRoles(newMemberId);
     const token = signToken({ memberId: newMemberId, roles });
     setAuthCookie(res, token);
+    logEvent({
+      eventType: "auth.register",
+      actorMemberId: newMemberId,
+      actorEmail: normalizedEmail,
+      ip: req.ip,
+    });
     return res.status(201).json({
       id: newMemberId,
       name: trimmedName,
       initials,
       roles,
+      is_superuser: normalizedEmail === SUPERUSER_EMAIL,
     });
   } catch (err) {
     await transaction.rollback();
@@ -149,6 +196,30 @@ router.post("/register", async (req, res) => {
 router.post("/logout", (_req, res) => {
   clearAuthCookie(res);
   return res.json({ ok: true });
+});
+
+// GET /api/auth/me — return current user with fresh is_superuser flag
+router.get("/me", requireAuth, async (_req, res) => {
+  const memberId: number = res.locals.jwt.memberId;
+  const roles: string[] = res.locals.jwt.roles;
+  const pool = await getPool();
+  const result = await pool
+    .request()
+    .input("memberId", sql.Int, memberId)
+    .query(
+      "SELECT m.name, m.initials, m.email FROM dbo.members m WHERE m.id = @memberId",
+    );
+  if (result.recordset.length === 0)
+    return res.status(404).json({ error: "Not found" });
+  const row = result.recordset[0];
+  const email: string = (row.email ?? "").toLowerCase();
+  return res.json({
+    id: memberId,
+    name: row.name as string,
+    initials: row.initials as string,
+    roles,
+    is_superuser: !!SUPERUSER_EMAIL && email === SUPERUSER_EMAIL,
+  });
 });
 
 // PATCH /api/auth/me — update own display name
@@ -349,6 +420,12 @@ router.post("/forgot-password", async (req, res) => {
       "Adgangskode nulstilling — Pap i Paraplyen",
       oauthAccountEmailHtml(providerName),
     ).catch(console.error);
+    logEvent({
+      eventType: "email.sent",
+      targetMemberId: row.id,
+      targetEmail: normalizedEmail,
+      detail: { type: "oauth_account_notice", provider: providerName },
+    });
     return;
   }
 
@@ -370,6 +447,11 @@ router.post("/forgot-password", async (req, res) => {
     "Nulstil din adgangskode — Pap i Paraplyen",
     resetPasswordEmailHtml(resetUrl),
   ).catch(console.error);
+  logEvent({
+    eventType: "email.password_reset",
+    targetMemberId: row.id,
+    targetEmail: normalizedEmail,
+  });
 });
 
 // POST /api/auth/reset-password
@@ -554,6 +636,7 @@ router.delete("/me", requireAuth, async (_req, res) => {
     throw err;
   }
 
+  logEvent({ eventType: "auth.erasure", actorMemberId: memberId });
   clearAuthCookie(res);
   return res.json({ ok: true, message: "Account and personal data erased" });
 });

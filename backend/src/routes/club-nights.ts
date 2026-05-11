@@ -11,6 +11,7 @@ import {
   sendShiftUnassignedEmail,
   sendShiftDeletedEmail,
 } from "../scheduleEmails";
+import { logEvent } from "../audit";
 
 const router = Router();
 
@@ -174,6 +175,12 @@ router.post("/", requireAuth, async (req, res) => {
     location: night.location,
   });
 
+  logEvent({
+    eventType: "shift.create",
+    actorMemberId: callerId(res),
+    detail: { nightId: newId, name: night.name, date: night.date },
+  });
+
   return res.status(201).json(night);
 });
 
@@ -262,6 +269,24 @@ router.patch("/:id", requireAuth, async (req, res) => {
     }).catch((err) =>
       console.error("[scheduleEmails] shift-assigned send failed:", err),
     );
+    logEvent({
+      eventType: "shift.assign",
+      actorMemberId: callerId(res),
+      targetMemberId: newVagt,
+      detail: {
+        nightId,
+        name: updatedNight.name,
+        date: updatedNight.date,
+        previousVagt,
+      },
+    });
+  } else if (newVagt === null && previousVagt !== null) {
+    logEvent({
+      eventType: "shift.unassign",
+      actorMemberId: callerId(res),
+      targetMemberId: previousVagt as number,
+      detail: { nightId, name: updatedNight.name, date: updatedNight.date },
+    });
   }
 
   return res.json(updatedNight);
@@ -295,7 +320,13 @@ router.post("/:id/confirm", requireAuth, async (req, res) => {
       "UPDATE dbo.club_nights SET vagt_confirmed=1, updated_at=@updatedAt WHERE id=@id",
     );
 
-  return res.json(await fetchNightWithOptOuts(pool, nightId));
+  const confirmedNight = await fetchNightWithOptOuts(pool, nightId);
+  logEvent({
+    eventType: "shift.confirm",
+    actorMemberId: caller,
+    detail: { nightId, name: confirmedNight.name, date: confirmedNight.date },
+  });
+  return res.json(confirmedNight);
 });
 
 // POST /api/club-nights/:id/opt-out
@@ -330,6 +361,12 @@ router.post("/:id/opt-out", requireAuth, async (req, res) => {
       "INSERT INTO dbo.club_night_opt_outs (club_night_id, member_id) VALUES (@nightId, @memberId)",
     );
 
+  logEvent({
+    eventType: "shift.optout",
+    actorMemberId: memberId,
+    detail: { nightId },
+  });
+
   // If the opting-out member is the assigned vagt, clear the assignment
   if (nightCheck.recordset[0].vagt_member_id === memberId) {
     await pool
@@ -358,6 +395,11 @@ router.delete("/:id/opt-out", requireAuth, async (req, res) => {
       "DELETE FROM dbo.club_night_opt_outs WHERE club_night_id=@nightId AND member_id=@memberId",
     );
 
+  logEvent({
+    eventType: "shift.optout_remove",
+    actorMemberId: memberId,
+    detail: { nightId: Number(req.params.id) },
+  });
   return res.status(200).json({ ok: true });
 });
 
@@ -443,7 +485,29 @@ router.put("/:id", requireAuth, async (req, res) => {
       WHERE id = @id
     `);
 
-  return res.json(await fetchNightWithOptOuts(pool, nightId));
+  const editedNight = await fetchNightWithOptOuts(pool, nightId);
+  logEvent({
+    eventType: "shift.edit",
+    actorMemberId: callerId(res),
+    detail: {
+      nightId,
+      changes: {
+        ...(name !== undefined && name !== current.name
+          ? { name: { from: current.name, to: name } }
+          : {}),
+        ...(time_from !== undefined && time_from !== current.time_from
+          ? { time_from: { from: current.time_from, to: time_from } }
+          : {}),
+        ...(time_to !== undefined && time_to !== current.time_to
+          ? { time_to: { from: current.time_to, to: time_to } }
+          : {}),
+        ...(location !== undefined && location !== current.location
+          ? { location: { from: current.location, to: location } }
+          : {}),
+      },
+    },
+  });
+  return res.json(editedNight);
 });
 
 // DELETE /api/club-nights/:id — admin only
@@ -495,6 +559,12 @@ router.delete("/:id", requireAuth, async (req, res) => {
     );
   }
 
+  logEvent({
+    eventType: "shift.delete",
+    actorMemberId: callerId(res),
+    targetMemberId: assignedVagtId,
+    detail: { nightId, name: night.name, date: night.date },
+  });
   return res.status(200).json({ ok: true });
 });
 

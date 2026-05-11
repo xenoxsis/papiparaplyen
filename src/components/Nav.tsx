@@ -11,6 +11,7 @@ import {
   LogIn,
   LogOut,
   Menu,
+  ScrollText,
   Settings,
   Shield,
   ShieldCheck,
@@ -174,6 +175,16 @@ export default function Nav() {
                         <Settings className="size-4 text-neutral-500" />
                         Brugeradmin
                       </Link>
+                      {user.is_superuser && (
+                        <Link
+                          href="/member/admin/logs"
+                          onClick={() => setOpen(false)}
+                          className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-neutral-700 hover:bg-neutral-100 transition-colors"
+                        >
+                          <ScrollText className="size-4 text-neutral-500" />
+                          Logbog
+                        </Link>
+                      )}
                     </>
                   )}
                   {!user.roles.includes("Administrator") &&
@@ -296,6 +307,16 @@ export default function Nav() {
                 >
                   <Settings className="size-4 text-neutral-500" />
                   Brugeradmin
+                </Link>
+              )}
+              {user.is_superuser && (
+                <Link
+                  href="/member/admin/logs"
+                  onClick={() => setMenuOpen(false)}
+                  className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm text-neutral-700 hover:bg-neutral-100 transition-colors"
+                >
+                  <ScrollText className="size-4 text-neutral-500" />
+                  Logbog
                 </Link>
               )}
               <button

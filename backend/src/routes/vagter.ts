@@ -1,6 +1,7 @@
 import { Router, Request, Response, NextFunction } from "express";
 import { getPool, sql } from "../db";
-import { requireAuth, isAdmin } from "../auth";
+import { requireAuth, isAdmin, callerId } from "../auth";
+import { logEvent } from "../audit";
 
 const router = Router();
 
@@ -99,6 +100,16 @@ router.put(
       }
     }
 
+    const changedKeys = allowed.filter((k) => k in updates);
+    logEvent({
+      eventType: "vagter.settings",
+      actorMemberId: callerId(res),
+      detail: {
+        changed: changedKeys,
+        values: Object.fromEntries(changedKeys.map((k) => [k, updates[k]])),
+      },
+    });
+
     res.json({ ok: true });
   }),
 );
@@ -138,12 +149,19 @@ router.post(
          VALUES (@text, @sort_order, @is_header)`,
       );
 
-    res
-      .status(201)
-      .json({
-        ...result.recordset[0],
-        is_header: !!result.recordset[0].is_header,
-      });
+    res.status(201).json({
+      ...result.recordset[0],
+      is_header: !!result.recordset[0].is_header,
+    });
+    logEvent({
+      eventType: "vagter.checklist_create",
+      actorMemberId: callerId(res),
+      detail: {
+        id: result.recordset[0].id,
+        text: text.trim(),
+        is_header: !!is_header,
+      },
+    });
   }),
 );
 
@@ -210,6 +228,11 @@ router.patch(
       ...result.recordset[0],
       is_header: !!result.recordset[0].is_header,
     });
+    logEvent({
+      eventType: "vagter.checklist_edit",
+      actorMemberId: callerId(res),
+      detail: { id, changes: { text, sort_order, is_header } },
+    });
   }),
 );
 
@@ -233,6 +256,11 @@ router.delete(
       .input("id", sql.Int, id)
       .query(`DELETE FROM dbo.vagt_checklist WHERE id = @id`);
 
+    logEvent({
+      eventType: "vagter.checklist_delete",
+      actorMemberId: callerId(res),
+      detail: { id },
+    });
     res.json({ ok: true });
   }),
 );

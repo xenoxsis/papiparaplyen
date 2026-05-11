@@ -8,13 +8,14 @@ import {
   ReactNode,
 } from "react";
 import { useRouter } from "next/navigation";
-import { postLogin, postLogout } from "@/lib/api";
+import { getMe, postLogin, postLogout } from "@/lib/api";
 
 export type User = {
   id: number;
   name: string;
   initials: string;
   roles: string[];
+  is_superuser?: boolean;
 };
 
 type AuthContextType = {
@@ -37,16 +38,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
 
   // Reading from localStorage after mount is a valid external-store sync.
+  // Then immediately refresh from the API to pick up any new fields (e.g. is_superuser).
   useEffect(() => {
+    let cancelled = false;
     try {
       const stored = localStorage.getItem("auth_user");
       const parsed = stored ? (JSON.parse(stored) as User) : null;
-      setUser(parsed);
+      if (!cancelled) setUser(parsed);
     } catch {
       // ignore
-    } finally {
-      setIsLoading(false);
     }
+
+    getMe()
+      .then((fresh) => {
+        if (!cancelled) {
+          setUser(fresh);
+          localStorage.setItem("auth_user", JSON.stringify(fresh));
+        }
+      })
+      .catch(() => {
+        // No valid session — leave whatever was in localStorage (will 401 on next API call)
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Treat any 401 from the API as a session expiry — clear state and redirect

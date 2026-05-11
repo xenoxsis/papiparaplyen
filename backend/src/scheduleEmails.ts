@@ -28,6 +28,7 @@ import {
   NightSummary,
 } from "./email";
 import { isRecentlyActive } from "./presence";
+import { logEvent } from "./audit";
 
 const DEBOUNCE_MS = Number(
   process.env.SCHEDULE_EMAIL_DEBOUNCE_MS ?? 30 * 60 * 1000,
@@ -94,6 +95,15 @@ async function sendNewNightsDigest(nights: NightSummary[]): Promise<void> {
       sendEmail(r.email, subject, newNightsDigestEmailHtml(nights, r.name)),
     ),
   );
+
+  logEvent({
+    eventType: "email.sent",
+    detail: {
+      type: "nights_digest",
+      nightCount: nights.length,
+      recipientCount: recipients.length,
+    },
+  });
 }
 
 // ── Shift assignment email ────────────────────────────────────────────────────
@@ -136,6 +146,16 @@ export async function sendShiftAssignedEmail(
     subject,
     shiftAssignedEmailHtml(member.name, night),
   );
+  logEvent({
+    eventType: "email.sent",
+    targetMemberId: memberId,
+    targetEmail: member.email,
+    detail: {
+      type: "shift_assigned",
+      nightName: night.name,
+      nightDate: night.date,
+    },
+  });
 }
 
 // ── Shift deleted email ───────────────────────────────────────────────────
@@ -172,6 +192,16 @@ export async function sendShiftDeletedEmail(
     subject,
     shiftDeletedEmailHtml(member.name, night),
   );
+  logEvent({
+    eventType: "email.sent",
+    targetMemberId: memberId,
+    targetEmail: member.email,
+    detail: {
+      type: "shift_deleted",
+      nightName: night.name,
+      nightDate: night.date,
+    },
+  });
 }
 
 // ── Shift unassignment email ─────────────────────────────────────────────────
@@ -214,6 +244,16 @@ export async function sendShiftUnassignedEmail(
     subject,
     shiftUnassignedEmailHtml(member.name, night),
   );
+  logEvent({
+    eventType: "email.sent",
+    targetMemberId: memberId,
+    targetEmail: member.email,
+    detail: {
+      type: "shift_unassigned",
+      nightName: night.name,
+      nightDate: night.date,
+    },
+  });
 }
 
 // ── Mention email ─────────────────────────────────────────────────────────
@@ -262,6 +302,12 @@ export async function sendMentionEmail(
     subject,
     mentionEmailHtml(member.name, senderName, channelName, messageBody),
   );
+  logEvent({
+    eventType: "email.sent",
+    targetMemberId: memberId,
+    targetEmail: member.email,
+    detail: { type: "mention", senderName, channelName },
+  });
 }
 
 // ── GDPR data-retention cleanup jobs ─────────────────────────────────────────
@@ -292,6 +338,17 @@ async function runRetentionCleanup(): Promise<void> {
     if (notifResult.rowsAffected[0] > 0) {
       console.log(
         `[retention] Purged ${notifResult.rowsAffected[0]} old notifications`,
+      );
+    }
+
+    // Purge audit log entries older than 90 days
+    const auditResult = await pool.request().query(`
+      DELETE FROM dbo.audit_log
+      WHERE created_at < DATEADD(day, -90, GETUTCDATE())
+    `);
+    if (auditResult.rowsAffected[0] > 0) {
+      console.log(
+        `[retention] Purged ${auditResult.rowsAffected[0]} old audit_log entries`,
       );
     }
   } catch (err) {
