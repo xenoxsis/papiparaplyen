@@ -67,6 +67,7 @@ export default function SchedulePage() {
   const [search, setSearch] = useState("");
   const [filterMissingVagt, setFilterMissingVagt] = useState(false);
   const [filterUnreviewed, setFilterUnreviewed] = useState(false);
+  const [filterMyShifts, setFilterMyShifts] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingNight, setEditingNight] = useState<ApiClubNight | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
@@ -84,16 +85,41 @@ export default function SchedulePage() {
 
   const filteredNights = useMemo(() => {
     const now = new Date();
+    const q = search.trim().toLowerCase();
     return nights
       .filter((n) => new Date(`${n.date}T${n.time_to}`) > now)
-      .filter((n) => n.name.toLowerCase().includes(search.toLowerCase()))
+      .filter((n) => {
+        if (!q) return true;
+        const dateFormatted = new Date(n.date).toLocaleDateString("da-DK", {
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+        });
+        return (
+          n.name.toLowerCase().includes(q) ||
+          n.date.includes(q) ||
+          dateFormatted.toLowerCase().includes(q) ||
+          (n.assigned_member_name ?? "").toLowerCase().includes(q) ||
+          (n.assigned_member_initials ?? "").toLowerCase().includes(q)
+        );
+      })
       .filter((n) => !filterMissingVagt || draft.effectiveVagt(n) === null)
       .filter(
         (n) =>
           !filterUnreviewed || !myReview || n.created_at > myReview.reviewed_at,
       )
+      .filter((n) => !filterMyShifts || n.vagt_member_id === user?.id)
       .sort((a, b) => a.date.localeCompare(b.date));
-  }, [nights, search, filterMissingVagt, filterUnreviewed, myReview, draft]);
+  }, [
+    nights,
+    search,
+    filterMissingVagt,
+    filterUnreviewed,
+    filterMyShifts,
+    myReview,
+    draft,
+    user,
+  ]);
 
   // ── Handlers ─────────────────────────────────────────────────────────────
   async function toggleOptOut(nightId: number, currentlyOptedOut: boolean) {
@@ -413,7 +439,7 @@ export default function SchedulePage() {
               />
               <Input
                 aria-label="Søg efter klubaften"
-                placeholder="Søg efter klubaften…"
+                placeholder="Søg på navn, dato eller vagt…"
                 className="pl-9 h-9"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -426,6 +452,7 @@ export default function SchedulePage() {
                 onClick={() => {
                   setFilterUnreviewed((v) => !v);
                   setFilterMissingVagt(false);
+                  setFilterMyShifts(false);
                 }}
                 className={`flex items-center gap-1.5 text-xs font-medium rounded-full px-3 py-1 border cursor-pointer transition-colors ${
                   filterUnreviewed
@@ -435,11 +462,28 @@ export default function SchedulePage() {
               >
                 Ikke gennemgået
               </button>
+              {!isTilskuer && (
+                <button
+                  onClick={() => {
+                    setFilterMyShifts((v) => !v);
+                    setFilterMissingVagt(false);
+                    setFilterUnreviewed(false);
+                  }}
+                  className={`flex items-center gap-1.5 text-xs font-medium rounded-full px-3 py-1 border cursor-pointer transition-colors ${
+                    filterMyShifts
+                      ? "bg-brand-teal border-brand-teal text-white"
+                      : "bg-white border-neutral-200 text-neutral-600 hover:border-neutral-400"
+                  }`}
+                >
+                  Mine vagter
+                </button>
+              )}
               {isAdmin && (
                 <button
                   onClick={() => {
                     setFilterMissingVagt((v) => !v);
                     setFilterUnreviewed(false);
+                    setFilterMyShifts(false);
                   }}
                   className={`flex items-center gap-1.5 text-xs font-medium rounded-full px-3 py-1 border cursor-pointer transition-colors ${
                     filterMissingVagt

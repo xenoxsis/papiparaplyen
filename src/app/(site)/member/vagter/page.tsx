@@ -8,7 +8,6 @@ import {
   ChevronUp,
   Clock,
   Eye,
-  EyeOff,
   KeyRound,
   Lock,
   MapPin,
@@ -163,20 +162,6 @@ function AccessCodesCard({
   onSave: (patch: Partial<ApiVagterSettings>) => Promise<void>;
   loading?: boolean;
 }) {
-  if (loading) {
-    return (
-      <div className="bg-white rounded-xl border border-neutral-200 p-5 shadow-sm flex flex-col gap-4">
-        <div className="flex items-center gap-2">
-          <Skeleton className="w-5 h-5 rounded" />
-          <Skeleton className="h-5 w-24 rounded" />
-        </div>
-        <div className="flex flex-col gap-3">
-          <Skeleton className="h-14 w-full rounded-lg" />
-          <Skeleton className="h-14 w-full rounded-lg" />
-        </div>
-      </div>
-    );
-  }
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState({
     door_code: settings.door_code,
@@ -191,6 +176,21 @@ function AccessCodesCard({
       locker_code: settings.locker_code,
     });
   }, [settings.door_code, settings.locker_code]);
+
+  if (loading) {
+    return (
+      <div className="bg-white rounded-xl border border-neutral-200 p-5 shadow-sm flex flex-col gap-4">
+        <div className="flex items-center gap-2">
+          <Skeleton className="w-5 h-5 rounded" />
+          <Skeleton className="h-5 w-24 rounded" />
+        </div>
+        <div className="flex flex-col gap-3">
+          <Skeleton className="h-14 w-full rounded-lg" />
+          <Skeleton className="h-14 w-full rounded-lg" />
+        </div>
+      </div>
+    );
+  }
 
   async function handleSave() {
     setSaving(true);
@@ -309,13 +309,34 @@ function CodeRow({
   icon: React.ReactNode;
 }) {
   const [show, setShow] = useState(false);
+  const [countdown, setCountdown] = useState(0);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   function startReveal() {
-    if (code.length > 0) setShow(true);
+    if (!code.length) return;
+    // Reset any existing timer
+    if (timerRef.current) clearInterval(timerRef.current);
+    setShow(true);
+    setCountdown(3);
+    timerRef.current = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(timerRef.current!);
+          timerRef.current = null;
+          setShow(false);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
   }
-  function stopReveal() {
-    setShow(false);
-  }
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, []);
 
   return (
     <div className="flex items-center justify-between gap-3 rounded-lg bg-neutral-50 border border-neutral-100 px-4 py-3">
@@ -338,23 +359,16 @@ function CodeRow({
       </div>
       {code.length > 0 && (
         <button
-          onMouseDown={startReveal}
-          onMouseUp={stopReveal}
-          onMouseLeave={stopReveal}
-          onTouchStart={(e) => {
-            e.preventDefault();
-            startReveal();
-          }}
-          onTouchEnd={stopReveal}
-          onTouchCancel={stopReveal}
-          onContextMenu={(e) => {
-            e.preventDefault();
-            stopReveal();
-          }}
-          className="text-neutral-400 hover:text-neutral-700 transition-colors shrink-0 select-none touch-none"
-          aria-label={show ? "Skjul kode" : "Hold nede for at se kode"}
+          onClick={startReveal}
+          className="flex items-center gap-1.5 text-neutral-400 hover:text-neutral-700 transition-colors shrink-0 cursor-pointer"
+          aria-label="Vis kode"
         >
-          {show ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+          {show && (
+            <span className="text-xs font-semibold tabular-nums text-brand-teal w-3 text-right">
+              {countdown}
+            </span>
+          )}
+          <Eye className="size-4" />
         </button>
       )}
     </div>
@@ -878,6 +892,14 @@ function ShiftNoteCard({
   onSave: (value: string) => Promise<void>;
   loading?: boolean;
 }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(note);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setDraft(note);
+  }, [note]);
+
   if (loading) {
     return (
       <div className="bg-white rounded-xl border border-neutral-200 p-5 shadow-sm flex flex-col gap-4">
@@ -893,13 +915,6 @@ function ShiftNoteCard({
       </div>
     );
   }
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(note);
-  const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    setDraft(note);
-  }, [note]);
 
   async function handleSave() {
     setSaving(true);
