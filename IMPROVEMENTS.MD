@@ -298,6 +298,6 @@ Allow Vagter to export their assigned shifts as an `.ics` file for integration w
 
 - ✅ DONE — `dbo.messages`: `IX_messages_channel_sent` on `(channel_id, sent_at)` added in `database/migrations/004_add_indexes.sql`.
 - ✅ DONE — `dbo.notifications`: `IX_notifications_member` on `(member_id, created_at DESC)` added in `database/migrations/004_add_indexes.sql`.
-- `dbo.club_nights.time_from` and `time_to` are stored as `NVARCHAR(5)` instead of `TIME`. This works but prevents time-based SQL queries.
-- `dbo.password_reset_tokens` has no index on `expires_at` for cleanup queries.
-- `dbo.users.email` is `UNIQUE` but `dbo.members.email` is also `UNIQUE` — the same email constraint exists in two tables. Since login looks up via `members.email`, the `users.email` column is effectively redundant (they're set to the same value on insert).
+- ✅ DONE — `dbo.password_reset_tokens`: `IX_password_reset_tokens_expires_at` on `(expires_at) INCLUDE (used, member_id)` added in `database/migrations/010_password_reset_token_index.sql`.
+- ⚠️ DEFERRED — `dbo.club_nights.time_from` and `time_to` are stored as `NVARCHAR(5)` instead of `TIME`. Confirmed via `sys.dm_exec_describe_first_result_set`. Changing to `TIME` would cause `mssql` to return `HH:MM:SS.0000000` typed values instead of the `"HH:MM"` strings the frontend renders directly — every display, insert, and comparison in the codebase would need updating. No functional benefit justifies the risk at this stage.
+- ⚠️ DEFERRED — `dbo.users.email` (`NOT NULL`) is redundant with `dbo.members.email`. Confirmed both columns still exist. Removing `users.email` requires coordinated changes to every `INSERT` in `auth.ts` and `oauth.ts`, the login query, and OAuth lookup queries, all in one atomic migration + deploy. Safe to remove in a future dedicated refactor.
