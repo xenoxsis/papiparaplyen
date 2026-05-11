@@ -155,22 +155,15 @@ export default async function Home() {
               </Link>
             </Button>
           </div>
-          <div className="-mx-4 sm:mx-0">
-            <div className="flex sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 overflow-x-auto sm:overflow-visible px-4 sm:px-0 pb-2 sm:pb-0 snap-x snap-mandatory">
-              {nights.map((night, i) => (
-                <div
-                  key={night.id}
-                  className="shrink-0 w-[80vw] sm:w-auto snap-start"
-                >
-                  <NightCard night={night} index={i} />
-                </div>
-              ))}
-              {nights.length === 0 && (
-                <p className="col-span-3 text-center text-neutral-400 py-8">
-                  Ingen kommende klubaftener planlagt endnu
-                </p>
-              )}
-            </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {nights.map((night, i) => (
+              <NightCard key={night.id} night={night} index={i} />
+            ))}
+            {nights.length === 0 && (
+              <p className="col-span-3 text-center text-neutral-400 py-8">
+                Ingen kommende klubaftener planlagt endnu
+              </p>
+            )}
           </div>
         </div>
       </section>
