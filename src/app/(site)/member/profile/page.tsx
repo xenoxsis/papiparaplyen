@@ -333,7 +333,9 @@ export default function ProfilePage() {
   const isVagt = user?.roles.includes("Vagt") ?? false;
   const hasUnreviewedNights =
     isVagt &&
-    nights.some((n) => !myReview || n.created_at > myReview.reviewed_at);
+    nights.some(
+      (n) => !myReview || n.created_at > (myReview.reviewed_at ?? ""),
+    );
   const pendingShiftsForMe = user
     ? nights.filter(
         (n) =>

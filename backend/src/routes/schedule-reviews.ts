@@ -56,20 +56,42 @@ router.get("/me", requireAuth, async (req, res) => {
   return res.json(result.recordset[0] ?? null);
 });
 
-// GET /api/schedule-reviews — admin only; enriched list of all reviews
+// GET /api/schedule-reviews — admin only; enriched list of all reviews + virtual members
 router.get("/", requireAuth, async (req, res) => {
   if (!isAdmin(res)) return res.status(403).json({ error: "Forbidden" });
 
   const pool = await getPool();
-  const result = await pool.request().query(`
+
+  // Real reviews
+  const reviewsResult = await pool.request().query(`
     SELECT r.id, r.member_id, r.reviewed_at,
-           m.name AS member_name, m.initials AS member_initials
+           m.name AS member_name, m.initials AS member_initials,
+           0 AS is_virtual
     FROM dbo.club_schedule_reviews r
     JOIN dbo.members m ON m.id = r.member_id
-    ORDER BY r.reviewed_at DESC
   `);
 
-  return res.json(result.recordset);
+  // Virtual members (they have no review rows — show as auto-approved)
+  const virtualResult = await pool.request().query(`
+    SELECT NULL AS id, m.id AS member_id, NULL AS reviewed_at,
+           m.name AS member_name, m.initials AS member_initials,
+           1 AS is_virtual
+    FROM dbo.members m
+    WHERE m.is_virtual = 1
+  `);
+
+  const combined = [
+    ...reviewsResult.recordset,
+    ...virtualResult.recordset,
+  ].sort((a, b) => {
+    // Virtual members last, then most-recently-reviewed first
+    if (a.is_virtual !== b.is_virtual) return a.is_virtual ? 1 : -1;
+    if (!a.reviewed_at) return 1;
+    if (!b.reviewed_at) return -1;
+    return String(b.reviewed_at).localeCompare(String(a.reviewed_at));
+  });
+
+  return res.json(combined);
 });
 
 export default router;

@@ -216,19 +216,77 @@ router.patch("/:id", requireAuth, async (req, res) => {
       return res.status(409).json({ error: "Vagt har meldt fra denne aften" });
     }
     const currentVagt = nightCheck.recordset[0].vagt_member_id;
-    const resetConfirm = currentVagt !== req.body.vagt_member_id ? 1 : 0;
+    const isChanging = currentVagt !== req.body.vagt_member_id;
+
+    // Check if the newly assigned member is virtual (auto-confirm)
+    const virtualCheck = await pool
+      .request()
+      .input("memberId", sql.Int, req.body.vagt_member_id)
+      .query("SELECT is_virtual FROM dbo.members WHERE id = @memberId");
+    const assigneeIsVirtual =
+      virtualCheck.recordset[0]?.is_virtual === true ||
+      virtualCheck.recordset[0]?.is_virtual === 1;
+
     await pool
       .request()
       .input("vagtMemberId", sql.Int, req.body.vagt_member_id)
-      .input("resetConfirm", sql.Bit, resetConfirm)
+      // Virtual members always get vagt_confirmed=1; changing to a real member → reset to 0
+      .input(
+        "newConfirmed",
+        sql.Bit,
+        assigneeIsVirtual ? 1 : isChanging ? 0 : -1,
+      )
       .input("updatedAt", sql.DateTime2, new Date().toISOString())
       .input("id", sql.Int, nightId).query(`
         UPDATE dbo.club_nights
         SET vagt_member_id = @vagtMemberId,
-            vagt_confirmed = CASE WHEN @resetConfirm = 1 THEN 0 ELSE vagt_confirmed END,
+            vagt_confirmed = CASE
+              WHEN @newConfirmed = -1 THEN vagt_confirmed
+              ELSE @newConfirmed
+            END,
             updated_at = @updatedAt
         WHERE id = @id
       `);
+
+    // Skip assignment notifications/emails for virtual members
+    // But still notify any real previous vagt who is being unassigned
+    if (assigneeIsVirtual && isChanging) {
+      const updatedNight = await fetchNightWithOptOuts(pool, nightId);
+      const previousVagtId = nightCheck.recordset[0].vagt_member_id as
+        | number
+        | null;
+      if (previousVagtId !== null) {
+        // Check if previous vagt was also virtual
+        const prevVirtualCheck = await pool
+          .request()
+          .input("memberId", sql.Int, previousVagtId)
+          .query("SELECT is_virtual FROM dbo.members WHERE id = @memberId");
+        const prevIsVirtual =
+          prevVirtualCheck.recordset[0]?.is_virtual === true ||
+          prevVirtualCheck.recordset[0]?.is_virtual === 1;
+        if (!prevIsVirtual) {
+          await createNotification(
+            previousVagtId,
+            "shift_unassigned",
+            `Du er blevet fjernet fra vagten: ${updatedNight.name}`,
+            "/member/schedule",
+          );
+          sendShiftUnassignedEmail(previousVagtId, {
+            name: updatedNight.name,
+            date: updatedNight.date,
+            time_from: updatedNight.time_from,
+            time_to: updatedNight.time_to,
+            location: updatedNight.location,
+          }).catch((err) =>
+            console.error(
+              "[scheduleEmails] shift-unassigned send failed:",
+              err,
+            ),
+          );
+        }
+      }
+      return res.json(updatedNight);
+    }
   } else if ("vagt_member_id" in req.body) {
     await pool
       .request()
@@ -281,27 +339,37 @@ router.patch("/:id", requireAuth, async (req, res) => {
       },
     });
   } else if (newVagt === null && previousVagt !== null) {
-    await createNotification(
-      previousVagt as number,
-      "shift_unassigned",
-      `Du er blevet fjernet fra vagten: ${updatedNight.name}`,
-      "/member/schedule",
-    );
-    sendShiftUnassignedEmail(previousVagt as number, {
-      name: updatedNight.name,
-      date: updatedNight.date,
-      time_from: updatedNight.time_from,
-      time_to: updatedNight.time_to,
-      location: updatedNight.location,
-    }).catch((err) =>
-      console.error("[scheduleEmails] shift-unassigned send failed:", err),
-    );
-    logEvent({
-      eventType: "shift.unassign",
-      actorMemberId: callerId(res),
-      targetMemberId: previousVagt as number,
-      detail: { nightId, name: updatedNight.name, date: updatedNight.date },
-    });
+    // Only notify real (non-virtual) vagtere when unassigning
+    const prevVirtualCheck2 = await pool
+      .request()
+      .input("memberId", sql.Int, previousVagt as number)
+      .query("SELECT is_virtual FROM dbo.members WHERE id = @memberId");
+    const prevWasVirtual =
+      prevVirtualCheck2.recordset[0]?.is_virtual === true ||
+      prevVirtualCheck2.recordset[0]?.is_virtual === 1;
+    if (!prevWasVirtual) {
+      await createNotification(
+        previousVagt as number,
+        "shift_unassigned",
+        `Du er blevet fjernet fra vagten: ${updatedNight.name}`,
+        "/member/schedule",
+      );
+      sendShiftUnassignedEmail(previousVagt as number, {
+        name: updatedNight.name,
+        date: updatedNight.date,
+        time_from: updatedNight.time_from,
+        time_to: updatedNight.time_to,
+        location: updatedNight.location,
+      }).catch((err) =>
+        console.error("[scheduleEmails] shift-unassigned send failed:", err),
+      );
+      logEvent({
+        eventType: "shift.unassign",
+        actorMemberId: callerId(res),
+        targetMemberId: previousVagt as number,
+        detail: { nightId, name: updatedNight.name, date: updatedNight.date },
+      });
+    }
   }
 
   return res.json(updatedNight);

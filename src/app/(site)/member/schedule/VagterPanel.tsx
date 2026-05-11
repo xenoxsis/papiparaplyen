@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { GripVertical, Search, Users, Wand2 } from "lucide-react";
+import { GripVertical, Search, Users, Wand2, Ghost } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -70,14 +70,22 @@ export function VagterPanel({
               }`}
             >
               <GripVertical className="hidden sm:block size-4 text-neutral-300 shrink-0" />
-              <div className="w-9 h-9 rounded-full bg-brand-red text-white flex items-center justify-center text-[0.65rem] font-bold select-none shrink-0">
-                {m.initials}
+              <div
+                className={`w-9 h-9 rounded-full text-white flex items-center justify-center text-[0.65rem] font-bold select-none shrink-0 ${m.is_virtual ? "bg-brand-teal/40 border-2 border-dashed border-brand-teal" : "bg-brand-red"}`}
+              >
+                {m.is_virtual ? (
+                  <Ghost className="size-4 text-brand-teal" />
+                ) : (
+                  m.initials
+                )}
               </div>
               <div className="flex flex-col min-w-0">
                 <span className="truncate text-sm font-medium leading-5">
                   {m.name}
                 </span>
-                <span className="text-[10px] text-neutral-400">Vagt</span>
+                <span className="text-[10px] text-neutral-400">
+                  {m.is_virtual ? "Virtuel vagt" : "Vagt"}
+                </span>
               </div>
             </div>
           ))}

@@ -12,7 +12,14 @@ export default function AboutPage() {
   useEffect(() => {
     getMembers()
       .then((all) =>
-        setVagter(all.filter((m) => !m.banned && m.roles.includes("Vagt"))),
+        setVagter(
+          all.filter(
+            (m) =>
+              !m.banned &&
+              m.roles.includes("Vagt") &&
+              m.show_on_about_page !== false,
+          ),
+        ),
       )
       .catch(console.error);
   }, []);

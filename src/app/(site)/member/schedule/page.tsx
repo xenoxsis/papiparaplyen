@@ -106,7 +106,9 @@ export default function SchedulePage() {
       .filter((n) => !filterMissingVagt || draft.effectiveVagt(n) === null)
       .filter(
         (n) =>
-          !filterUnreviewed || !myReview || n.created_at > myReview.reviewed_at,
+          !filterUnreviewed ||
+          !myReview ||
+          n.created_at > (myReview.reviewed_at ?? ""),
       )
       .filter((n) => !filterMyShifts || n.vagt_member_id === user?.id)
       .sort((a, b) => a.date.localeCompare(b.date));
@@ -624,16 +626,37 @@ export default function SchedulePage() {
                   </p>
                 )}
                 {vagter.map((m) => {
+                  if (m.is_virtual) {
+                    return (
+                      <div
+                        key={m.id}
+                        className="flex items-center gap-2 rounded-md px-2 py-2 border border-brand-teal/20 bg-brand-teal/5"
+                      >
+                        <div className="w-7 h-7 rounded-full bg-brand-teal/30 border-2 border-dashed border-brand-teal text-brand-teal flex items-center justify-center text-[0.55rem] font-bold select-none shrink-0">
+                          {m.initials}
+                        </div>
+                        <span className="text-xs font-medium text-neutral-800 flex-1 truncate">
+                          {m.name}
+                        </span>
+                        <span className="flex items-center gap-1 text-[10px] text-brand-teal font-medium whitespace-nowrap">
+                          <Check className="size-3" />
+                          Auto-godkendt
+                        </span>
+                      </div>
+                    );
+                  }
                   const review = reviews.find((r) => r.member_id === m.id);
                   const hasUnreviewed = nights.some(
-                    (n) => !review || n.created_at > review.reviewed_at,
+                    (n) => !review || n.created_at > (review.reviewed_at ?? ""),
                   );
                   return (
                     <div
                       key={m.id}
                       className="flex items-center gap-2 rounded-md px-2 py-2 border border-neutral-100 bg-white"
                     >
-                      <div className="w-7 h-7 rounded-full bg-brand-red text-white flex items-center justify-center text-[0.55rem] font-bold select-none shrink-0">
+                      <div
+                        className={`w-7 h-7 rounded-full text-white flex items-center justify-center text-[0.55rem] font-bold select-none shrink-0 ${m.is_virtual ? "bg-brand-teal/40 border border-dashed border-brand-teal" : "bg-brand-red"}`}
+                      >
                         {m.initials}
                       </div>
                       <span className="text-xs font-medium text-neutral-800 flex-1 truncate">

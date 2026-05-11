@@ -64,7 +64,9 @@ export function useScheduleData(isAdmin: boolean) {
     : undefined;
   const hasUnreviewedNights =
     !!user &&
-    nights.some((n) => !myReview || n.created_at > myReview.reviewed_at);
+    nights.some(
+      (n) => !myReview || n.created_at > (myReview.reviewed_at ?? ""),
+    );
 
   async function submitReview() {
     setSubmittingReview(true);
@@ -91,6 +93,7 @@ export function useScheduleData(isAdmin: boolean) {
               reviewed_at,
               member_name: user.name,
               member_initials: user.initials,
+              is_virtual: false,
             },
           ];
         });

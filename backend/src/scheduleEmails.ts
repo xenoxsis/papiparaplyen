@@ -78,6 +78,7 @@ async function sendNewNightsDigest(nights: NightSummary[]): Promise<void> {
       AND ISNULL(u.banned, 0) = 0
       AND ISNULL(u.email_on_nights, 1) = 1
       AND m.email IS NOT NULL
+      AND m.is_virtual = 0
   `);
 
   const recipients: { name: string; email: string }[] = result.recordset;
@@ -128,13 +129,19 @@ export async function sendShiftAssignedEmail(
     .request()
     .input("memberId", sql.Int, memberId)
     .query(
-      "SELECT m.name, m.email, ISNULL(u.email_on_shift, 1) AS email_on_shift FROM dbo.members m LEFT JOIN dbo.users u ON u.member_id = m.id WHERE m.id = @memberId",
+      "SELECT m.name, m.email, m.is_virtual, ISNULL(u.email_on_shift, 1) AS email_on_shift FROM dbo.members m LEFT JOIN dbo.users u ON u.member_id = m.id WHERE m.id = @memberId",
     );
 
   const member:
-    | { name: string; email: string; email_on_shift: boolean | number }
+    | {
+        name: string;
+        email: string;
+        is_virtual: boolean | number;
+        email_on_shift: boolean | number;
+      }
     | undefined = result.recordset[0];
   if (!member?.email) return;
+  if (member.is_virtual === true || member.is_virtual === 1) return;
   if (member.email_on_shift !== true && member.email_on_shift !== 1) {
     console.log(
       `[scheduleEmails] ${member.name} has email_on_shift=false — skipping`,
@@ -178,13 +185,19 @@ export async function sendShiftDeletedEmail(
     .request()
     .input("memberId", sql.Int, memberId)
     .query(
-      "SELECT m.name, m.email, ISNULL(u.email_on_shift, 1) AS email_on_shift FROM dbo.members m LEFT JOIN dbo.users u ON u.member_id = m.id WHERE m.id = @memberId",
+      "SELECT m.name, m.email, m.is_virtual, ISNULL(u.email_on_shift, 1) AS email_on_shift FROM dbo.members m LEFT JOIN dbo.users u ON u.member_id = m.id WHERE m.id = @memberId",
     );
 
   const member:
-    | { name: string; email: string; email_on_shift: boolean | number }
+    | {
+        name: string;
+        email: string;
+        is_virtual: boolean | number;
+        email_on_shift: boolean | number;
+      }
     | undefined = result.recordset[0];
   if (!member?.email) return;
+  if (member.is_virtual === true || member.is_virtual === 1) return;
   if (member.email_on_shift !== true && member.email_on_shift !== 1) return;
 
   const subject = `Klubaften slettet: ${night.name}`;
@@ -224,21 +237,30 @@ export async function sendShiftUnassignedEmail(
     .request()
     .input("memberId", sql.Int, memberId)
     .query(
-      "SELECT m.name, m.email, ISNULL(u.email_on_shift, 1) AS email_on_shift FROM dbo.members m LEFT JOIN dbo.users u ON u.member_id = m.id WHERE m.id = @memberId",
+      "SELECT m.name, m.email, m.is_virtual, ISNULL(u.email_on_shift, 1) AS email_on_shift FROM dbo.members m LEFT JOIN dbo.users u ON u.member_id = m.id WHERE m.id = @memberId",
     );
 
   const member:
-    | { name: string; email: string; email_on_shift: boolean | number }
+    | {
+        name: string;
+        email: string;
+        is_virtual: boolean | number;
+        email_on_shift: boolean | number;
+      }
     | undefined = result.recordset[0];
   if (!member?.email) return;
+  if (member.is_virtual === true || member.is_virtual === 1) return;
   if (member.email_on_shift !== true && member.email_on_shift !== 1) {
     console.log(
-      `[scheduleEmails] ${member.name} has email_on_shift=false \u2014 skipping unassign email`,
+      `[scheduleEmails] ${member.name} has email_on_shift=false — skipping unassign email`,
     );
     return;
   }
 
   const subject = `Du er blevet afmeldt vagten: ${night.name}`;
+  console.log(
+    `[scheduleEmails] Sending shift-unassigned email to ${member.email} for "${night.name}"`,
+  );
   console.log(
     `[scheduleEmails] Sending shift-unassigned email to ${member.email} for "${night.name}"`,
   );

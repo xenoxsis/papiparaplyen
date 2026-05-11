@@ -32,7 +32,11 @@ export type AuditEventType =
   | "vagter.checklist_edit"
   | "vagter.checklist_delete"
   // Emails
-  | "email.sent";
+  | "email.sent"
+  // Virtual members
+  | "member.create_virtual"
+  | "member.realize_merge"
+  | "member.realize_invite";
 
 export interface AuditParams {
   eventType: AuditEventType;

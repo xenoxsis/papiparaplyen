@@ -49,6 +49,8 @@ export type ApiMember = {
   banned: boolean;
   roles: string[];
   is_superuser: boolean;
+  is_virtual: boolean;
+  show_on_about_page: boolean;
 };
 
 export type ApiClubNight = {
@@ -69,11 +71,12 @@ export type ApiClubNight = {
 };
 
 export type ApiScheduleReview = {
-  id: number;
+  id: number | null;
   member_id: number;
-  reviewed_at: string;
+  reviewed_at: string | null;
   member_name: string | null;
   member_initials: string | null;
+  is_virtual: boolean;
 };
 
 export type ApiChannel = {
@@ -112,6 +115,15 @@ export type AuthUser = {
 
 export const getMembers = () => api<ApiMember[]>("/api/members");
 export const getMember = (id: number) => api<ApiMember>(`/api/members/${id}`);
+export const createVirtualMember = (name: string, initials: string) =>
+  apiPost<ApiMember>("/api/members", { name, initials });
+export const realizeMember = (id: number, email: string) =>
+  apiPost<{
+    merged: boolean;
+    memberId: number;
+    name?: string;
+    member?: ApiMember;
+  }>(`/api/members/${id}/realize`, { email });
 export const patchMember = (id: number, body: Partial<ApiMember>) =>
   apiPatch<ApiMember>(`/api/members/${id}`, body);
 export const putMemberRoles = (id: number, roles: string[]) =>
