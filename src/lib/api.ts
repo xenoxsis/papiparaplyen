@@ -390,3 +390,42 @@ export const getAuditLog = (filters: AuditLogFilters = {}) => {
 
 export const getAuditLogEventTypes = () =>
   api<string[]>("/api/audit-log/event-types");
+
+// ── Board Games ───────────────────────────────────────────────────────────────
+
+export type ApiBoardgame = {
+  bgg_id: number;
+  name: string;
+  avg_weight: number | null;
+  min_players: number | null;
+  max_players: number | null;
+  year_published: number | null;
+  playing_time: number | null;
+  owners: { name: string | null }[];
+};
+
+export type ApiBggPrefs = {
+  bgg_share_collection: boolean;
+  bgg_share_name: boolean;
+};
+
+export const getBoardgames = () => api<ApiBoardgame[]>("/api/boardgames");
+
+/** Upload a BGG collection CSV file. Accepts the already-read CSV text and sends it as JSON. */
+export function uploadBggCollection(
+  csvText: string,
+): Promise<{ ok: boolean; imported: number; removed: number }> {
+  return api<{ ok: boolean; imported: number; removed: number }>(
+    "/api/boardgames/upload",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ csv: csvText }),
+    },
+  );
+}
+
+export const getBggPrefs = () => api<ApiBggPrefs>("/api/auth/bgg-prefs");
+
+export const patchBggPrefs = (prefs: Partial<ApiBggPrefs>) =>
+  apiPatch<{ ok: boolean }>("/api/auth/bgg-prefs", prefs);

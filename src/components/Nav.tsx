@@ -11,6 +11,7 @@ import {
   LogIn,
   LogOut,
   Menu,
+  Puzzle,
   ScrollText,
   Settings,
   Shield,
@@ -26,6 +27,7 @@ const navLinks = [
   { href: "/", label: "Hjem", icon: Home },
   { href: "/about", label: "Om os", icon: Info },
   { href: "/events", label: "Events", icon: Calendar },
+  { href: "/boardgames", label: "Brætspil", icon: Puzzle },
 ];
 
 export default function Nav() {

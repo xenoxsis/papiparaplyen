@@ -16,6 +16,8 @@ IF OBJECT_ID('dbo.club_night_opt_outs',   'U') IS NOT NULL DROP TABLE dbo.club_n
 IF OBJECT_ID('dbo.club_schedule_reviews', 'U') IS NOT NULL DROP TABLE dbo.club_schedule_reviews;
 IF OBJECT_ID('dbo.club_nights',           'U') IS NOT NULL DROP TABLE dbo.club_nights;
 IF OBJECT_ID('dbo.member_roles',          'U') IS NOT NULL DROP TABLE dbo.member_roles;
+IF OBJECT_ID('dbo.member_boardgames',     'U') IS NOT NULL DROP TABLE dbo.member_boardgames;
+IF OBJECT_ID('dbo.boardgames',            'U') IS NOT NULL DROP TABLE dbo.boardgames;
 IF OBJECT_ID('dbo.users',                 'U') IS NOT NULL DROP TABLE dbo.users;
 IF OBJECT_ID('dbo.roles',                 'U') IS NOT NULL DROP TABLE dbo.roles;
 IF OBJECT_ID('dbo.members',               'U') IS NOT NULL DROP TABLE dbo.members;
@@ -53,14 +55,16 @@ GO
 -- users
 -- ---------------------------------------------------------------
 CREATE TABLE dbo.users (
-    id               INT            NOT NULL IDENTITY(1,1),
-    password         NVARCHAR(255)  NULL,      -- bcrypt hash; NULL for pure-OAuth accounts
-    member_id        INT            NOT NULL,
-    banned           BIT            NOT NULL DEFAULT 0,
-    email_on_mention BIT            NOT NULL DEFAULT 0,
-    email_on_nights  BIT            NOT NULL DEFAULT 0,
-    email_on_shift   BIT            NOT NULL DEFAULT 0,
-    email_consent_at DATETIME2      NULL,
+    id                   INT            NOT NULL IDENTITY(1,1),
+    password             NVARCHAR(255)  NULL,      -- bcrypt hash; NULL for pure-OAuth accounts
+    member_id            INT            NOT NULL,
+    banned               BIT            NOT NULL DEFAULT 0,
+    email_on_mention     BIT            NOT NULL DEFAULT 0,
+    email_on_nights      BIT            NOT NULL DEFAULT 0,
+    email_on_shift       BIT            NOT NULL DEFAULT 0,
+    email_consent_at     DATETIME2      NULL,
+    bgg_share_collection BIT            NOT NULL DEFAULT 1,
+    bgg_share_name       BIT            NOT NULL DEFAULT 1,
     CONSTRAINT PK_users             PRIMARY KEY (id),
     CONSTRAINT FK_users_members     FOREIGN KEY (member_id) REFERENCES dbo.members (id)
 );
@@ -212,6 +216,33 @@ GO
 -- =============================================================
 -- Seed data  (admin@example.com only)
 -- =============================================================
+
+-- ---------------------------------------------------------------
+-- boardgames
+-- ---------------------------------------------------------------
+CREATE TABLE dbo.boardgames (
+    bgg_id          INT           NOT NULL,
+    name            NVARCHAR(255) NOT NULL,
+    avg_weight      DECIMAL(4,2)  NULL,
+    min_players     INT           NULL,
+    max_players     INT           NULL,
+    year_published  INT           NULL,
+    playing_time    INT           NULL,
+    CONSTRAINT PK_boardgames PRIMARY KEY (bgg_id)
+);
+GO
+
+-- ---------------------------------------------------------------
+-- member_boardgames
+-- ---------------------------------------------------------------
+CREATE TABLE dbo.member_boardgames (
+    member_id INT NOT NULL,
+    bgg_id    INT NOT NULL,
+    CONSTRAINT PK_member_boardgames        PRIMARY KEY (member_id, bgg_id),
+    CONSTRAINT FK_member_boardgames_member FOREIGN KEY (member_id) REFERENCES dbo.members(id) ON DELETE CASCADE,
+    CONSTRAINT FK_member_boardgames_bgg    FOREIGN KEY (bgg_id)    REFERENCES dbo.boardgames(bgg_id) ON DELETE CASCADE
+);
+GO
 
 -- ---------------------------------------------------------------
 -- vagt_settings

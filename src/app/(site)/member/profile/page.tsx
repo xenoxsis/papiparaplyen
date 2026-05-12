@@ -10,14 +10,7 @@ import {
 } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import {
-  AlarmClock,
-  Bell,
-  CalendarDays,
-  Clock,
-  MapPin,
-  Pencil,
-} from "lucide-react";
+import { Bell, CalendarDays, Clock, MapPin, Pencil } from "lucide-react";
 import { MemberHero } from "@/components/MemberHero";
 import { ClubNightModal } from "@/components/ClubNightModal";
 import { DateBadge } from "@/components/DateBadge";
@@ -615,6 +608,7 @@ export default function ProfilePage() {
         </div>
       )}
 
+      {/* Inline profile settings */}
       {/* Two-column grid */}
       <div
         className={`grid grid-cols-1 gap-6 ${isVagtOrAdmin ? "md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]" : ""}`}

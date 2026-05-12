@@ -19,6 +19,7 @@ import scheduleReviewsRouter from "./routes/schedule-reviews";
 import notificationsRouter from "./routes/notifications";
 import vagterRouter from "./routes/vagter";
 import auditLogRouter from "./routes/audit-log";
+import boardgamesRouter from "./routes/boardgames";
 import { getPool } from "./db";
 
 const app = express();
@@ -30,7 +31,8 @@ const allowedOrigins = [
   ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : []),
 ];
 app.use(cors({ origin: allowedOrigins, credentials: true }));
-app.use(express.json());
+app.set("trust proxy", 1);
+app.use(express.json({ limit: "5mb" }));
 app.use(cookieParser());
 app.use(passport.initialize());
 
@@ -69,6 +71,7 @@ app.use("/api/schedule-reviews", scheduleReviewsRouter);
 app.use("/api/notifications", notificationsRouter);
 app.use("/api/vagter", vagterRouter);
 app.use("/api/audit-log", auditLogRouter);
+app.use("/api/boardgames", boardgamesRouter);
 
 app.get("/health", (_, res) => res.json({ ok: true }));
 

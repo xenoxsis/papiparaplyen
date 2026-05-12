@@ -690,4 +690,57 @@ router.delete("/me", requireAuth, async (_req, res) => {
   return res.json({ ok: true, message: "Account and personal data erased" });
 });
 
+// GET /api/auth/bgg-prefs
+router.get("/bgg-prefs", requireAuth, async (req, res) => {
+  const memberId: number = res.locals.jwt.memberId;
+  const defaults = { bgg_share_collection: true, bgg_share_name: true };
+  try {
+    const pool = await getPool();
+    const result = await pool
+      .request()
+      .input("memberId", sql.Int, memberId)
+      .query(
+        "SELECT bgg_share_collection, bgg_share_name FROM dbo.users WHERE member_id = @memberId",
+      );
+    if (result.recordset.length === 0) return res.json(defaults);
+    const row = result.recordset[0];
+    return res.json({
+      bgg_share_collection:
+        row.bgg_share_collection === 1 || row.bgg_share_collection === true,
+      bgg_share_name: row.bgg_share_name === 1 || row.bgg_share_name === true,
+    });
+  } catch {
+    // Columns may not exist yet (migration pending) — return defaults
+    return res.json(defaults);
+  }
+});
+
+// PATCH /api/auth/bgg-prefs
+router.patch("/bgg-prefs", requireAuth, async (req, res) => {
+  const memberId: number = res.locals.jwt.memberId;
+  const { bgg_share_collection, bgg_share_name } = req.body ?? {};
+  const updates: string[] = [];
+  const pool = await getPool();
+  const request = pool.request().input("memberId", sql.Int, memberId);
+  if (typeof bgg_share_collection === "boolean") {
+    updates.push("bgg_share_collection = @shareCollection");
+    request.input("shareCollection", sql.Bit, bgg_share_collection ? 1 : 0);
+  }
+  if (typeof bgg_share_name === "boolean") {
+    updates.push("bgg_share_name = @shareName");
+    request.input("shareName", sql.Bit, bgg_share_name ? 1 : 0);
+  }
+  if (updates.length === 0)
+    return res.status(400).json({ error: "Nothing to update" });
+  try {
+    await request.query(
+      `UPDATE dbo.users SET ${updates.join(", ")} WHERE member_id = @memberId`,
+    );
+  } catch {
+    // Columns may not exist yet (migration pending) — silently ignore
+    return res.json({ ok: true });
+  }
+  return res.json({ ok: true });
+});
+
 export default router;

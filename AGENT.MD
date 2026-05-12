@@ -4,6 +4,13 @@ Quick-reference for AI agents making changes to this repository.
 
 ---
 
+## Agent Rules
+
+> **Never run database migrations or project builds.**
+> The user runs both manually. Do not execute `pnpm build`, `tsc`, `docker-compose build/up`, or any SQL migration script — even to verify changes — unless the user explicitly asks for it for debugging purposes.
+
+---
+
 ## Stack
 
 | Layer           | Technology                                               |
@@ -364,7 +371,9 @@ cd backend && npx tsc --noEmit
 
 Migrations live in `database/migrations/` and are **idempotent** (safe to re-run).
 They must be run manually against the SQL Server container after deploying schema changes.
-Latest migration: **013_audit_log.sql**
+Latest migration: **015_boardgames.sql**
+
+> **Agents must not run migrations.** Write the SQL file and inform the user — they will apply it themselves.
 
 ---
 
