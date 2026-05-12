@@ -391,6 +391,16 @@ export const getAuditLog = (filters: AuditLogFilters = {}) => {
 export const getAuditLogEventTypes = () =>
   api<string[]>("/api/audit-log/event-types");
 
+export const getSilence = () =>
+  api<{ silenced: boolean }>("/api/audit-log/silence");
+
+export const setSilence = (silenced: boolean) =>
+  api<{ silenced: boolean }>("/api/audit-log/silence", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ silenced }),
+  });
+
 // ── Board Games ───────────────────────────────────────────────────────────────
 
 export type ApiBoardgame = {

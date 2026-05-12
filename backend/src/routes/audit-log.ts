@@ -166,6 +166,31 @@ router.get("/", requireAuth, async (req, res) => {
   });
 });
 
+// GET /api/audit-log/silence — get current silence state
+router.get("/silence", requireAuth, async (_req, res) => {
+  const memberId: number = res.locals.jwt.memberId;
+  if (!(await isSuperuser(memberId))) {
+    return res.status(403).json({ error: "Forbidden" });
+  }
+  const { isSilenced } = await import("../silence");
+  return res.json({ silenced: isSilenced() });
+});
+
+// POST /api/audit-log/silence — toggle silence state
+router.post("/silence", requireAuth, async (req, res) => {
+  const memberId: number = res.locals.jwt.memberId;
+  if (!(await isSuperuser(memberId))) {
+    return res.status(403).json({ error: "Forbidden" });
+  }
+  const { silenced } = req.body ?? {};
+  if (typeof silenced !== "boolean") {
+    return res.status(400).json({ error: "Expected { silenced: boolean }" });
+  }
+  const { setSilenced, isSilenced } = await import("../silence");
+  setSilenced(silenced);
+  return res.json({ silenced: isSilenced() });
+});
+
 // GET /api/audit-log/event-types — distinct event types for filter dropdowns
 router.get("/event-types", requireAuth, async (_req, res) => {
   const memberId: number = res.locals.jwt.memberId;

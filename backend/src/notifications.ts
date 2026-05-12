@@ -1,5 +1,6 @@
 import { getPool, sql } from "./db";
 import { broadcastToUser } from "./broadcaster";
+import { isSilenced } from "./silence";
 
 export type NotificationType =
   | "swap_requested"
@@ -28,6 +29,12 @@ export async function createNotification(
   body: string,
   link?: string,
 ): Promise<void> {
+  if (isSilenced()) {
+    console.info(
+      `[notifications] SILENCED — skipping notification type=${type} to memberId=${memberId}`,
+    );
+    return;
+  }
   const pool = await getPool();
 
   const result = await pool

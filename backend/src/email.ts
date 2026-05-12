@@ -16,11 +16,17 @@ function createTransport() {
   });
 }
 
+import { isSilenced } from "./silence";
+
 export async function sendEmail(
   to: string,
   subject: string,
   htmlContent: string,
 ): Promise<void> {
+  if (isSilenced()) {
+    console.info(`[email] SILENCED — skipping send to ${to}: ${subject}`);
+    return;
+  }
   if (!process.env.SMTP_PASS) {
     console.warn("[email] SMTP_PASS not set — skipping send");
     return;

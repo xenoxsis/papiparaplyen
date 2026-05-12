@@ -3,12 +3,14 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
+  BellOff,
   ChevronDown,
   ChevronRight,
   Filter,
   Mail,
   RefreshCw,
   ScrollText,
+  Volume2,
   X,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
@@ -20,6 +22,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   getAuditLog,
   getAuditLogEventTypes,
+  getSilence,
+  setSilence,
   type AuditLogRow,
 } from "@/lib/api";
 
@@ -197,6 +201,29 @@ export default function AuditLogPage() {
   const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(true);
   const [eventTypes, setEventTypes] = useState<string[]>([]);
+  const [silenced, setSilencedState] = useState<boolean | null>(null);
+  const [silenceLoading, setSilenceLoading] = useState(false);
+
+  // Load silence state
+  useEffect(() => {
+    if (user?.is_superuser) {
+      getSilence()
+        .then((r) => setSilencedState(r.silenced))
+        .catch(() => {});
+    }
+  }, [user]);
+
+  async function toggleSilence() {
+    if (silenced === null) return;
+    setSilenceLoading(true);
+    try {
+      const next = !silenced;
+      const r = await setSilence(next);
+      setSilencedState(r.silenced);
+    } finally {
+      setSilenceLoading(false);
+    }
+  }
 
   // Filters
   const [eventType, setEventType] = useState("");
@@ -264,6 +291,33 @@ export default function AuditLogPage() {
           title="Genindlæs"
         >
           <RefreshCw className="size-4" />
+        </button>
+        {/* Silence toggle */}
+        <button
+          onClick={toggleSilence}
+          disabled={silenceLoading || silenced === null}
+          title={
+            silenced
+              ? "Klik for at aktivere notifikationer og mails"
+              : "Klik for at sætte lyd fra på notifikationer og mails"
+          }
+          className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium border transition-colors ${
+            silenced
+              ? "bg-amber-100 border-amber-300 text-amber-700 hover:bg-amber-200"
+              : "bg-white border-neutral-200 text-neutral-600 hover:bg-neutral-50"
+          } disabled:opacity-50`}
+        >
+          {silenced ? (
+            <>
+              <BellOff className="size-4" />
+              Lyd fra
+            </>
+          ) : (
+            <>
+              <Volume2 className="size-4" />
+              Lyd til
+            </>
+          )}
         </button>
       </div>
 
