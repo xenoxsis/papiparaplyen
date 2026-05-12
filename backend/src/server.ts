@@ -9,7 +9,7 @@ import express, { NextFunction, Request, Response } from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import passport from "passport";
-import rateLimit from "express-rate-limit";
+import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import membersRouter from "./routes/members";
 import clubNightsRouter from "./routes/club-nights";
 import channelsRouter from "./routes/channels";
@@ -38,12 +38,28 @@ app.use(passport.initialize());
 
 // ── Rate limiting ─────────────────────────────────────────────────────────────
 
+/**
+ * Rate-limit key: normalise the IP coming from the reverse proxy.
+ * The proxy may forward IPv4 addresses with a port (e.g. "1.2.3.4:5678").
+ * Strip the port for plain IPv4 before handing off to ipKeyGenerator so it
+ * can safely handle IPv6 subnet bucketing.
+ */
+function rateLimitKey(req: import("express").Request): string {
+  const raw = req.ip ?? req.socket.remoteAddress ?? "";
+  // Strip IPv4 port suffix: "1.2.3.4:5678" → "1.2.3.4"  (IPv6 not affected)
+  const ip = /^\d+\.\d+\.\d+\.\d+:\d+$/.test(raw)
+    ? raw.replace(/:\d+$/, "")
+    : raw;
+  return ipKeyGenerator(ip);
+}
+
 /** Strict limiter for auth endpoints (login, register, password reset). */
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 10,
   standardHeaders: true,
   legacyHeaders: false,
+  keyGenerator: rateLimitKey,
   message: { error: "For mange forsøg, prøv igen om lidt" },
 });
 
@@ -53,6 +69,7 @@ const generalLimiter = rateLimit({
   max: 100,
   standardHeaders: true,
   legacyHeaders: false,
+  keyGenerator: rateLimitKey,
   message: { error: "For mange forespørgsler, prøv igen om lidt" },
 });
 
