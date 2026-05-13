@@ -224,12 +224,15 @@ export async function sendShiftDeletedEmail(
 // ── Shift unassignment email ─────────────────────────────────────────────────
 
 /**
- * Send an immediate email to a vagt who was unassigned because the night's
- * time or location was edited by an admin.
+ * Send an immediate email to a vagt who was unassigned.
+ * Pass `actorMemberId` when the removal was done manually by an admin so the
+ * email can say "removed by <name>".  Omit it for automatic removals caused by
+ * a change to the night's time or location.
  */
 export async function sendShiftUnassignedEmail(
   memberId: number,
   night: NightSummary,
+  actorMemberId?: number | null,
 ): Promise<void> {
   const pool = await getPool();
 
@@ -257,15 +260,26 @@ export async function sendShiftUnassignedEmail(
     return;
   }
 
+  const isManual = actorMemberId != null;
+  let actorName: string | undefined;
+  if (isManual) {
+    const actorResult = await pool
+      .request()
+      .input("actorId", sql.Int, actorMemberId)
+      .query("SELECT name FROM dbo.members WHERE id = @actorId");
+    actorName = actorResult.recordset[0]?.name as string | undefined;
+  }
+
   const subject = `Du er blevet afmeldt vagten: ${night.name}`;
   console.log(
     `[scheduleEmails] Sending shift-unassigned email to ${member.email} for "${night.name}"`,
   );
-  console.log(
-    `[scheduleEmails] Sending shift-unassigned email to ${member.email} for "${night.name}"`,
-  );
 
-  const unassignedHtml = shiftUnassignedEmailHtml(member.name, night);
+  const unassignedHtml = shiftUnassignedEmailHtml(
+    member.name,
+    night,
+    isManual ? { isManual: true, actorName } : { isManual: false },
+  );
   await sendEmail(member.email, subject, unassignedHtml);
   logEvent({
     eventType: "email.sent",

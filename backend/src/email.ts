@@ -179,16 +179,22 @@ export function mentionEmailHtml(
   `;
 }
 
-/** Email sent immediately when a member is assigned to a shift. */
+/** Email sent immediately when a member is unassigned from a shift. */
 export function shiftUnassignedEmailHtml(
   memberName: string,
   night: NightSummary,
+  options?: { isManual: boolean; actorName?: string },
 ): string {
+  const bodyText = options?.isManual
+    ? options.actorName
+      ? `Du er blevet fjernet fra vagten af ${options.actorName}.`
+      : `Du er blevet fjernet fra vagten.`
+    : `Detaljerne for en aften du var tildelt er ændret (tid eller sted), og du er derfor automatisk blevet fjernet fra vagten. Du kan tildele dig selv igen på vagtplanen, hvis du stadig kan.`;
   return `
     <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px">
       <h2 style="color:#1a1a1a;margin-bottom:4px">Du er blevet afmeldt en vagt</h2>
       <p style="color:#555">Hej ${memberName},</p>
-      <p style="color:#555">Detaljerne for en aften du var tildelt er ændret (tid eller sted), og du er derfor automatisk blevet fjernet fra vagten. Du kan tildele dig selv igen på vagtplanen, hvis du stadig kan.</p>
+      <p style="color:#555">${bodyText}</p>
       <div style="margin:16px 0;padding:16px;background:#f9f9f9;border-radius:8px;border-left:4px solid #e63946;font-size:14px">
         <p style="margin:0 0 6px;font-weight:700;font-size:16px;color:#1a1a1a">${night.name}</p>
         <p style="margin:0 0 4px;color:#555">📅 ${formatDanishDate(night.date)}</p>

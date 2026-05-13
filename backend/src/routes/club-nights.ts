@@ -272,13 +272,17 @@ router.patch("/:id", requireAuth, async (req, res) => {
             `Du er blevet fjernet fra vagten: ${updatedNight.name}`,
             "/member/schedule",
           );
-          sendShiftUnassignedEmail(previousVagtId, {
-            name: updatedNight.name,
-            date: updatedNight.date,
-            time_from: updatedNight.time_from,
-            time_to: updatedNight.time_to,
-            location: updatedNight.location,
-          }).catch((err) =>
+          sendShiftUnassignedEmail(
+            previousVagtId,
+            {
+              name: updatedNight.name,
+              date: updatedNight.date,
+              time_from: updatedNight.time_from,
+              time_to: updatedNight.time_to,
+              location: updatedNight.location,
+            },
+            callerId(res),
+          ).catch((err) =>
             console.error(
               "[scheduleEmails] shift-unassigned send failed:",
               err,
@@ -355,13 +359,17 @@ router.patch("/:id", requireAuth, async (req, res) => {
         `Du er blevet fjernet fra vagten: ${updatedNight.name}`,
         "/member/schedule",
       );
-      sendShiftUnassignedEmail(previousVagt as number, {
-        name: updatedNight.name,
-        date: updatedNight.date,
-        time_from: updatedNight.time_from,
-        time_to: updatedNight.time_to,
-        location: updatedNight.location,
-      }).catch((err) =>
+      sendShiftUnassignedEmail(
+        previousVagt as number,
+        {
+          name: updatedNight.name,
+          date: updatedNight.date,
+          time_from: updatedNight.time_from,
+          time_to: updatedNight.time_to,
+          location: updatedNight.location,
+        },
+        callerId(res),
+      ).catch((err) =>
         console.error("[scheduleEmails] shift-unassigned send failed:", err),
       );
       logEvent({
