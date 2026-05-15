@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useReducer, useRef, useState } from "react";
-import { Check, Loader2, Upload, X } from "lucide-react";
+import { createPortal } from "react-dom";
+import { Check, Loader2, Trash2, Upload, X } from "lucide-react";
 import {
   getEmailPrefs,
   patchEmailPrefs,
@@ -19,6 +20,7 @@ import { toast } from "sonner";
 interface EditProfileModalProps {
   open: boolean;
   onClose: () => void;
+  onDeleteRequest: () => void;
 }
 
 // ── State ──────────────────────────────────────────────────────────────────────
@@ -127,7 +129,11 @@ const idleSteps: UploadSteps = {
 };
 
 // ── Modal ─────────────────────────────────────────────────────
-export function EditProfileModal({ open, onClose }: EditProfileModalProps) {
+export function EditProfileModal({
+  open,
+  onClose,
+  onDeleteRequest,
+}: EditProfileModalProps) {
   const { user, updateUser } = useAuth();
   const [edit, dispatch] = useReducer(editReducer, initialEditState);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -271,7 +277,7 @@ export function EditProfileModal({ open, onClose }: EditProfileModalProps) {
     "h-9 rounded-lg border border-neutral-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900 w-full";
   const labelCls = "text-xs font-medium text-neutral-700";
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
       onClick={onClose}
@@ -524,7 +530,22 @@ export function EditProfileModal({ open, onClose }: EditProfileModalProps) {
             </div>
           )}
         </div>
+
+        {/* Danger zone */}
+        <div className="px-5 py-4 border-t border-neutral-100">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onDeleteRequest();
+            }}
+            className="flex items-center gap-1.5 text-xs text-neutral-400 hover:text-brand-red transition-colors cursor-pointer"
+          >
+            <Trash2 className="size-3.5" />
+            Slet konto
+          </button>
+        </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

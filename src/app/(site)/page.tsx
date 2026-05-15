@@ -35,7 +35,7 @@ export default async function Home() {
           <div className="shrink-0 w-28 h-28 sm:w-40 sm:h-40 rounded-2xl bg-white flex items-center justify-center p-2">
             <Image
               src="/papiparaplyen-logo.png"
-              alt="Pap i Paraplyen logo"
+              alt="Esbjerg Brætspil logo"
               width={144}
               height={144}
               className="object-contain w-full h-full"
@@ -47,7 +47,7 @@ export default async function Home() {
               Brætspilsklub siden 2022
             </span>
             <h1 className="font-bold text-white text-3xl sm:text-5xl tracking-tight leading-none">
-              Pap i Paraplyen
+              Esbjerg Brætspil
             </h1>
             <p className="text-white/80 text-lg">
               Din lokale brætspilsklub - alle er velkomne!
@@ -86,7 +86,7 @@ export default async function Home() {
             </span>
             <h2 className="font-bold text-neutral-900 text-3xl">Hvem er vi?</h2>
             <p className="leading-relaxed text-neutral-500">
-              Pap i Paraplyen er en hyggelig brætspilsklub, hvor vi mødes
+              Esbjerg Brætspil er en hyggelig brætspilsklub, hvor vi mødes
               regelmæssigt for at spille alt fra klassiske familiespil til
               komplekse strategispil.
             </p>

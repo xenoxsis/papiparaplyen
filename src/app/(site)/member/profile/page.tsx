@@ -45,6 +45,7 @@ import { SwapModal } from "./SwapModal";
 import { SwapConfirmModal } from "./SwapConfirmModal";
 import { ChatPanel } from "./ChatPanel";
 import { EditProfileModal } from "./EditProfileModal";
+import { DeleteAccountModal } from "./DeleteAccountModal";
 
 // ── Message map helpers ─────────────────────────────────────────────────────
 function upsertIntoMap(
@@ -146,6 +147,7 @@ export default function ProfilePage() {
 
   // ── Edit modal ────────────────────────────────────────────────────────────
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   // ── Scroll refs (shared with ChatPanel) ──────────────────────────────────
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -745,6 +747,15 @@ export default function ProfilePage() {
       <EditProfileModal
         open={showEditModal}
         onClose={() => setShowEditModal(false)}
+        onDeleteRequest={() => {
+          setShowEditModal(false);
+          setShowDeleteModal(true);
+        }}
+      />
+
+      <DeleteAccountModal
+        open={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
       />
     </main>
   );

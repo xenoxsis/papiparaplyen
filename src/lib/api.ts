@@ -241,6 +241,9 @@ export const forgotPassword = (email: string) =>
 export const resetPassword = (token: string, newPassword: string) =>
   apiPost<{ ok: boolean }>("/api/auth/reset-password", { token, newPassword });
 
+export const deleteMyAccount = () =>
+  api<{ ok: boolean }>("/api/auth/me", { method: "DELETE" });
+
 // ── Notifications ─────────────────────────────────────────────────────────────
 
 export type NotificationType =

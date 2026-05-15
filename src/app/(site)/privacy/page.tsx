@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Privatlivspolitik — Pap i Paraplyen",
+  title: "Privatlivspolitik — Esbjerg Brætspil",
   description:
-    "Oplysninger om behandling af personoplysninger i Pap i Paraplyen.",
+    "Oplysninger om behandling af personoplysninger i Esbjerg Brætspil.",
 };
 
 export default function PrivacyPage() {
@@ -18,7 +18,7 @@ export default function PrivacyPage() {
       <section className="mb-8">
         <h2 className="text-xl font-semibold mb-3">1. Dataansvarlig</h2>
         <p className="text-sm leading-relaxed text-neutral-700">
-          Pap i Paraplyen er dataansvarlig for de personoplysninger, vi
+          Esbjerg Brætspil er dataansvarlig for de personoplysninger, vi
           behandler om vores medlemmer. Har du spørgsmål til denne politik eller
           vil gøre brug af dine rettigheder, kan du kontakte os via vores{" "}
           <a

@@ -2,7 +2,7 @@
 const nodemailer: any = require("nodemailer");
 
 const EMAIL_FROM_ADDRESS = process.env.EMAIL_FROM ?? "paraplyen@mdbeads.com";
-const EMAIL_FROM_NAME = "Pap i Paraplyen";
+const EMAIL_FROM_NAME = "Esbjerg Brætspil";
 
 function createTransport() {
   return nodemailer.createTransport({
@@ -45,7 +45,7 @@ export function resetPasswordEmailHtml(resetUrl: string): string {
   return `
     <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px">
       <h2 style="color:#1a1a1a">Nulstil din adgangskode</h2>
-      <p style="color:#555">Du har anmodet om at nulstille din adgangskode til Pap i Paraplyen.</p>
+      <p style="color:#555">Du har anmodet om at nulstille din adgangskode til Esbjerg Brætspil.</p>
       <p style="color:#555">Klik på knappen herunder — linket er gyldigt i <strong>1 time</strong>.</p>
       <a href="${resetUrl}"
          style="display:inline-block;margin:16px 0;padding:12px 24px;background:#e63946;color:white;text-decoration:none;border-radius:8px;font-weight:600">
@@ -148,7 +148,7 @@ export function newNightsDigestEmailHtml(
          style="display:inline-block;margin:8px 0 16px;padding:10px 20px;background:#e63946;color:white;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px">
         Se vagtplan
       </a>
-      <p style="color:#999;font-size:12px">Du modtager denne e-mail fordi du er tilknyttet Pap i Paraplyen som vagt.</p>
+      <p style="color:#999;font-size:12px">Du modtager denne e-mail fordi du er tilknyttet Esbjerg Brætspil som vagt.</p>
     </div>
   `;
 }
@@ -199,7 +199,7 @@ export function shiftUnassignedEmailHtml(
          style="display:inline-block;margin:8px 0 16px;padding:10px 20px;background:#e63946;color:white;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px">
         Gå til vagtplan
       </a>
-      <p style="color:#999;font-size:12px">Du modtager denne e-mail fordi du er tilknyttet Pap i Paraplyen som vagt.</p>
+      <p style="color:#999;font-size:12px">Du modtager denne e-mail fordi du er tilknyttet Esbjerg Brætspil som vagt.</p>
     </div>
   `;
 }
@@ -223,7 +223,7 @@ export function shiftDeletedEmailHtml(
          style="display:inline-block;margin:8px 0 16px;padding:10px 20px;background:#e63946;color:white;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px">
         Gå til vagtplan
       </a>
-      <p style="color:#999;font-size:12px">Du modtager denne e-mail fordi du er tilknyttet Pap i Paraplyen som vagt.</p>
+      <p style="color:#999;font-size:12px">Du modtager denne e-mail fordi du er tilknyttet Esbjerg Brætspil som vagt.</p>
     </div>
   `;
 }
@@ -247,7 +247,7 @@ export function shiftAssignedEmailHtml(
          style="display:inline-block;margin:8px 0 16px;padding:10px 20px;background:#e63946;color:white;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px">
         Bekræft vagt
       </a>
-      <p style="color:#999;font-size:12px">Du modtager denne e-mail fordi du er tilknyttet Pap i Paraplyen som vagt.</p>
+      <p style="color:#999;font-size:12px">Du modtager denne e-mail fordi du er tilknyttet Esbjerg Brætspil som vagt.</p>
     </div>
   `;
 }

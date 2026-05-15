@@ -10,8 +10,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Pap i Paraplyen - Brætspilsklub",
-  description: "Velkommen til Pap i Paraplyen brætspilsklub",
+  title: "Esbjerg Brætspil - Brætspilsklub",
+  description: "Velkommen til Esbjerg Brætspil brætspilsklub",
 };
 
 export default function RootLayout({

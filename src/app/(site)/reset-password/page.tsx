@@ -54,7 +54,7 @@ function ResetPasswordForm() {
           <div className="w-28 h-28 flex items-center justify-center">
             <Image
               src="/papiparaplyen-logo.png"
-              alt="Pap i Paraplyen logo"
+              alt="Esbjerg Brætspil logo"
               width={112}
               height={112}
               className="object-contain w-full h-full"

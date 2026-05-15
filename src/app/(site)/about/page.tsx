@@ -37,7 +37,7 @@ export default function AboutPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 sm:gap-12">
             <div className="flex flex-col gap-4">
               <p className="leading-relaxed text-neutral-500">
-                Pap i Paraplyen er en hyggelig brætspilsklub, hvor vi mødes
+                Esbjerg Brætspil er en hyggelig brætspilsklub, hvor vi mødes
                 regelmæssigt for at spille alt fra klassiske familiespil til
                 komplekse strategispil. Vi tror på, at gode aftener bygges
                 omkring bordet med terninger, kort og masser af grin.

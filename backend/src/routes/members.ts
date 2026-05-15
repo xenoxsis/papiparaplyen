@@ -379,7 +379,7 @@ router.post("/:id/realize", requireAuth, async (req, res) => {
     const resetUrl = `${FRONTEND_URL}/reset-password?token=${token}`;
     await sendEmail(
       normalizedEmail,
-      "Opret din adgangskode — Pap i Paraplyen",
+      "Opret din adgangskode — Esbjerg Brætspil",
       resetPasswordEmailHtml(resetUrl),
     );
 

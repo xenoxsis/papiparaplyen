@@ -79,8 +79,8 @@ export default function EmailConsentModal() {
             E-mailnotifikationer
           </h2>
           <p className="text-sm text-neutral-600 mt-1">
-            Vælg hvilke e-mails du ønsker at modtage fra Pap i Paraplyen. Du kan
-            til enhver tid ændre dine valg under din profil.
+            Vælg hvilke e-mails du ønsker at modtage fra Esbjerg Brætspil. Du
+            kan til enhver tid ændre dine valg under din profil.
           </p>
         </div>
 

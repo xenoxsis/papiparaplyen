@@ -456,7 +456,7 @@ router.post("/forgot-password", async (req, res) => {
     const oauthHtml = oauthAccountEmailHtml(providerName);
     await sendEmail(
       normalizedEmail,
-      "Adgangskode nulstilling — Pap i Paraplyen",
+      "Adgangskode nulstilling — Esbjerg Brætspil",
       oauthHtml,
     ).catch(console.error);
     logEvent({
@@ -465,7 +465,7 @@ router.post("/forgot-password", async (req, res) => {
       targetEmail: normalizedEmail,
       detail: {
         type: "oauth_account_notice",
-        subject: "Adgangskode nulstilling — Pap i Paraplyen",
+        subject: "Adgangskode nulstilling — Esbjerg Brætspil",
         provider: providerName,
         html: oauthHtml,
       },
@@ -489,7 +489,7 @@ router.post("/forgot-password", async (req, res) => {
   const resetHtml = resetPasswordEmailHtml(resetUrl);
   await sendEmail(
     normalizedEmail,
-    "Nulstil din adgangskode — Pap i Paraplyen",
+    "Nulstil din adgangskode — Esbjerg Brætspil",
     resetHtml,
   ).catch(console.error);
   logEvent({
@@ -497,7 +497,7 @@ router.post("/forgot-password", async (req, res) => {
     targetMemberId: row.id,
     targetEmail: normalizedEmail,
     detail: {
-      subject: "Nulstil din adgangskode — Pap i Paraplyen",
+      subject: "Nulstil din adgangskode — Esbjerg Brætspil",
       html: resetHtml,
     },
   });

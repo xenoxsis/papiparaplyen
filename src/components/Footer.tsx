@@ -10,7 +10,7 @@ export default function Footer() {
             <Dices className="size-7 text-neutral-900" />
           </div>
           <div className="flex flex-col">
-            <span className="font-bold text-sm">Pap i Paraplyen</span>
+            <span className="font-bold text-sm">Esbjerg Brætspil</span>
             <span className="text-white/60 text-xs">Brætspilsklub</span>
           </div>
         </div>
@@ -43,7 +43,7 @@ export default function Footer() {
       <div className="border-t border-white/10" />
 
       <div className="max-w-285 mx-auto px-4 sm:px-8 py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 text-xs text-white/60">
-        <span>© 2026 Pap i Paraplyen. Alle rettigheder forbeholdes.</span>
+        <span>© 2026 Esbjerg Brætspil. Alle rettigheder forbeholdes.</span>
         <Link
           href="/privacy"
           className="hover:text-white/90 transition-colors underline underline-offset-2"

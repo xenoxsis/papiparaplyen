@@ -65,7 +65,7 @@ export default function Nav() {
             <Dices className="size-5 text-white" />
           </div>
           <span className="font-bold text-sm tracking-wide text-neutral-900 hidden sm:block">
-            PAP I PARAPLYEN
+            ESBJERG BRÆTSPIL
           </span>
         </Link>
 
