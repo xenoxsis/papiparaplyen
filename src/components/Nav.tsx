@@ -34,7 +34,7 @@ export default function Nav() {
   const pathname = usePathname();
   const router = useRouter();
   const { user, logout, pendingShiftCount } = useAuth();
-  const { notifications, unreadCount, markRead, markAllRead } =
+  const { notifications, unreadCount, markRead, markAllRead, refresh } =
     useNotifications(user?.id ?? null);
   const [open, setOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -104,6 +104,7 @@ export default function Nav() {
 
         {user && (
           <NotificationBell
+            onOpen={refresh}
             notifications={notifications}
             unreadCount={unreadCount}
             onMarkRead={markRead}

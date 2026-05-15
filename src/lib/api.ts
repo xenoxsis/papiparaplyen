@@ -272,6 +272,9 @@ export const markNotificationRead = (id: number) =>
 export const markAllNotificationsRead = () =>
   apiPatch<{ ok: boolean }>("/api/notifications/read-all");
 
+export const markNotificationsReadByLink = (link: string) =>
+  apiPatch<{ ok: boolean }>("/api/notifications/read-by-link", { link });
+
 // ── Email preferences ───────────────────────────────────────────────────────────
 
 export type ApiEmailPrefs = {

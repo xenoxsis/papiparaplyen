@@ -74,6 +74,26 @@ router.patch("/read-all", requireAuth, async (_req, res) => {
   return res.json({ ok: true });
 });
 
+// PATCH /api/notifications/read-by-link  — mark all unread notifications with a given link as read
+router.patch("/read-by-link", requireAuth, async (req, res) => {
+  const memberId = callerId(res);
+  if (!memberId) return res.status(401).json({ error: "Unauthorized" });
+
+  const { link } = req.body as { link?: string };
+  if (!link) return res.status(400).json({ error: "link is required" });
+
+  const pool = await getPool();
+  await pool
+    .request()
+    .input("memberId", sql.Int, memberId)
+    .input("link", sql.NVarChar, link)
+    .query(
+      "UPDATE dbo.notifications SET is_read = 1 WHERE member_id = @memberId AND link = @link AND is_read = 0",
+    );
+
+  return res.json({ ok: true });
+});
+
 // PATCH /api/notifications/:id/read  — mark one as read
 router.patch("/:id/read", requireAuth, async (req, res) => {
   const memberId = callerId(res);

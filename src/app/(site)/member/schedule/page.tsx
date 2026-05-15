@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   CalendarDays,
@@ -24,6 +24,7 @@ import {
   postClubNight,
   postClubNightOptOut,
   putClubNight,
+  markNotificationsReadByLink,
   type ApiClubNight,
 } from "@/lib/api";
 
@@ -45,6 +46,11 @@ export default function SchedulePage() {
 
   const isAdmin = user?.roles.includes("Administrator") ?? false;
   const isTilskuer = !isAdmin && (user?.roles.includes("Tilskuer") ?? false);
+
+  // Mark all schedule-related notifications as read when this page is visited
+  useEffect(() => {
+    markNotificationsReadByLink("/member/schedule").catch(() => {});
+  }, []);
 
   // ── Data ─────────────────────────────────────────────────────────────────
   const {

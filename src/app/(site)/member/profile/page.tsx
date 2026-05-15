@@ -31,6 +31,7 @@ import {
   patchClubNight,
   postClubNightConfirm,
   postClubNightOptOut,
+  markNotificationsReadByLink,
   type ApiClubNight,
   type ApiChannel,
   type ApiMessage,
@@ -105,6 +106,11 @@ function swapReducer(state: SwapState, action: SwapAction): SwapState {
 export default function ProfilePage() {
   const { authorized } = useRequireAuth();
   const { user, setPendingShiftCount } = useAuth();
+
+  // Mark all mention notifications as read when this page is visited
+  useEffect(() => {
+    markNotificationsReadByLink("/member/profile").catch(() => {});
+  }, []);
 
   // ── Data state ────────────────────────────────────────────────────────────
   const [activeChannelId, setActiveChannelId] = useState<number>(1);

@@ -18,6 +18,7 @@ interface Props {
   unreadCount: number;
   onMarkRead: (id: number) => void;
   onMarkAllRead: () => void;
+  onOpen?: () => void;
 }
 
 const typeIcon: Record<NotificationType, React.ReactNode> = {
@@ -45,6 +46,7 @@ export default function NotificationBell({
   unreadCount,
   onMarkRead,
   onMarkAllRead,
+  onOpen,
 }: Props) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -69,7 +71,13 @@ export default function NotificationBell({
   return (
     <div ref={ref} className="relative">
       <button
-        onClick={() => setOpen((v) => !v)}
+        onClick={() =>
+          setOpen((v) => {
+            const next = !v;
+            if (next) onOpen?.();
+            return next;
+          })
+        }
         className="relative flex items-center justify-center w-9 h-9 rounded-full text-neutral-600 hover:bg-neutral-100 transition-colors"
         aria-label="Notifikationer"
       >

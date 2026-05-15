@@ -7,6 +7,7 @@ import {
   getNotifications,
   markAllNotificationsRead,
   markNotificationRead,
+  markNotificationsReadByLink,
 } from "./api";
 import { useUserSSE } from "./UserSSEContext";
 
@@ -14,8 +15,7 @@ export function useNotifications(userId: number | null) {
   const [notifications, setNotifications] = useState<ApiNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
 
-  // Load initial notifications from the API
-  useEffect(() => {
+  const refresh = useCallback(() => {
     if (!userId) return;
     getNotifications()
       .then(({ notifications: data, unreadCount: count }) => {
@@ -23,9 +23,14 @@ export function useNotifications(userId: number | null) {
         setUnreadCount(count);
       })
       .catch(() => {
-        /* ignore — user may not be fully authed yet */
+        /* ignore */
       });
   }, [userId]);
+
+  // Load initial notifications from the API
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
 
   // Subscribe to the shared user SSE stream for real-time pushes
   useUserSSE((evt) => {
@@ -50,5 +55,30 @@ export function useNotifications(userId: number | null) {
     setUnreadCount(0);
   }, []);
 
-  return { notifications, unreadCount, markRead, markAllRead };
+  const markReadByLink = useCallback(
+    async (link: string) => {
+      await markNotificationsReadByLink(link);
+      setNotifications((prev) =>
+        prev.map((n) => (n.link === link ? { ...n, is_read: true } : n)),
+      );
+      setUnreadCount((prev) => {
+        // Recount from updated state
+        return Math.max(
+          0,
+          prev -
+            notifications.filter((n) => n.link === link && !n.is_read).length,
+        );
+      });
+    },
+    [notifications],
+  );
+
+  return {
+    notifications,
+    unreadCount,
+    markRead,
+    markAllRead,
+    markReadByLink,
+    refresh,
+  };
 }
