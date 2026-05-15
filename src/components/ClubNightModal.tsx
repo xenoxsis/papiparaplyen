@@ -17,7 +17,7 @@ import { getMembers, type ApiClubNight, type ApiMember } from "@/lib/api";
 // ── Default times (configure here at build time) ─────────────────────────────
 const DEFAULT_TIMES: Record<"sunday" | "other", { from: string; to: string }> =
   {
-    sunday: { from: "10:00", to: "18:00" },
+    sunday: { from: "12:00", to: "18:00" },
     other: { from: "18:00", to: "23:00" },
   };
 
