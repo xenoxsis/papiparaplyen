@@ -8,7 +8,7 @@ import {
   ReactNode,
 } from "react";
 import { useRouter } from "next/navigation";
-import { getMe, postLogin, postLogout } from "@/lib/api";
+import { fetchMeSilent, postLogin, postLogout } from "@/lib/api";
 
 export type User = {
   id: number;
@@ -49,15 +49,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // ignore
     }
 
-    getMe()
+    fetchMeSilent()
       .then((fresh) => {
         if (!cancelled) {
-          setUser(fresh);
-          localStorage.setItem("auth_user", JSON.stringify(fresh));
+          if (fresh) {
+            setUser(fresh);
+            localStorage.setItem("auth_user", JSON.stringify(fresh));
+          } else {
+            setUser(null);
+            localStorage.removeItem("auth_user");
+          }
         }
-      })
-      .catch(() => {
-        // No valid session — leave whatever was in localStorage (will 401 on next API call)
       })
       .finally(() => {
         if (!cancelled) setIsLoading(false);

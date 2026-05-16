@@ -55,12 +55,12 @@ export default function LoginPage() {
   const [regError, setRegError] = useState("");
   const [regLoading, setRegLoading] = useState(false);
 
-  const { login, loginWithData, user } = useAuth();
+  const { login, loginWithData, user, isLoading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (user) router.replace("/member/profile");
-  }, [user, router]);
+    if (!isLoading && user) router.replace("/member/profile");
+  }, [user, isLoading, router]);
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();

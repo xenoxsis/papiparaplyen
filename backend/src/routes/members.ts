@@ -49,6 +49,32 @@ const MEMBER_GROUP_BY = `
 
 const router = Router();
 
+// GET /api/members/public — unauthenticated, limited fields for the About page
+router.get("/public", async (_req, res) => {
+  const pool = await getPool();
+  const result = await pool.request().query(`
+    SELECT m.id, m.name, m.initials, m.show_on_about_page,
+           STRING_AGG(r.name, ',') AS roles_agg
+    FROM dbo.members m
+    LEFT JOIN dbo.users u ON u.member_id = m.id
+    LEFT JOIN dbo.member_roles mr ON mr.member_id = m.id
+    LEFT JOIN dbo.roles r ON r.id = mr.role_id
+    WHERE ISNULL(u.banned, 0) = 0 AND m.is_virtual = 0
+    GROUP BY m.id, m.name, m.initials, m.show_on_about_page
+    ORDER BY m.id
+  `);
+  res.json(
+    result.recordset.map((row: Record<string, unknown>) => ({
+      id: row.id,
+      name: row.name,
+      initials: row.initials,
+      show_on_about_page:
+        row.show_on_about_page === true || row.show_on_about_page === 1,
+      roles: row.roles_agg ? (row.roles_agg as string).split(",") : [],
+    })),
+  );
+});
+
 // GET /api/members
 router.get("/", requireAuth, async (_req, res) => {
   const pool = await getPool();

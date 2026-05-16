@@ -114,6 +114,19 @@ export type AuthUser = {
 // ── Members ──────────────────────────────────────────────────────────────────
 
 export const getMembers = () => api<ApiMember[]>("/api/members");
+
+export type ApiPublicMember = {
+  id: number;
+  name: string;
+  initials: string;
+  show_on_about_page: boolean;
+  roles: string[];
+};
+
+export const getPublicMembers = () =>
+  fetch(`${process.env.NEXT_PUBLIC_API_URL ?? ""}/api/members/public`).then(
+    (r) => r.json() as Promise<ApiPublicMember[]>,
+  );
 export const getMember = (id: number) => api<ApiMember>(`/api/members/${id}`);
 export const createVirtualMember = (name: string, initials: string) =>
   apiPost<ApiMember>("/api/members", { name, initials });
@@ -217,6 +230,14 @@ export const postLogin = (email: string, password: string) =>
 export const postLogout = () => apiPost<{ ok: boolean }>("/api/auth/logout");
 
 export const getMe = () => api<AuthUser>("/api/auth/me");
+
+/** Silent version — does NOT dispatch auth:unauthorized on 401. Used for the
+ *  initial session check in AuthProvider so an expired cookie doesn't trigger
+ *  a redirect-to-login when the user is browsing a public page. */
+export const fetchMeSilent = (): Promise<AuthUser | null> =>
+  fetch(`${BASE}/api/auth/me`, { credentials: "include" })
+    .then((r) => (r.ok ? (r.json() as Promise<AuthUser>) : null))
+    .catch(() => null);
 
 /** Re-issues the auth cookie with fresh roles from the DB. */
 export const postRefreshAuth = () => apiPost<AuthUser>("/api/auth/refresh");

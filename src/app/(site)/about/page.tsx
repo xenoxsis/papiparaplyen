@@ -4,20 +4,17 @@ import { useEffect, useState } from "react";
 import { Users, Heart, Gamepad2, BookOpen, Shield } from "lucide-react";
 import Image from "next/image";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { getMembers, type ApiMember } from "@/lib/api";
+import { getPublicMembers, type ApiPublicMember } from "@/lib/api";
 
 export default function AboutPage() {
-  const [vagter, setVagter] = useState<ApiMember[]>([]);
+  const [vagter, setVagter] = useState<ApiPublicMember[]>([]);
 
   useEffect(() => {
-    getMembers()
+    getPublicMembers()
       .then((all) =>
         setVagter(
           all.filter(
-            (m) =>
-              !m.banned &&
-              m.roles.includes("Vagt") &&
-              m.show_on_about_page !== false,
+            (m) => m.roles.includes("Vagt") && m.show_on_about_page !== false,
           ),
         ),
       )
