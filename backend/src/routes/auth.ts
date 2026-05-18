@@ -747,4 +747,46 @@ router.patch("/bgg-prefs", requireAuth, async (req, res) => {
   return res.json({ ok: true });
 });
 
+// POST /api/auth/ical-token — generate (or return existing) personal iCal feed token
+router.post("/ical-token", requireAuth, async (_req, res) => {
+  const memberId: number = res.locals.jwt.memberId;
+  const pool = await getPool();
+
+  const existing = await pool
+    .request()
+    .input("memberId", sql.Int, memberId)
+    .query("SELECT ical_token FROM dbo.users WHERE member_id = @memberId");
+
+  const currentToken: string | null = existing.recordset[0]?.ical_token ?? null;
+  if (currentToken) {
+    return res.json({ token: currentToken });
+  }
+
+  const token = crypto.randomBytes(32).toString("hex");
+  await pool
+    .request()
+    .input("token", sql.NVarChar(64), token)
+    .input("memberId", sql.Int, memberId)
+    .query(
+      "UPDATE dbo.users SET ical_token = @token WHERE member_id = @memberId",
+    );
+
+  return res.json({ token });
+});
+
+// DELETE /api/auth/ical-token — revoke personal iCal feed token
+router.delete("/ical-token", requireAuth, async (_req, res) => {
+  const memberId: number = res.locals.jwt.memberId;
+  const pool = await getPool();
+
+  await pool
+    .request()
+    .input("memberId", sql.Int, memberId)
+    .query(
+      "UPDATE dbo.users SET ical_token = NULL WHERE member_id = @memberId",
+    );
+
+  return res.json({ ok: true });
+});
+
 export default router;

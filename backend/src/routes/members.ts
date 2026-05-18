@@ -184,12 +184,14 @@ router.patch("/:id", requireAuth, async (req, res) => {
   }
 
   if (typeof req.body.banned === "boolean") {
+    // When banning, also revoke the iCal token so the feed immediately stops working
+    const icalClause = req.body.banned ? ", ical_token = NULL" : "";
     await pool
       .request()
       .input("banned", sql.Bit, req.body.banned ? 1 : 0)
       .input("memberId", sql.Int, memberId)
       .query(
-        "UPDATE dbo.users SET banned = @banned WHERE member_id = @memberId",
+        `UPDATE dbo.users SET banned = @banned${icalClause} WHERE member_id = @memberId`,
       );
   }
 

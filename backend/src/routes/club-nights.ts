@@ -13,6 +13,7 @@ import {
 } from "../scheduleEmails";
 import { logEvent } from "../audit";
 import { broadcastToUser, getConnectedUserIds } from "../broadcaster";
+import { buildIcal, type IcalEvent } from "../ical";
 
 const router = Router();
 
@@ -113,6 +114,117 @@ router.get("/", async (req, res) => {
   }));
 
   res.json(nights);
+});
+
+// GET /api/club-nights/ical  — public subscription feed (all future confirmed nights)
+router.get("/ical", async (_req, res) => {
+  const pool = await getPool();
+  const result = await pool.request().query(`
+    SELECT n.id, n.name,
+           CONVERT(varchar(10), n.date, 120) AS date,
+           n.time_from, n.time_to, n.location, n.updated_at
+    FROM dbo.club_nights n
+    WHERE n.date >= CAST(GETDATE() AS DATE)
+      AND n.vagt_confirmed = 1
+    ORDER BY n.date
+  `);
+
+  const events: IcalEvent[] = result.recordset.map(
+    (n: {
+      id: number;
+      name: string;
+      date: string;
+      time_from: string;
+      time_to: string;
+      location: string;
+      updated_at: string;
+    }) => ({
+      uid: `clubnight-${n.id}@paraplyen`,
+      summary: n.name,
+      location: n.location ?? "",
+      date: n.date,
+      timeFrom: n.time_from,
+      timeTo: n.time_to,
+      updatedAt: n.updated_at,
+    }),
+  );
+
+  const ical = buildIcal("Esbjerg Br\u00e6tspil \u2013 Klubaftener", events);
+  res.setHeader("Content-Type", "text/calendar; charset=utf-8");
+  res.setHeader("Content-Disposition", 'inline; filename="klubaftener.ics"'); // Public feed: allow CDNs and calendar app proxies to cache for 1 hour
+  res.setHeader("Cache-Control", "public, max-age=3600");
+  return res.send(ical);
+});
+
+// GET /api/club-nights/ical/me?token=<ical_token>  — personal vagter shift feed
+// Uses a secret token stored in dbo.users instead of the session cookie
+// because calendar clients cannot send cookies.
+router.get("/ical/me", async (req, res) => {
+  const { token } = req.query as Record<string, string | undefined>;
+  if (!token || typeof token !== "string") {
+    res.status(401).json({ error: "token required" });
+    return;
+  }
+
+  const pool = await getPool();
+  const tokenResult = await pool
+    .request()
+    .input("token", sql.NVarChar(64), token).query(`
+      SELECT u.member_id, u.banned, m.name
+      FROM dbo.users u
+      JOIN dbo.members m ON m.id = u.member_id
+      WHERE u.ical_token = @token
+    `);
+
+  if (tokenResult.recordset.length === 0) {
+    res.status(401).end();
+    return;
+  }
+  const row = tokenResult.recordset[0];
+  if (row.banned) {
+    res.status(403).end();
+    return;
+  }
+
+  const memberId: number = row.member_id;
+  const memberName: string = row.name;
+
+  const shiftsResult = await pool.request().input("memberId", sql.Int, memberId)
+    .query(`
+      SELECT n.id, n.name,
+             CONVERT(varchar(10), n.date, 120) AS date,
+             n.time_from, n.time_to, n.location, n.updated_at
+      FROM dbo.club_nights n
+      WHERE n.vagt_member_id = @memberId
+      ORDER BY n.date
+    `);
+
+  const events: IcalEvent[] = shiftsResult.recordset.map(
+    (n: {
+      id: number;
+      name: string;
+      date: string;
+      time_from: string;
+      time_to: string;
+      location: string;
+      updated_at: string;
+    }) => ({
+      uid: `shift-${n.id}@paraplyen`,
+      summary: `Vagt \u2013 ${n.name}`,
+      location: n.location ?? "",
+      date: n.date,
+      timeFrom: n.time_from,
+      timeTo: n.time_to,
+      updatedAt: n.updated_at,
+      description: `Vagtvagt for ${memberName}`,
+    }),
+  );
+
+  const ical = buildIcal(`Mine vagter \u2013 ${memberName}`, events);
+  res.setHeader("Content-Type", "text/calendar; charset=utf-8");
+  res.setHeader("Content-Disposition", 'inline; filename="mine-vagter.ics"'); // Private feed: client may cache but proxies must not share between users
+  res.setHeader("Cache-Control", "private, max-age=3600");
+  return res.send(ical);
 });
 
 // POST /api/club-nights

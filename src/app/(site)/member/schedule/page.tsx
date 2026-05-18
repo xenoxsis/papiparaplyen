@@ -36,6 +36,7 @@ import {
 } from "./ScheduleNightCard";
 import { VagterPanel } from "./VagterPanel";
 import { AssignModal } from "./AssignModal";
+import { IcalCard } from "./IcalCard";
 
 export default function SchedulePage() {
   const { user, authorized } = useRequireAuth([
@@ -686,6 +687,9 @@ export default function SchedulePage() {
           </div>
         )}
       </div>
+
+      {/* iCal subscription — Vagt and Admin only */}
+      {!isTilskuer && <IcalCard />}
 
       {/* Mobile assign-vagt bottom sheet */}
       {isAdmin &&

@@ -428,6 +428,16 @@ export const setSilence = (silenced: boolean) =>
     body: JSON.stringify({ silenced }),
   });
 
+// ── iCal ─────────────────────────────────────────────────────────────────────
+
+/** Generate (or return existing) personal iCal feed token. */
+export const postIcalToken = () =>
+  apiPost<{ token: string }>("/api/auth/ical-token");
+
+/** Revoke personal iCal feed token. */
+export const deleteIcalToken = () =>
+  api<{ ok: boolean }>("/api/auth/ical-token", { method: "DELETE" });
+
 // ── Board Games ───────────────────────────────────────────────────────────────
 
 export type ApiBoardgame = {
