@@ -6,6 +6,7 @@ if (process.env.NODE_ENV !== "production") {
   }
 }
 import express, { NextFunction, Request, Response } from "express";
+import helmet from "helmet";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import passport from "passport";
@@ -31,8 +32,9 @@ const allowedOrigins = [
   ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : []),
 ];
 app.use(cors({ origin: allowedOrigins, credentials: true }));
+app.use(helmet());
 app.set("trust proxy", 1);
-app.use(express.json({ limit: "5mb" }));
+app.use(express.json({ limit: "100kb" }));
 app.use(cookieParser());
 app.use(passport.initialize());
 

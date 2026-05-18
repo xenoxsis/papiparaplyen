@@ -6,7 +6,7 @@ import { sendEmail, resetPasswordEmailHtml } from "../email";
 import { logEvent } from "../audit";
 import { broadcastToUser } from "../broadcaster";
 
-const SUPERUSER_EMAIL = process.env.SUPERUSER_EMAIL ?? "REDACTED";
+const SUPERUSER_EMAIL = (process.env.SUPERUSER_EMAIL ?? "").toLowerCase();
 const FRONTEND_URL = process.env.FRONTEND_URL ?? "http://localhost:3000";
 
 // ── Helper: map a DB row → API member shape ─────────────────────────────────

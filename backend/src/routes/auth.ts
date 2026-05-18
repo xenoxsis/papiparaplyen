@@ -268,6 +268,11 @@ router.patch("/me", requireAuth, async (req, res) => {
   }
 
   const trimmedName = name.trim();
+  if (trimmedName.length > 100) {
+    return res
+      .status(400)
+      .json({ error: "name must be at most 100 characters" });
+  }
   const parts = trimmedName.split(/\s+/);
   const initials =
     parts.length >= 2
@@ -467,7 +472,6 @@ router.post("/forgot-password", async (req, res) => {
         type: "oauth_account_notice",
         subject: "Adgangskode nulstilling — Esbjerg Brætspil",
         provider: providerName,
-        html: oauthHtml,
       },
     });
     return;
@@ -498,7 +502,7 @@ router.post("/forgot-password", async (req, res) => {
     targetEmail: normalizedEmail,
     detail: {
       subject: "Nulstil din adgangskode — Esbjerg Brætspil",
-      html: resetHtml,
+      tokenExpiry: expiresAt.toISOString(),
     },
   });
 });

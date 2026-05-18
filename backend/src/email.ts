@@ -1,6 +1,16 @@
 // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-explicit-any
 const nodemailer: any = require("nodemailer");
 
+/** Escape HTML special characters to prevent injection in email templates. */
+function escHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#x27;");
+}
+
 const EMAIL_FROM_ADDRESS = process.env.EMAIL_FROM ?? "paraplyen@mdbeads.com";
 const EMAIL_FROM_NAME = "Esbjerg Brætspil";
 
@@ -42,12 +52,13 @@ export async function sendEmail(
 }
 
 export function resetPasswordEmailHtml(resetUrl: string): string {
+  const safeUrl = escHtml(resetUrl);
   return `
     <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px">
       <h2 style="color:#1a1a1a">Nulstil din adgangskode</h2>
       <p style="color:#555">Du har anmodet om at nulstille din adgangskode til Esbjerg Brætspil.</p>
       <p style="color:#555">Klik på knappen herunder — linket er gyldigt i <strong>1 time</strong>.</p>
-      <a href="${resetUrl}"
+      <a href="${safeUrl}"
          style="display:inline-block;margin:16px 0;padding:12px 24px;background:#e63946;color:white;text-decoration:none;border-radius:8px;font-weight:600">
         Nulstil adgangskode
       </a>
@@ -62,7 +73,7 @@ export function oauthAccountEmailHtml(provider: string): string {
       ? "Google"
       : provider === "facebook"
         ? "Facebook"
-        : provider;
+        : escHtml(provider);
   return `
     <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px">
       <h2 style="color:#1a1a1a">Adgangskode nulstilling</h2>

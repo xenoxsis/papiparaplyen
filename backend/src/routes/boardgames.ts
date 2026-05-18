@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, json as expressJson } from "express";
 import { getPool, sql } from "../db";
 import { requireAuth } from "../auth";
 
@@ -54,73 +54,77 @@ function parseCsv(text: string): Record<string, string>[] {
 // upserts games into dbo.boardgames, and syncs dbo.member_boardgames for the
 // uploading member.
 
-router.post("/upload", requireAuth, async (req, res) => {
-  const memberId: number = res.locals.jwt.memberId;
-  const csvText: string = req.body?.csv ?? "";
+router.post(
+  "/upload",
+  requireAuth,
+  expressJson({ limit: "5mb" }),
+  async (req, res) => {
+    const memberId: number = res.locals.jwt.memberId;
+    const csvText: string = req.body?.csv ?? "";
 
-  if (!csvText.trim()) {
-    return res.status(400).json({ error: "Empty CSV body" });
-  }
+    if (!csvText.trim()) {
+      return res.status(400).json({ error: "Empty CSV body" });
+    }
 
-  const rows = parseCsv(csvText);
-  // Only import games the member currently owns
-  const owned = rows.filter((r) => r.own === "1");
+    const rows = parseCsv(csvText);
+    // Only import games the member currently owns
+    const owned = rows.filter((r) => r.own === "1");
 
-  if (owned.length === 0) {
-    // Wipe the member's collection (they sold everything or wrong file)
+    if (owned.length === 0) {
+      // Wipe the member's collection (they sold everything or wrong file)
+      const pool = await getPool();
+      const prevResult = await pool
+        .request()
+        .input("memberId", sql.Int, memberId)
+        .query(
+          "SELECT COUNT(*) AS cnt FROM dbo.member_boardgames WHERE member_id = @memberId",
+        );
+      const prevCount: number = prevResult.recordset[0].cnt;
+      await pool
+        .request()
+        .input("memberId", sql.Int, memberId)
+        .query("DELETE FROM dbo.member_boardgames WHERE member_id = @memberId");
+      return res.json({ ok: true, imported: 0, removed: prevCount });
+    }
+
     const pool = await getPool();
-    const prevResult = await pool
-      .request()
-      .input("memberId", sql.Int, memberId)
-      .query(
-        "SELECT COUNT(*) AS cnt FROM dbo.member_boardgames WHERE member_id = @memberId",
-      );
-    const prevCount: number = prevResult.recordset[0].cnt;
+
+    // Parse owned rows into plain objects
+    const games = owned
+      .map((row) => {
+        const bggId = parseInt(row.objectid, 10);
+        if (!bggId) return null;
+        return {
+          bgg_id: bggId,
+          name: (row.objectname ?? "").slice(0, 255),
+          avg_weight: parseFloat(row.avgweight) || null,
+          min_players: parseInt(row.minplayers, 10) || null,
+          max_players: parseInt(row.maxplayers, 10) || null,
+          year_published: parseInt(row.yearpublished, 10) || null,
+          playing_time: parseInt(row.playingtime, 10) || null,
+        };
+      })
+      .filter(Boolean);
+
+    if (games.length === 0) {
+      const prevResult0 = await pool
+        .request()
+        .input("memberId", sql.Int, memberId)
+        .query(
+          "SELECT COUNT(*) AS cnt FROM dbo.member_boardgames WHERE member_id = @memberId",
+        );
+      const prevCount0: number = prevResult0.recordset[0].cnt;
+      await pool
+        .request()
+        .input("memberId", sql.Int, memberId)
+        .query("DELETE FROM dbo.member_boardgames WHERE member_id = @memberId");
+      return res.json({ ok: true, imported: 0, removed: prevCount0 });
+    }
+
+    // 1. Bulk-upsert all games in one MERGE via OPENJSON
     await pool
       .request()
-      .input("memberId", sql.Int, memberId)
-      .query("DELETE FROM dbo.member_boardgames WHERE member_id = @memberId");
-    return res.json({ ok: true, imported: 0, removed: prevCount });
-  }
-
-  const pool = await getPool();
-
-  // Parse owned rows into plain objects
-  const games = owned
-    .map((row) => {
-      const bggId = parseInt(row.objectid, 10);
-      if (!bggId) return null;
-      return {
-        bgg_id: bggId,
-        name: (row.objectname ?? "").slice(0, 255),
-        avg_weight: parseFloat(row.avgweight) || null,
-        min_players: parseInt(row.minplayers, 10) || null,
-        max_players: parseInt(row.maxplayers, 10) || null,
-        year_published: parseInt(row.yearpublished, 10) || null,
-        playing_time: parseInt(row.playingtime, 10) || null,
-      };
-    })
-    .filter(Boolean);
-
-  if (games.length === 0) {
-    const prevResult0 = await pool
-      .request()
-      .input("memberId", sql.Int, memberId)
-      .query(
-        "SELECT COUNT(*) AS cnt FROM dbo.member_boardgames WHERE member_id = @memberId",
-      );
-    const prevCount0: number = prevResult0.recordset[0].cnt;
-    await pool
-      .request()
-      .input("memberId", sql.Int, memberId)
-      .query("DELETE FROM dbo.member_boardgames WHERE member_id = @memberId");
-    return res.json({ ok: true, imported: 0, removed: prevCount0 });
-  }
-
-  // 1. Bulk-upsert all games in one MERGE via OPENJSON
-  await pool
-    .request()
-    .input("games", sql.NVarChar(sql.MAX), JSON.stringify(games)).query(`
+      .input("games", sql.NVarChar(sql.MAX), JSON.stringify(games)).query(`
         MERGE dbo.boardgames AS target
         USING (
           SELECT
@@ -155,32 +159,33 @@ router.post("/upload", requireAuth, async (req, res) => {
                   source.max_players, source.year_published, source.playing_time);
       `);
 
-  // 2. Sync member_boardgames: count existing, delete then re-insert as two separate queries
-  const bggIdsJson = JSON.stringify(games.map((g) => g!.bgg_id));
-  const prevResult2 = await pool
-    .request()
-    .input("memberId", sql.Int, memberId)
-    .query(
-      "SELECT COUNT(*) AS cnt FROM dbo.member_boardgames WHERE member_id = @memberId",
-    );
-  const prevCount2: number = prevResult2.recordset[0].cnt;
-  await pool
-    .request()
-    .input("memberId", sql.Int, memberId)
-    .query("DELETE FROM dbo.member_boardgames WHERE member_id = @memberId");
+    // 2. Sync member_boardgames: count existing, delete then re-insert as two separate queries
+    const bggIdsJson = JSON.stringify(games.map((g) => g!.bgg_id));
+    const prevResult2 = await pool
+      .request()
+      .input("memberId", sql.Int, memberId)
+      .query(
+        "SELECT COUNT(*) AS cnt FROM dbo.member_boardgames WHERE member_id = @memberId",
+      );
+    const prevCount2: number = prevResult2.recordset[0].cnt;
+    await pool
+      .request()
+      .input("memberId", sql.Int, memberId)
+      .query("DELETE FROM dbo.member_boardgames WHERE member_id = @memberId");
 
-  await pool
-    .request()
-    .input("memberId", sql.Int, memberId)
-    .input("bggIds", sql.NVarChar(sql.MAX), bggIdsJson).query(`
+    await pool
+      .request()
+      .input("memberId", sql.Int, memberId)
+      .input("bggIds", sql.NVarChar(sql.MAX), bggIdsJson).query(`
         INSERT INTO dbo.member_boardgames (member_id, bgg_id)
         SELECT @memberId, CAST([value] AS INT)
         FROM OPENJSON(@bggIds);
       `);
 
-  const removed = Math.max(0, prevCount2 - games.length);
-  return res.json({ ok: true, imported: games.length, removed });
-});
+    const removed = Math.max(0, prevCount2 - games.length);
+    return res.json({ ok: true, imported: games.length, removed });
+  },
+);
 
 // ── GET /api/boardgames ──────────────────────────────────────────────────────
 // Public. Returns all games that at least one member with bgg_share_collection=1

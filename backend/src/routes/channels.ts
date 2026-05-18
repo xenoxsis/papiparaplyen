@@ -143,8 +143,10 @@ router.get(
       .query(`
       SELECT m.id, m.name, m.initials
       FROM dbo.members m
+      JOIN dbo.channel_members cm ON cm.member_id = m.id
       LEFT JOIN dbo.users u ON u.member_id = m.id
-      WHERE ISNULL(u.banned, 0) = 0
+      WHERE cm.channel_id = @channelId
+        AND ISNULL(u.banned, 0) = 0
       ORDER BY m.name
     `);
 
@@ -206,7 +208,26 @@ router.post(
   asyncRoute(async (req, res) => {
     const pool = await getPool();
     const channelId = Number(req.params.id);
+    const senderId = (res.locals.jwt as { memberId: number }).memberId;
     const isSwap = req.body.type === "shift_swap";
+
+    // Role-gate vagter channel for writes
+    const chanTypeResult = await pool
+      .request()
+      .input("channelId", sql.Int, channelId)
+      .query("SELECT type FROM dbo.channels WHERE id = @channelId");
+    const chanType: string | undefined = chanTypeResult.recordset[0]?.type;
+    if (chanType === "vagter") {
+      const jwt = res.locals.jwt as { roles: string[] };
+      const allowed =
+        jwt.roles.includes("Administrator") ||
+        jwt.roles.includes("Vagt") ||
+        jwt.roles.includes("Tilskuer");
+      if (!allowed) {
+        res.status(403).json({ error: "Forbidden" });
+        return;
+      }
+    }
 
     // ── Input validation ───────────────────────────────────────────────
     const rawBody: unknown = req.body.body;
@@ -229,7 +250,7 @@ router.post(
     const insertResult = await pool
       .request()
       .input("channelId", sql.Int, channelId)
-      .input("senderId", sql.Int, req.body.sender_id ?? null)
+      .input("senderId", sql.Int, senderId)
       .input("body", sql.NVarChar(sql.MAX), sanitisedBody)
       .input("sentAt", sql.DateTime2, new Date().toISOString())
       .input("type", sql.NVarChar, isSwap ? "shift_swap" : null)
@@ -262,7 +283,6 @@ router.post(
     let match: RegExpExecArray | null;
     while ((match = mentionPattern.exec(sanitisedBody ?? "")) !== null) {
       const mentionedId = Number(match[2]);
-      const senderId: number | null = req.body.sender_id ?? null;
       if (mentionedId && mentionedId !== senderId) {
         mentionedIds.add(mentionedId);
       }
@@ -298,7 +318,6 @@ router.post(
 
     // Notify channel members about the new swap request (excluding sender)
     if (isSwap) {
-      const senderId: number | null = req.body.sender_id ?? null;
       const nightName: string =
         row.recordset[0]?.shift_night_name ?? "en aften";
       const membersResult = await pool
@@ -342,11 +361,32 @@ router.patch(
     if (check.recordset.length === 0)
       return res.status(404).json({ error: "Not found" });
 
-    // Body edits are owner-only; swap_status patches are system-internal (any authed user)
+    // Body edits are owner-only
     const isBodyEdit =
       req.body.body !== undefined && req.body.swap_status === undefined;
     if (isBodyEdit && check.recordset[0].sender_id !== callerId)
       return res.status(403).json({ error: "Forbidden" });
+
+    // swap_status / taken_by_member_id: only the taker or the original sender (or admin) may change
+    const isSwapPatch =
+      req.body.swap_status !== undefined || "taken_by_member_id" in req.body;
+    if (isSwapPatch) {
+      const originalSenderId: number | null =
+        check.recordset[0].sender_id ?? null;
+      const takenById: number | null = req.body.taken_by_member_id ?? null;
+      const jwt = res.locals.jwt as { roles: string[]; memberId: number };
+      const callerIsAdmin = jwt.roles.includes("Administrator");
+      const callerIsOriginalSender = callerId === originalSenderId;
+      // Taker: caller sets themselves as taken_by_member_id and status=taken
+      const callerIsTaker =
+        req.body.swap_status === "taken" && takenById === callerId;
+      // Cancellation: only the original sender or admin
+      const callerIsCancelling =
+        req.body.swap_status === "cancelled" && callerIsOriginalSender;
+      if (!callerIsAdmin && !callerIsTaker && !callerIsCancelling) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+    }
 
     const setParts: string[] = [];
     const request = pool
