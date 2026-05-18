@@ -174,6 +174,12 @@ export const deleteClubNightOptOut = (nightId: number) =>
   apiDelete<{ ok: boolean }>(`/api/club-nights/${nightId}/opt-out`);
 export const postClubNightConfirm = (nightId: number) =>
   apiPost<ApiClubNight>(`/api/club-nights/${nightId}/confirm`);
+export const getFollowingNightIds = () =>
+  api<number[]>("/api/club-nights/following");
+export const postClubNightFollow = (nightId: number) =>
+  apiPost<{ ok: boolean }>(`/api/club-nights/${nightId}/follow`);
+export const deleteClubNightFollow = (nightId: number) =>
+  apiDelete<{ ok: boolean }>(`/api/club-nights/${nightId}/follow`);
 
 // ── Schedule Reviews ──────────────────────────────────────────────────────────
 

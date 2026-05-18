@@ -10,7 +10,9 @@ export type NotificationType =
   | "shift_unassigned"
   | "shift_deleted"
   | "nights_added"
-  | "mentioned";
+  | "mentioned"
+  | "night_changed"
+  | "night_deleted";
 
 export interface Notification {
   id: number;

@@ -25,7 +25,10 @@ import {
   shiftUnassignedEmailHtml,
   shiftDeletedEmailHtml,
   mentionEmailHtml,
+  nightFollowerChangedEmailHtml,
+  nightFollowerDeletedEmailHtml,
   NightSummary,
+  NightChangeSummary,
 } from "./email";
 import { isRecentlyActive } from "./presence";
 import { logEvent } from "./audit";
@@ -355,6 +358,76 @@ export async function sendMentionEmail(
       html: mentionHtml,
     },
   });
+}
+
+// ── Night follower emails ─────────────────────────────────────────────────────
+
+/** Notify + email all followers of a night that its details have changed. */
+export async function sendFollowerChangedEmails(
+  nightId: number,
+  change: NightChangeSummary,
+): Promise<void> {
+  const pool = await getPool();
+  const result = await pool.request().input("nightId", sql.Int, nightId).query(`
+      SELECT m.id, m.name, m.email
+      FROM dbo.club_night_followers f
+      JOIN dbo.members m ON m.id = f.member_id
+      LEFT JOIN dbo.users u ON u.member_id = m.id
+      WHERE f.club_night_id = @nightId
+        AND ISNULL(u.banned, 0) = 0
+        AND m.email IS NOT NULL
+        AND m.is_virtual = 0
+    `);
+  const followers: { id: number; name: string; email: string }[] =
+    result.recordset;
+
+  const subject = `Ændring i klubaften du følger: ${change.new.name}`;
+  await Promise.allSettled(
+    followers.map((f) =>
+      sendEmail(
+        f.email,
+        subject,
+        nightFollowerChangedEmailHtml(f.name, change),
+      ),
+    ),
+  );
+  if (followers.length > 0) {
+    console.log(
+      `[scheduleEmails] Sent night-changed emails for nightId=${nightId} to ${followers.length} follower(s)`,
+    );
+  }
+}
+
+/** Notify + email all followers of a night that it has been deleted. */
+export async function sendFollowerDeletedEmails(
+  nightId: number,
+  night: NightSummary,
+): Promise<void> {
+  const pool = await getPool();
+  const result = await pool.request().input("nightId", sql.Int, nightId).query(`
+      SELECT m.id, m.name, m.email
+      FROM dbo.club_night_followers f
+      JOIN dbo.members m ON m.id = f.member_id
+      LEFT JOIN dbo.users u ON u.member_id = m.id
+      WHERE f.club_night_id = @nightId
+        AND ISNULL(u.banned, 0) = 0
+        AND m.email IS NOT NULL
+        AND m.is_virtual = 0
+    `);
+  const followers: { id: number; name: string; email: string }[] =
+    result.recordset;
+
+  const subject = `Klubaften du fulgte er aflyst: ${night.name}`;
+  await Promise.allSettled(
+    followers.map((f) =>
+      sendEmail(f.email, subject, nightFollowerDeletedEmailHtml(f.name, night)),
+    ),
+  );
+  if (followers.length > 0) {
+    console.log(
+      `[scheduleEmails] Sent night-deleted emails for nightId=${nightId} to ${followers.length} follower(s)`,
+    );
+  }
 }
 
 // ── GDPR data-retention cleanup jobs ─────────────────────────────────────────

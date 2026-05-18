@@ -1,6 +1,13 @@
 import { Router } from "express";
 import { getPool, sql } from "../db";
-import { callerId, isAdmin, requireAdmin, requireAuth } from "../auth";
+import {
+  callerId,
+  isAdmin,
+  requireAdmin,
+  requireAuth,
+  extractToken,
+  verifyToken,
+} from "../auth";
 import {
   createNotification,
   createNotificationForMany,
@@ -10,6 +17,8 @@ import {
   sendShiftAssignedEmail,
   sendShiftUnassignedEmail,
   sendShiftDeletedEmail,
+  sendFollowerChangedEmails,
+  sendFollowerDeletedEmails,
 } from "../scheduleEmails";
 import { logEvent } from "../audit";
 import { broadcastToUser, getConnectedUserIds } from "../broadcaster";
@@ -225,6 +234,69 @@ router.get("/ical/me", async (req, res) => {
   res.setHeader("Content-Disposition", 'inline; filename="mine-vagter.ics"'); // Private feed: client may cache but proxies must not share between users
   res.setHeader("Cache-Control", "private, max-age=3600");
   return res.send(ical);
+});
+
+// GET /api/club-nights/following — returns IDs of nights the current user follows.
+// Returns [] without error if not authenticated (public page friendly).
+router.get("/following", async (req, res) => {
+  const token = extractToken(req);
+  const payload = token ? verifyToken(token) : null;
+  if (!payload) return res.json([]);
+
+  const pool = await getPool();
+  const result = await pool
+    .request()
+    .input("memberId", sql.Int, payload.memberId)
+    .query(
+      "SELECT club_night_id AS id FROM dbo.club_night_followers WHERE member_id = @memberId",
+    );
+  return res.json(result.recordset.map((r: { id: number }) => r.id));
+});
+
+// POST /api/club-nights/:id/follow
+router.post("/:id/follow", requireAuth, async (req, res) => {
+  const memberId = callerId(res);
+  const nightId = Number(req.params.id);
+  const pool = await getPool();
+
+  const nightCheck = await pool
+    .request()
+    .input("id", sql.Int, nightId)
+    .query("SELECT id FROM dbo.club_nights WHERE id = @id");
+  if (nightCheck.recordset.length === 0)
+    return res.status(404).json({ error: "Not found" });
+
+  // Upsert — silently succeeds if already following
+  await pool
+    .request()
+    .input("nightId", sql.Int, nightId)
+    .input("memberId", sql.Int, memberId).query(`
+      IF NOT EXISTS (
+        SELECT 1 FROM dbo.club_night_followers
+        WHERE club_night_id = @nightId AND member_id = @memberId
+      )
+        INSERT INTO dbo.club_night_followers (club_night_id, member_id)
+        VALUES (@nightId, @memberId)
+    `);
+
+  return res.status(201).json({ ok: true });
+});
+
+// DELETE /api/club-nights/:id/follow
+router.delete("/:id/follow", requireAuth, async (req, res) => {
+  const memberId = callerId(res);
+  const nightId = Number(req.params.id);
+  const pool = await getPool();
+
+  await pool
+    .request()
+    .input("nightId", sql.Int, nightId)
+    .input("memberId", sql.Int, memberId)
+    .query(
+      "DELETE FROM dbo.club_night_followers WHERE club_night_id = @nightId AND member_id = @memberId",
+    );
+
+  return res.status(200).json({ ok: true });
 });
 
 // POST /api/club-nights
@@ -716,6 +788,52 @@ router.put("/:id", requireAuth, async (req, res) => {
       },
     },
   });
+
+  // Notify followers if anything actually changed
+  const anyChange =
+    (name !== undefined && name !== current.name) ||
+    (time_from !== undefined && time_from !== current.time_from) ||
+    (time_to !== undefined && time_to !== current.time_to) ||
+    (location !== undefined && location !== current.location);
+  if (anyChange) {
+    const oldNight = {
+      name: current.name,
+      date: current.date,
+      time_from: current.time_from,
+      time_to: current.time_to,
+      location: current.location,
+    };
+    const newNight = {
+      name: editedNight.name,
+      date: editedNight.date,
+      time_from: editedNight.time_from,
+      time_to: editedNight.time_to,
+      location: editedNight.location,
+    };
+
+    // Get followers for in-app notifications
+    const followerRows = await pool
+      .request()
+      .input("nightId", sql.Int, nightId)
+      .query(
+        "SELECT member_id FROM dbo.club_night_followers WHERE club_night_id = @nightId",
+      );
+    const followerIds: number[] = followerRows.recordset.map(
+      (r: { member_id: number }) => r.member_id,
+    );
+    await createNotificationForMany(
+      followerIds,
+      "night_changed",
+      `En klubaften du følger er ændret: ${editedNight.name}`,
+      "/events",
+    );
+
+    sendFollowerChangedEmails(nightId, { old: oldNight, new: newNight }).catch(
+      (err) =>
+        console.error("[scheduleEmails] follower-changed send failed:", err),
+    );
+  }
+
   return res.json(editedNight);
 });
 
@@ -737,6 +855,17 @@ router.delete("/:id", requireAuth, async (req, res) => {
 
   const night = nightCheck.recordset[0];
   const assignedVagtId: number | null = night.vagt_member_id ?? null;
+
+  // Fetch followers before deleting (CASCADE removes them alongside the night)
+  const followerRows = await pool
+    .request()
+    .input("nightId", sql.Int, nightId)
+    .query(
+      "SELECT member_id FROM dbo.club_night_followers WHERE club_night_id = @nightId",
+    );
+  const followerIds: number[] = followerRows.recordset.map(
+    (r: { member_id: number }) => r.member_id,
+  );
 
   await pool
     .request()
@@ -774,6 +903,25 @@ router.delete("/:id", requireAuth, async (req, res) => {
     targetMemberId: assignedVagtId,
     detail: { nightId, name: night.name, date: night.date },
   });
+
+  // Notify + email followers (excluding the assigned vagt who already got a separate notice)
+  const followersToNotify = followerIds.filter((id) => id !== assignedVagtId);
+  await createNotificationForMany(
+    followersToNotify,
+    "night_deleted",
+    `En klubaften du fulgte er slettet: ${night.name}`,
+    "/events",
+  );
+  sendFollowerDeletedEmails(nightId, {
+    name: night.name,
+    date: night.date,
+    time_from: night.time_from,
+    time_to: night.time_to,
+    location: night.location,
+  }).catch((err) =>
+    console.error("[scheduleEmails] follower-deleted send failed:", err),
+  );
+
   return res.status(200).json({ ok: true });
 });
 

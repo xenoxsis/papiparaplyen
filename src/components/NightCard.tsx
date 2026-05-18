@@ -1,4 +1,4 @@
-import { Calendar, Clock, MapPin } from "lucide-react";
+import { Bell, BellOff, Calendar, Clock, MapPin } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import type { ApiClubNight } from "@/lib/api";
 
@@ -7,6 +7,9 @@ interface NightCardProps {
   /** Index in list — 0 = "next night" styling */
   index?: number;
   variant?: "card" | "row";
+  /** If provided, a follow/unfollow button is shown */
+  isFollowing?: boolean;
+  onFollowToggle?: (following: boolean) => void;
 }
 
 /** Shared night card used on the home page (card grid) and events page (grid + list row). */
@@ -14,6 +17,8 @@ export function NightCard({
   night,
   index = 0,
   variant = "card",
+  isFollowing,
+  onFollowToggle,
 }: NightCardProps) {
   const d = new Date(night.date);
   const isNext = index === 0;
@@ -90,6 +95,21 @@ export function NightCard({
         <div className="shrink-0">
           <VagtBadge />
         </div>
+
+        {/* Follow */}
+        {onFollowToggle !== undefined && (
+          <button
+            onClick={() => onFollowToggle(!isFollowing)}
+            title={isFollowing ? "Stop med at følge" : "Følg denne aften"}
+            className={`shrink-0 p-1.5 rounded-lg border transition-colors ${isFollowing ? "border-blue-300 bg-blue-50 text-blue-600 hover:bg-blue-100" : "border-neutral-200 bg-white text-neutral-400 hover:text-neutral-700 hover:border-neutral-400"}`}
+          >
+            {isFollowing ? (
+              <BellOff className="size-3.5" />
+            ) : (
+              <Bell className="size-3.5" />
+            )}
+          </button>
+        )}
       </div>
     );
   }
@@ -126,8 +146,22 @@ export function NightCard({
           <MapPin className="size-4 text-neutral-500 shrink-0" />
           {night.location}
         </div>
-        <div className="mt-1">
+        <div className="mt-1 flex items-center justify-between gap-2">
           <VagtBadge />
+          {onFollowToggle !== undefined && (
+            <button
+              onClick={() => onFollowToggle(!isFollowing)}
+              title={isFollowing ? "Stop med at følge" : "Følg denne aften"}
+              className={`shrink-0 flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-lg border transition-colors ${isFollowing ? "border-blue-300 bg-blue-50 text-blue-600 hover:bg-blue-100" : "border-neutral-200 bg-white text-neutral-500 hover:border-neutral-400 hover:text-neutral-800"}`}
+            >
+              {isFollowing ? (
+                <BellOff className="size-3" />
+              ) : (
+                <Bell className="size-3" />
+              )}
+              {isFollowing ? "Følger" : "Følg"}
+            </button>
+          )}
         </div>
       </CardContent>
     </Card>

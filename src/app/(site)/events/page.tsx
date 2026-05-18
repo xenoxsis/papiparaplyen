@@ -1,15 +1,24 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { CalendarPlus, LayoutGrid, LayoutList } from "lucide-react";
-import { getClubNights, type ApiClubNight } from "@/lib/api";
+import {
+  deleteClubNightFollow,
+  getClubNights,
+  getFollowingNightIds,
+  postClubNightFollow,
+  type ApiClubNight,
+} from "@/lib/api";
+import { useAuth } from "@/lib/auth-context";
 import { NightCard } from "@/components/NightCard";
 import { NightCardSkeleton } from "@/components/NightCardSkeleton";
 
 export default function EventsPage() {
+  const { user } = useAuth();
   const [nights, setNights] = useState<ApiClubNight[]>([]);
   const [view, setView] = useState<"grid" | "list">("grid");
   const [loading, setLoading] = useState(true);
+  const [followingIds, setFollowingIds] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     setLoading(true);
@@ -24,6 +33,39 @@ export default function EventsPage() {
       .catch(console.error)
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    if (!user) {
+      setFollowingIds(new Set());
+      return;
+    }
+    getFollowingNightIds()
+      .then((ids) => setFollowingIds(new Set(ids)))
+      .catch(() => setFollowingIds(new Set()));
+  }, [user]);
+
+  const handleFollowToggle = useCallback(
+    async (nightId: number, follow: boolean) => {
+      if (!user) return;
+      setFollowingIds((prev) => {
+        const next = new Set(prev);
+        follow ? next.add(nightId) : next.delete(nightId);
+        return next;
+      });
+      try {
+        if (follow) await postClubNightFollow(nightId);
+        else await deleteClubNightFollow(nightId);
+      } catch {
+        // Revert on error
+        setFollowingIds((prev) => {
+          const next = new Set(prev);
+          follow ? next.delete(nightId) : next.add(nightId);
+          return next;
+        });
+      }
+    },
+    [user],
+  );
 
   const webcalUrl =
     typeof window !== "undefined"
@@ -84,7 +126,15 @@ export default function EventsPage() {
                   <NightCardSkeleton key={i} variant="card" />
                 ))
               : nights.map((night, i) => (
-                  <NightCard key={night.id} night={night} index={i} />
+                  <NightCard
+                    key={night.id}
+                    night={night}
+                    index={i}
+                    isFollowing={user ? followingIds.has(night.id) : undefined}
+                    onFollowToggle={
+                      user ? (f) => handleFollowToggle(night.id, f) : undefined
+                    }
+                  />
                 ))}
           </div>
         ) : (
@@ -99,6 +149,10 @@ export default function EventsPage() {
                     night={night}
                     index={i}
                     variant="row"
+                    isFollowing={user ? followingIds.has(night.id) : undefined}
+                    onFollowToggle={
+                      user ? (f) => handleFollowToggle(night.id, f) : undefined
+                    }
                   />
                 ))}
           </div>
