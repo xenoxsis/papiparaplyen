@@ -19,7 +19,15 @@ export function IcalCard() {
     ? `${origin}/api/club-nights/ical/me?token=${token}`
     : null;
 
-  const webcalUrl = feedUrl?.replace(/^https?/, "webcal") ?? null;
+  const isAndroid =
+    typeof navigator !== "undefined" && /android/i.test(navigator.userAgent);
+
+  // Android doesn't handle webcal:// — use Google Calendar's subscription URL instead.
+  const webcalUrl = feedUrl
+    ? isAndroid
+      ? `https://www.google.com/calendar/render?cid=${encodeURIComponent(feedUrl)}`
+      : feedUrl.replace(/^https?/, "webcal")
+    : null;
 
   async function generate() {
     setLoading(true);
