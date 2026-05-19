@@ -56,6 +56,15 @@ export type ApiMember = {
   rule_no_weekends: boolean;
 };
 
+export type ApiLocation = {
+  id: number;
+  name: string;
+  address: string;
+  disabled: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
 export type ApiClubNight = {
   id: number;
   number: number;
@@ -64,6 +73,9 @@ export type ApiClubNight = {
   time_from: string;
   time_to: string;
   location: string;
+  location_id: number | null;
+  location_name: string | null;
+  location_address: string | null;
   vagt_member_id: number | null;
   assigned_member_name: string | null;
   assigned_member_initials: string | null;
@@ -168,7 +180,7 @@ export const putClubNight = (
     name?: string;
     time_from?: string;
     time_to?: string;
-    location?: string;
+    location_id?: number | null;
   },
 ) => apiPut<ApiClubNight>(`/api/club-nights/${id}`, body);
 export const deleteClubNight = (id: number) =>
@@ -187,6 +199,14 @@ export const deleteClubNightFollow = (nightId: number) =>
   apiDelete<{ ok: boolean }>(`/api/club-nights/${nightId}/follow`);
 export const cancelClubNight = (nightId: number) =>
   apiPost<ApiClubNight>(`/api/club-nights/${nightId}/cancel`);
+
+// ── Locations ─────────────────────────────────────────────────────────────────
+
+export const getLocations = () => api<ApiLocation[]>("/api/locations");
+export const createLocation = (body: { name: string; address: string }) =>
+  apiPost<ApiLocation>("/api/locations", body);
+export const disableLocation = (id: number) =>
+  apiPatch<ApiLocation>(`/api/locations/${id}/disable`);
 
 // ── Schedule Reviews ──────────────────────────────────────────────────────────
 

@@ -203,7 +203,7 @@ export default function SchedulePage() {
                 name: data.name,
                 time_from: data.timeFrom,
                 time_to: data.timeTo,
-                location: data.location,
+                location_id: data.location_id,
               });
               setNights((prev) =>
                 prev.map((n) => (n.id === updated.id ? updated : n)),
@@ -234,7 +234,7 @@ export default function SchedulePage() {
                 date: data.date,
                 time_from: data.timeFrom,
                 time_to: data.timeTo,
-                location: data.location,
+                location_id: data.location_id,
                 vagt_member_id: data.vagt_member_id,
               });
               setNights((prev) =>

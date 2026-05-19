@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { getMembers, type ApiClubNight, type ApiMember } from "@/lib/api";
+import { getMembers, getLocations, type ApiClubNight, type ApiMember, type ApiLocation } from "@/lib/api";
 
 // ── Default times (configure here at build time) ─────────────────────────────
 const DEFAULT_TIMES: Record<"sunday" | "other", { from: string; to: string }> =
@@ -61,7 +61,7 @@ export function ClubNightModal({
     date: string;
     timeFrom: string;
     timeTo: string;
-    location: string;
+    location_id: number | null;
     vagt_member_id: number | null;
   }) => void;
   /** When provided, the modal runs in edit mode */
@@ -70,7 +70,7 @@ export function ClubNightModal({
     name: string;
     timeFrom: string;
     timeTo: string;
-    location: string;
+    location_id: number | null;
   }) => void;
 }) {
   const isEditMode = night !== undefined;
@@ -83,14 +83,15 @@ export function ClubNightModal({
   const [timeTo, setTimeTo] = useState(
     night?.time_to ?? defaultTimesForDate(today()).to,
   );
-  const [location, setLocation] = useState(night?.location ?? "Cafe Paraplyen");
+  const [locationId, setLocationId] = useState<number | null>(night?.location_id ?? 1);
+  const [locations, setLocations] = useState<ApiLocation[]>([]);
   const [vagtId, setVagtId] = useState<string>("none");
   const [vagter, setVagter] = useState<ApiMember[]>([]);
   const overlayRef = useRef<HTMLDivElement>(null);
 
   const isDuplicate = !isEditMode && existingDates.includes(date);
   const isPast = !isEditMode && date < today();
-  const isBlocked = isDuplicate || isPast;
+  const isBlocked = isDuplicate || isPast || !locationId;
 
   // Detect destructive changes (time or location changed) in edit mode
   const hasDestructiveChange = useMemo(() => {
@@ -98,9 +99,9 @@ export function ClubNightModal({
     return (
       timeFrom !== night.time_from ||
       timeTo !== night.time_to ||
-      location !== night.location
+      locationId !== night.location_id
     );
-  }, [isEditMode, night, timeFrom, timeTo, location]);
+  }, [isEditMode, night, timeFrom, timeTo, locationId]);
 
   const showWarning = hasDestructiveChange && !!night?.vagt_member_id;
 
@@ -112,6 +113,12 @@ export function ClubNightModal({
       .catch((err) => {
         console.error(err);
         toast.error("Kunne ikke hente vagtliste.");
+      });
+    getLocations()
+      .then(setLocations)
+      .catch((err) => {
+        console.error(err);
+        toast.error("Kunne ikke hente lokationer.");
       });
   }, []);
 
@@ -131,14 +138,14 @@ export function ClubNightModal({
     e.preventDefault();
     if (isBlocked) return;
     if (isEditMode) {
-      onEdit?.({ name, timeFrom, timeTo, location });
+      onEdit?.({ name, timeFrom, timeTo, location_id: locationId });
     } else {
       onAdd?.({
         name,
         date,
         timeFrom,
         timeTo,
-        location,
+        location_id: locationId,
         vagt_member_id: vagtId === "none" ? null : Number(vagtId),
       });
     }
@@ -249,11 +256,21 @@ export function ClubNightModal({
             <label className="text-xs font-medium text-neutral-700 uppercase tracking-wider flex items-center gap-1.5">
               <MapPin className="size-3.5" /> Lokale
             </label>
-            <Input
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
+            <select
+              value={locationId ?? ""}
+              onChange={(e) =>
+                setLocationId(e.target.value ? Number(e.target.value) : null)
+              }
               required
-            />
+              className="h-10 rounded-md border border-neutral-200 bg-white px-3 text-sm text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:ring-offset-0"
+            >
+              <option value="">Vælg lokation…</option>
+              {locations.map((l) => (
+                <option key={l.id} value={String(l.id)}>
+                  {l.name}
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* Vagt — only shown in add mode */}

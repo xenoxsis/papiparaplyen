@@ -21,6 +21,8 @@ import notificationsRouter from "./routes/notifications";
 import vagterRouter from "./routes/vagter";
 import auditLogRouter from "./routes/audit-log";
 import boardgamesRouter from "./routes/boardgames";
+import locationsRouter from "./routes/locations";
+import addressAutocompleteRouter from "./routes/address-autocomplete";
 import { getPool } from "./db";
 
 const app = express();
@@ -91,6 +93,8 @@ app.use("/api/notifications", notificationsRouter);
 app.use("/api/vagter", vagterRouter);
 app.use("/api/audit-log", auditLogRouter);
 app.use("/api/boardgames", boardgamesRouter);
+app.use("/api/locations", locationsRouter);
+app.use("/api/address-autocomplete", addressAutocompleteRouter);
 
 app.get("/health", (_, res) => res.json({ ok: true }));
 

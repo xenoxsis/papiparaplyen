@@ -136,6 +136,7 @@ export default function EventsPage() {
                     key={night.id}
                     night={night}
                     index={i}
+                    publicFacing
                     isFollowing={
                       user && !night.cancelled
                         ? followingIds.has(night.id)
@@ -161,6 +162,7 @@ export default function EventsPage() {
                     night={night}
                     index={i}
                     variant="row"
+                    publicFacing
                     isFollowing={
                       user && !night.cancelled
                         ? followingIds.has(night.id)

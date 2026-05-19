@@ -36,6 +36,9 @@ type NightRow = {
   time_from: string;
   time_to: string;
   location: string;
+  location_id: number | null;
+  location_name: string | null;
+  location_address: string | null;
   vagt_member_id: number | null;
   vagt_confirmed: boolean;
   cancelled: boolean;
@@ -54,6 +57,7 @@ async function fetchNightWithOptOuts(
       SELECT n.id, n.number, n.name,
              CONVERT(varchar(10), n.date, 120) AS date,
              n.time_from, n.time_to, n.location,
+             n.location_id, l.name AS location_name, l.address AS location_address,
              n.vagt_member_id, n.vagt_confirmed,
              n.cancelled, n.cancelled_at,
              n.created_at, n.updated_at,
@@ -61,6 +65,7 @@ async function fetchNightWithOptOuts(
              vm.initials AS assigned_member_initials
       FROM dbo.club_nights n
       LEFT JOIN dbo.members vm ON vm.id = n.vagt_member_id
+      LEFT JOIN dbo.locations l ON l.id = n.location_id
       WHERE n.id = @id
     `);
 
@@ -90,6 +95,7 @@ router.get("/", async (req, res) => {
     SELECT n.id, n.number, n.name,
            CONVERT(varchar(10), n.date, 120) AS date,
            n.time_from, n.time_to, n.location,
+           n.location_id, l.name AS location_name, l.address AS location_address,
            n.vagt_member_id, n.vagt_confirmed,
            n.cancelled, n.cancelled_at,
            n.created_at, n.updated_at,
@@ -97,6 +103,7 @@ router.get("/", async (req, res) => {
            vm.initials AS assigned_member_initials
     FROM dbo.club_nights n
     LEFT JOIN dbo.members vm ON vm.id = n.vagt_member_id
+    LEFT JOIN dbo.locations l ON l.id = n.location_id
     ${upcomingOnly ? "WHERE n.date >= CAST(GETDATE() AS DATE)" : ""}
     ORDER BY n.date
   `);
@@ -138,8 +145,11 @@ router.get("/ical", async (_req, res) => {
   const result = await pool.request().query(`
     SELECT n.id, n.name,
            CONVERT(varchar(10), n.date, 120) AS date,
-           n.time_from, n.time_to, n.location, n.updated_at
+           n.time_from, n.time_to,
+           ISNULL(l.name + N', ' + l.address, n.location) AS location,
+           n.updated_at
     FROM dbo.club_nights n
+    LEFT JOIN dbo.locations l ON l.id = n.location_id
     WHERE n.date >= CAST(GETDATE() AS DATE)
       AND n.vagt_confirmed = 1
       AND n.cancelled = 0
@@ -210,8 +220,11 @@ router.get("/ical/me", async (req, res) => {
     .query(`
       SELECT n.id, n.name,
              CONVERT(varchar(10), n.date, 120) AS date,
-             n.time_from, n.time_to, n.location, n.updated_at
+             n.time_from, n.time_to,
+             ISNULL(l.name + N', ' + l.address, n.location) AS location,
+             n.updated_at
       FROM dbo.club_nights n
+      LEFT JOIN dbo.locations l ON l.id = n.location_id
       WHERE n.vagt_member_id = @memberId
         AND n.cancelled = 0
       ORDER BY n.date
@@ -329,6 +342,21 @@ router.post("/", requireAuth, async (req, res) => {
   const nextNumber: number =
     req.body.number ?? maxResult.recordset[0].next_number;
 
+  // Resolve location_id and legacy location text
+  const locationId: number | null = req.body.location_id ?? null;
+  let locationText: string = req.body.location ?? "";
+  if (locationId) {
+    const locResult = await pool
+      .request()
+      .input("lid", sql.Int, locationId)
+      .query("SELECT name, address FROM dbo.locations WHERE id = @lid");
+    if (locResult.recordset.length > 0) {
+      const loc = locResult.recordset[0];
+      locationText = `${loc.name}, ${loc.address}`;
+    }
+  }
+  if (!locationText) locationText = "Kulturhuset";
+
   const insertResult = await pool
     .request()
     .input("number", sql.Int, nextNumber)
@@ -336,14 +364,15 @@ router.post("/", requireAuth, async (req, res) => {
     .input("date", sql.Date, req.body.date)
     .input("timeFrom", sql.NVarChar, req.body.time_from ?? "18:00")
     .input("timeTo", sql.NVarChar, req.body.time_to ?? "23:00")
-    .input("location", sql.NVarChar, req.body.location ?? "Kulturhuset")
+    .input("location", sql.NVarChar, locationText)
+    .input("locationId", sql.Int, locationId)
     .input("vagtMemberId", sql.Int, req.body.vagt_member_id ?? null)
     .input("createdAt", sql.DateTime2, now)
     .input("updatedAt", sql.DateTime2, now).query(`
       INSERT INTO dbo.club_nights
-        (number, name, date, time_from, time_to, location, vagt_member_id, vagt_confirmed, created_at, updated_at)
+        (number, name, date, time_from, time_to, location, location_id, vagt_member_id, vagt_confirmed, created_at, updated_at)
       OUTPUT INSERTED.id
-      VALUES (@number, @name, @date, @timeFrom, @timeTo, @location, @vagtMemberId, 0, @createdAt, @updatedAt)
+      VALUES (@number, @name, @date, @timeFrom, @timeTo, @location, @locationId, @vagtMemberId, 0, @createdAt, @updatedAt)
     `);
 
   const newId: number = insertResult.recordset[0].id;
@@ -707,7 +736,8 @@ router.put("/:id", requireAuth, async (req, res) => {
   const nightId = Number(req.params.id);
 
   const nightCheck = await pool.request().input("id", sql.Int, nightId).query(`
-    SELECT n.id, n.name, n.time_from, n.time_to, n.location, n.vagt_member_id,
+    SELECT n.id, n.name, n.time_from, n.time_to, n.location, n.location_id,
+           n.vagt_member_id,
            CONVERT(varchar(10), n.date, 120) AS date,
            vm.name AS assigned_member_name
     FROM dbo.club_nights n
@@ -718,18 +748,36 @@ router.put("/:id", requireAuth, async (req, res) => {
     return res.status(404).json({ error: "Not found" });
 
   const current = nightCheck.recordset[0];
-  const { name, time_from, time_to, location } = req.body as {
-    name?: string;
-    time_from?: string;
-    time_to?: string;
-    location?: string;
-  };
+  const { name, time_from, time_to, location_id: incomingLocationId } =
+    req.body as {
+      name?: string;
+      time_from?: string;
+      time_to?: string;
+      location_id?: number | null;
+    };
+
+  // Resolve new location text for the legacy column and emails
+  let resolvedLocationText: string = current.location;
+  let finalLocationId: number | null = current.location_id ?? null;
+  if (incomingLocationId !== undefined) {
+    finalLocationId = incomingLocationId;
+    if (incomingLocationId) {
+      const locResult = await pool
+        .request()
+        .input("lid", sql.Int, incomingLocationId)
+        .query("SELECT name, address FROM dbo.locations WHERE id = @lid");
+      if (locResult.recordset.length > 0) {
+        const loc = locResult.recordset[0];
+        resolvedLocationText = `${loc.name}, ${loc.address}`;
+      }
+    }
+  }
 
   // Destructive change = time or location changed while a vagt is assigned
   const destructive =
     (time_from !== undefined && time_from !== current.time_from) ||
     (time_to !== undefined && time_to !== current.time_to) ||
-    (location !== undefined && location !== current.location);
+    (incomingLocationId !== undefined && incomingLocationId !== current.location_id);
   const hadVagt = current.vagt_member_id !== null;
 
   if (destructive && hadVagt) {
@@ -761,7 +809,7 @@ router.put("/:id", requireAuth, async (req, res) => {
       date: current.date,
       time_from: time_from ?? current.time_from,
       time_to: time_to ?? current.time_to,
-      location: location ?? current.location,
+      location: resolvedLocationText,
     }).catch((err) =>
       console.error("[scheduleEmails] shift-unassigned send failed:", err),
     );
@@ -772,12 +820,13 @@ router.put("/:id", requireAuth, async (req, res) => {
     .input("name", sql.NVarChar, name ?? current.name)
     .input("timeFrom", sql.NVarChar, time_from ?? current.time_from)
     .input("timeTo", sql.NVarChar, time_to ?? current.time_to)
-    .input("location", sql.NVarChar, location ?? current.location)
+    .input("location", sql.NVarChar, resolvedLocationText)
+    .input("locationId", sql.Int, finalLocationId)
     .input("updatedAt", sql.DateTime2, new Date().toISOString())
     .input("id", sql.Int, nightId).query(`
       UPDATE dbo.club_nights
       SET name = @name, time_from = @timeFrom, time_to = @timeTo,
-          location = @location, updated_at = @updatedAt
+          location = @location, location_id = @locationId, updated_at = @updatedAt
       WHERE id = @id
     `);
 
@@ -797,8 +846,8 @@ router.put("/:id", requireAuth, async (req, res) => {
         ...(time_to !== undefined && time_to !== current.time_to
           ? { time_to: { from: current.time_to, to: time_to } }
           : {}),
-        ...(location !== undefined && location !== current.location
-          ? { location: { from: current.location, to: location } }
+        ...(incomingLocationId !== undefined && incomingLocationId !== current.location_id
+          ? { location_id: { from: current.location_id, to: incomingLocationId } }
           : {}),
       },
     },
@@ -809,7 +858,7 @@ router.put("/:id", requireAuth, async (req, res) => {
     (name !== undefined && name !== current.name) ||
     (time_from !== undefined && time_from !== current.time_from) ||
     (time_to !== undefined && time_to !== current.time_to) ||
-    (location !== undefined && location !== current.location);
+    (incomingLocationId !== undefined && incomingLocationId !== current.location_id);
   if (anyChange) {
     const oldNight = {
       name: current.name,

@@ -15,6 +15,7 @@ IF OBJECT_ID('dbo.channels',              'U') IS NOT NULL DROP TABLE dbo.channe
 IF OBJECT_ID('dbo.club_night_opt_outs',   'U') IS NOT NULL DROP TABLE dbo.club_night_opt_outs;
 IF OBJECT_ID('dbo.club_schedule_reviews', 'U') IS NOT NULL DROP TABLE dbo.club_schedule_reviews;
 IF OBJECT_ID('dbo.club_nights',           'U') IS NOT NULL DROP TABLE dbo.club_nights;
+IF OBJECT_ID('dbo.locations',             'U') IS NOT NULL DROP TABLE dbo.locations;
 IF OBJECT_ID('dbo.member_roles',          'U') IS NOT NULL DROP TABLE dbo.member_roles;
 IF OBJECT_ID('dbo.member_boardgames',     'U') IS NOT NULL DROP TABLE dbo.member_boardgames;
 IF OBJECT_ID('dbo.boardgames',            'U') IS NOT NULL DROP TABLE dbo.boardgames;
@@ -99,6 +100,20 @@ CREATE TABLE dbo.member_roles (
 GO
 
 -- ---------------------------------------------------------------
+-- locations
+-- ---------------------------------------------------------------
+CREATE TABLE dbo.locations (
+    id         INT            NOT NULL IDENTITY(1,1),
+    name       NVARCHAR(100)  NOT NULL,
+    address    NVARCHAR(255)  NOT NULL,
+    disabled   BIT            NOT NULL DEFAULT 0,
+    created_at DATETIME2      NOT NULL DEFAULT GETDATE(),
+    updated_at DATETIME2      NOT NULL DEFAULT GETDATE(),
+    CONSTRAINT PK_locations PRIMARY KEY (id)
+);
+GO
+
+-- ---------------------------------------------------------------
 -- club_nights
 -- ---------------------------------------------------------------
 CREATE TABLE dbo.club_nights (
@@ -109,13 +124,15 @@ CREATE TABLE dbo.club_nights (
     time_from       NVARCHAR(5)    NOT NULL,
     time_to         NVARCHAR(5)    NOT NULL,
     location        NVARCHAR(255)  NOT NULL,
+    location_id     INT            NULL,
     vagt_member_id  INT            NULL,
     vagt_confirmed  BIT            NOT NULL DEFAULT 0,
     created_at      DATETIME2      NOT NULL DEFAULT SYSUTCDATETIME(),
     updated_at      DATETIME2      NOT NULL DEFAULT SYSUTCDATETIME(),
     CONSTRAINT PK_club_nights           PRIMARY KEY (id),
     CONSTRAINT UQ_club_nights_number    UNIQUE      (number),
-    CONSTRAINT FK_club_nights_vagt      FOREIGN KEY (vagt_member_id) REFERENCES dbo.members (id)
+    CONSTRAINT FK_club_nights_vagt      FOREIGN KEY (vagt_member_id) REFERENCES dbo.members (id),
+    CONSTRAINT FK_club_nights_location  FOREIGN KEY (location_id)    REFERENCES dbo.locations (id)
 );
 GO
 

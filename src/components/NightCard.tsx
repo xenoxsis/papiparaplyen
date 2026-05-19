@@ -7,6 +7,8 @@ interface NightCardProps {
   /** Index in list — 0 = "next night" styling */
   index?: number;
   variant?: "card" | "row";
+  /** If true, shows "name, address" instead of name only */
+  publicFacing?: boolean;
   /** If provided, a follow/unfollow button is shown */
   isFollowing?: boolean;
   onFollowToggle?: (following: boolean) => void;
@@ -17,12 +19,19 @@ export function NightCard({
   night,
   index = 0,
   variant = "card",
+  publicFacing = false,
   isFollowing,
   onFollowToggle,
 }: NightCardProps) {
   const d = new Date(night.date);
   const isNext = index === 0;
   const hasVagt = night.vagt_member_id !== null;
+
+  const locationDisplay = night.location_name
+    ? publicFacing
+      ? `${night.location_name}, ${night.location_address ?? ""}`.trim().replace(/,\s*$/, "")
+      : night.location_name
+    : night.location;
 
   const VagtBadge = () =>
     hasVagt ? (
@@ -102,7 +111,7 @@ export function NightCard({
         {/* Location */}
         <div className="hidden md:flex items-center gap-1.5 text-xs text-neutral-500 shrink-0">
           <MapPin className="size-3.5" />
-          {night.location}
+          {locationDisplay}
         </div>
 
         {/* Vagt */}
@@ -159,7 +168,7 @@ export function NightCard({
         </div>
         <div className="flex items-center gap-2 text-sm text-neutral-900">
           <MapPin className="size-4 text-neutral-500 shrink-0" />
-          {night.location}
+          {locationDisplay}
         </div>
         <div className="mt-1 flex items-center justify-between gap-2">
           <VagtBadge />

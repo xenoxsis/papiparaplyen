@@ -129,7 +129,7 @@ export function ScheduleNightCard({
             </span>
             <span className="flex items-center gap-1">
               <MapPin className="size-3" />
-              {night.location}
+              {night.location_name ?? night.location}
             </span>
           </div>
           <div className="flex flex-col sm:flex-row mt-1 items-start sm:items-center gap-1 sm:gap-2">

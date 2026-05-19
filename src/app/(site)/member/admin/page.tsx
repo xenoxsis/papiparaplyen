@@ -12,6 +12,8 @@ import {
   Eye,
   EyeOff,
   Mail,
+  MapPin,
+  Ban,
 } from "lucide-react";
 import { MemberHero } from "@/components/MemberHero";
 import { Input } from "@/components/ui/input";
@@ -23,8 +25,13 @@ import {
   putMemberRoles,
   createVirtualMember,
   realizeMember,
+  getLocations,
+  createLocation,
+  disableLocation,
   type ApiMember,
+  type ApiLocation,
 } from "@/lib/api";
+import { AddressAutocomplete } from "@/components/AddressAutocomplete";
 import { useRequireAuth } from "@/lib/useRequireAuth";
 import { Modal } from "@/components/Modal";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -61,6 +68,13 @@ export default function AdminPage() {
     merged: boolean;
     name?: string;
   } | null>(null);
+  // Locations
+  const [locations, setLocations] = useState<ApiLocation[]>([]);
+  const [locationsLoading, setLocationsLoading] = useState(true);
+  const [showAddLocation, setShowAddLocation] = useState(false);
+  const [newLocationName, setNewLocationName] = useState("");
+  const [newLocationAddress, setNewLocationAddress] = useState("");
+  const [locationCreating, setLocationCreating] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -68,6 +82,11 @@ export default function AdminPage() {
       .then(setMembers)
       .catch(console.error)
       .finally(() => setLoading(false));
+    setLocationsLoading(true);
+    getLocations()
+      .then(setLocations)
+      .catch(console.error)
+      .finally(() => setLocationsLoading(false));
   }, []);
 
   async function handleCreateVirtual() {
@@ -233,6 +252,34 @@ export default function AdminPage() {
     banned: members.filter((m) => m.banned).length,
     virtuelle: members.filter((m) => m.is_virtual && !m.banned).length,
   };
+
+  async function handleCreateLocation() {
+    if (!newLocationName.trim() || !newLocationAddress.trim()) return;
+    setLocationCreating(true);
+    try {
+      const created = await createLocation({
+        name: newLocationName.trim(),
+        address: newLocationAddress.trim(),
+      });
+      setLocations((prev) => [...prev, created]);
+      setNewLocationName("");
+      setNewLocationAddress("");
+      setShowAddLocation(false);
+    } catch (err: unknown) {
+      alert((err as Error).message ?? "Fejl ved oprettelse");
+    } finally {
+      setLocationCreating(false);
+    }
+  }
+
+  async function handleDisableLocation(id: number) {
+    try {
+      await disableLocation(id);
+      setLocations((prev) => prev.filter((l) => l.id !== id));
+    } catch (err: unknown) {
+      alert((err as Error).message ?? "Kunne ikke deaktivere lokation");
+    }
+  }
 
   if (!authorized) return null;
   return (
@@ -677,6 +724,111 @@ export default function AdminPage() {
           </table>
         </div>
       </div>
+
+      {/* Lokationer */}
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <MapPin className="size-5 text-neutral-600" />
+            <h2 className="font-semibold text-neutral-900 text-base">Lokationer</h2>
+          </div>
+          <Button
+            className="bg-brand-red hover:bg-red-600 text-white gap-2 text-sm"
+            onClick={() => setShowAddLocation(true)}
+          >
+            <Plus className="size-4" />
+            Tilføj lokation
+          </Button>
+        </div>
+
+        <div className="bg-white rounded-xl border overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-neutral-50 text-neutral-500 text-xs uppercase tracking-wider">
+              <tr>
+                <th className="px-4 py-3 text-left font-medium">Navn</th>
+                <th className="px-4 py-3 text-left font-medium hidden sm:table-cell">Adresse</th>
+                <th className="px-4 py-3 text-right font-medium">Handlinger</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-neutral-100">
+              {locationsLoading ? (
+                <tr>
+                  <td colSpan={3} className="px-4 py-6 text-center text-neutral-400 text-sm">
+                    Indlæser…
+                  </td>
+                </tr>
+              ) : locations.length === 0 ? (
+                <tr>
+                  <td colSpan={3} className="px-4 py-6 text-center text-neutral-400 text-sm">
+                    Ingen aktive lokationer
+                  </td>
+                </tr>
+              ) : (
+                locations.map((loc) => (
+                  <tr key={loc.id} className="hover:bg-neutral-50">
+                    <td className="px-4 py-3 font-medium text-neutral-900">{loc.name}</td>
+                    <td className="px-4 py-3 text-neutral-500 hidden sm:table-cell">{loc.address}</td>
+                    <td className="px-4 py-3 text-right">
+                      <button
+                        onClick={() => handleDisableLocation(loc.id)}
+                        className="text-xs text-neutral-400 hover:text-brand-red border border-neutral-200 rounded px-2 py-1 transition-colors flex items-center gap-1 ml-auto"
+                      >
+                        <Ban className="size-3" />
+                        Deaktiver
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Add location modal */}
+      <Modal
+        open={showAddLocation}
+        onClose={() => { setShowAddLocation(false); setNewLocationName(""); setNewLocationAddress(""); }}
+      >
+        <div className="flex flex-col gap-4 p-6">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-brand-red/10 flex items-center justify-center shrink-0">
+              <MapPin className="size-5 text-brand-red" />
+            </div>
+            <h2 className="font-semibold text-neutral-900">Tilføj lokation</h2>
+          </div>
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-neutral-700">Navn</label>
+              <Input
+                placeholder="f.eks. Café Finns Paraply"
+                value={newLocationName}
+                onChange={(e) => setNewLocationName(e.target.value)}
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-neutral-700">Adresse</label>
+              <AddressAutocomplete
+                value={newLocationAddress}
+                onChange={setNewLocationAddress}
+                placeholder="Søg adresse…"
+              />
+            </div>
+          </div>
+          <div className="flex gap-2 justify-end">
+            <Button variant="outline" onClick={() => { setShowAddLocation(false); setNewLocationName(""); setNewLocationAddress(""); }}>
+              Annullér
+            </Button>
+            <Button
+              disabled={!newLocationName.trim() || !newLocationAddress.trim() || locationCreating}
+              onClick={handleCreateLocation}
+              className="bg-brand-red hover:bg-red-600 text-white disabled:opacity-50"
+            >
+              {locationCreating ? "Opretter…" : "Opret"}
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </main>
   );
 }

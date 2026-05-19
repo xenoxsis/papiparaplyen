@@ -541,7 +541,7 @@ export default function ProfilePage() {
                 date: data.date,
                 time_from: data.timeFrom,
                 time_to: data.timeTo,
-                location: data.location,
+                location_id: data.location_id,
                 vagt_member_id: data.vagt_member_id,
               });
               setNights((prev) =>
