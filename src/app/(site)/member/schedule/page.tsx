@@ -329,7 +329,7 @@ export default function SchedulePage() {
         </Modal>
       )}
 
-      {/* Delete night confirmation dialog */}}
+      {/* Delete night confirmation dialog */}
       {deleteConfirmId !== null &&
         (() => {
           const night = nights.find((n) => n.id === deleteConfirmId);
