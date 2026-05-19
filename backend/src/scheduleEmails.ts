@@ -24,9 +24,11 @@ import {
   shiftAssignedEmailHtml,
   shiftUnassignedEmailHtml,
   shiftDeletedEmailHtml,
+  shiftCancelledEmailHtml,
   mentionEmailHtml,
   nightFollowerChangedEmailHtml,
   nightFollowerDeletedEmailHtml,
+  nightFollowerCancelledEmailHtml,
   NightSummary,
   NightChangeSummary,
 } from "./email";
@@ -394,6 +396,89 @@ export async function sendFollowerChangedEmails(
   if (followers.length > 0) {
     console.log(
       `[scheduleEmails] Sent night-changed emails for nightId=${nightId} to ${followers.length} follower(s)`,
+    );
+  }
+}
+
+/** Send an immediate email to a confirmed vagt whose shift was cancelled. */
+export async function sendShiftCancelledEmail(
+  memberId: number,
+  night: NightSummary,
+): Promise<void> {
+  const pool = await getPool();
+
+  const result = await pool
+    .request()
+    .input("memberId", sql.Int, memberId)
+    .query(
+      "SELECT m.name, m.email, m.is_virtual, ISNULL(u.email_on_shift, 1) AS email_on_shift FROM dbo.members m LEFT JOIN dbo.users u ON u.member_id = m.id WHERE m.id = @memberId",
+    );
+
+  const member:
+    | {
+        name: string;
+        email: string;
+        is_virtual: boolean | number;
+        email_on_shift: boolean | number;
+      }
+    | undefined = result.recordset[0];
+  if (!member?.email) return;
+  if (member.is_virtual === true || member.is_virtual === 1) return;
+  if (member.email_on_shift !== true && member.email_on_shift !== 1) return;
+
+  const subject = `Klubaften aflyst: ${night.name}`;
+  console.log(
+    `[scheduleEmails] Sending shift-cancelled email to ${member.email} for "${night.name}"`,
+  );
+
+  const cancelledHtml = shiftCancelledEmailHtml(member.name, night);
+  await sendEmail(member.email, subject, cancelledHtml);
+  logEvent({
+    eventType: "email.sent",
+    targetMemberId: memberId,
+    targetEmail: member.email,
+    detail: {
+      type: "shift_cancelled",
+      subject,
+      nightName: night.name,
+      nightDate: night.date,
+      html: cancelledHtml,
+    },
+  });
+}
+
+/** Notify + email all followers of a night that it has been cancelled. */
+export async function sendFollowerCancelledEmails(
+  nightId: number,
+  night: NightSummary,
+): Promise<void> {
+  const pool = await getPool();
+  const result = await pool.request().input("nightId", sql.Int, nightId).query(`
+      SELECT m.id, m.name, m.email
+      FROM dbo.club_night_followers f
+      JOIN dbo.members m ON m.id = f.member_id
+      LEFT JOIN dbo.users u ON u.member_id = m.id
+      WHERE f.club_night_id = @nightId
+        AND ISNULL(u.banned, 0) = 0
+        AND m.email IS NOT NULL
+        AND m.is_virtual = 0
+    `);
+  const followers: { id: number; name: string; email: string }[] =
+    result.recordset;
+
+  const subject = `Klubaften aflyst: ${night.name}`;
+  await Promise.allSettled(
+    followers.map((f) =>
+      sendEmail(
+        f.email,
+        subject,
+        nightFollowerCancelledEmailHtml(f.name, night),
+      ),
+    ),
+  );
+  if (followers.length > 0) {
+    console.log(
+      `[scheduleEmails] Sent night-cancelled emails for nightId=${nightId} to ${followers.length} follower(s)`,
     );
   }
 }

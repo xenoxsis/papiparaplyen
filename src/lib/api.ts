@@ -66,6 +66,8 @@ export type ApiClubNight = {
   assigned_member_initials: string | null;
   opted_out_members: { id: number; name: string; initials: string }[];
   vagt_confirmed: boolean;
+  cancelled: boolean;
+  cancelled_at: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -180,6 +182,8 @@ export const postClubNightFollow = (nightId: number) =>
   apiPost<{ ok: boolean }>(`/api/club-nights/${nightId}/follow`);
 export const deleteClubNightFollow = (nightId: number) =>
   apiDelete<{ ok: boolean }>(`/api/club-nights/${nightId}/follow`);
+export const cancelClubNight = (nightId: number) =>
+  apiPost<ApiClubNight>(`/api/club-nights/${nightId}/cancel`);
 
 // ── Schedule Reviews ──────────────────────────────────────────────────────────
 
@@ -278,8 +282,10 @@ export type NotificationType =
   | "swap_accepted"
   | "swap_cancelled"
   | "shift_assigned"
+  | "shift_cancelled"
   | "nights_added"
-  | "mentioned";
+  | "mentioned"
+  | "night_cancelled";
 
 export type ApiNotification = {
   id: number;

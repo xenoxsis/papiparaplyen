@@ -40,6 +40,18 @@ export function NightCard({
       </span>
     );
 
+  const AflystOverlay = () =>
+    night.cancelled ? (
+      <>
+        <div className="absolute inset-0 bg-neutral-100/60 z-10 pointer-events-none" />
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
+          <span className="font-black text-4xl text-red-600 rotate-[-25deg] tracking-widest uppercase select-none border-4 border-red-600 px-4 py-1 opacity-75">
+            Aflyst
+          </span>
+        </div>
+      </>
+    ) : null;
+
   if (variant === "row") {
     const dateLabel = d.toLocaleDateString("da-DK", {
       weekday: "short",
@@ -50,8 +62,10 @@ export function NightCard({
 
     return (
       <div
-        className={`flex items-center gap-4 bg-white border rounded-xl px-4 py-3 ${isNext ? "border-l-4 border-l-brand-red" : ""}`}
+        className={`relative overflow-hidden flex items-center gap-4 bg-white border rounded-xl px-4 py-3 ${isNext ? "border-l-4 border-l-brand-red" : ""}`}
       >
+        <AflystOverlay />
+
         {/* Date badge */}
         <div
           className={`shrink-0 rounded-lg flex flex-col items-center justify-center w-12 h-12 text-white ${isNext ? "bg-brand-red" : "bg-neutral-400"}`}
@@ -96,8 +110,8 @@ export function NightCard({
           <VagtBadge />
         </div>
 
-        {/* Follow */}
-        {onFollowToggle !== undefined && (
+        {/* Follow — hidden for cancelled nights */}
+        {onFollowToggle !== undefined && !night.cancelled && (
           <button
             onClick={() => onFollowToggle(!isFollowing)}
             title={isFollowing ? "Stop med at følge" : "Følg denne aften"}
@@ -123,8 +137,9 @@ export function NightCard({
 
   return (
     <Card
-      className={`border-t-4 flex flex-col ${isNext ? "border-t-brand-red" : "border-t-neutral-300"}`}
+      className={`relative overflow-hidden border-t-4 flex flex-col ${isNext ? "border-t-brand-red" : "border-t-neutral-300"}`}
     >
+      <AflystOverlay />
       <CardHeader className="flex flex-col gap-2">
         <span
           className={`font-semibold uppercase text-xs tracking-wider flex items-center gap-1 rounded-full px-2 py-0.5 w-fit ${isNext ? "bg-red-50 text-red-600" : "bg-neutral-100 text-neutral-500"}`}
@@ -148,7 +163,8 @@ export function NightCard({
         </div>
         <div className="mt-1 flex items-center justify-between gap-2">
           <VagtBadge />
-          {onFollowToggle !== undefined && (
+          {/* Follow — hidden for cancelled nights */}
+          {onFollowToggle !== undefined && !night.cancelled && (
             <button
               onClick={() => onFollowToggle(!isFollowing)}
               title={isFollowing ? "Stop med at følge" : "Følg denne aften"}

@@ -17,8 +17,10 @@ import {
   sendShiftAssignedEmail,
   sendShiftUnassignedEmail,
   sendShiftDeletedEmail,
+  sendShiftCancelledEmail,
   sendFollowerChangedEmails,
   sendFollowerDeletedEmails,
+  sendFollowerCancelledEmails,
 } from "../scheduleEmails";
 import { logEvent } from "../audit";
 import { broadcastToUser, getConnectedUserIds } from "../broadcaster";
@@ -36,6 +38,8 @@ type NightRow = {
   location: string;
   vagt_member_id: number | null;
   vagt_confirmed: boolean;
+  cancelled: boolean;
+  cancelled_at: string | null;
   created_at: string;
   updated_at: string;
   assigned_member_name: string | null;
@@ -51,6 +55,7 @@ async function fetchNightWithOptOuts(
              CONVERT(varchar(10), n.date, 120) AS date,
              n.time_from, n.time_to, n.location,
              n.vagt_member_id, n.vagt_confirmed,
+             n.cancelled, n.cancelled_at,
              n.created_at, n.updated_at,
              vm.name AS assigned_member_name,
              vm.initials AS assigned_member_initials
@@ -67,11 +72,11 @@ async function fetchNightWithOptOuts(
       WHERE o.club_night_id = @nightId
     `);
 
+  const row = nightResult.recordset[0];
   return {
-    ...nightResult.recordset[0],
-    vagt_confirmed:
-      nightResult.recordset[0].vagt_confirmed === true ||
-      nightResult.recordset[0].vagt_confirmed === 1,
+    ...row,
+    vagt_confirmed: row.vagt_confirmed === true || row.vagt_confirmed === 1,
+    cancelled: row.cancelled === true || row.cancelled === 1,
     opted_out_members: optOutsResult.recordset,
   };
 }
@@ -86,6 +91,7 @@ router.get("/", async (req, res) => {
            CONVERT(varchar(10), n.date, 120) AS date,
            n.time_from, n.time_to, n.location,
            n.vagt_member_id, n.vagt_confirmed,
+           n.cancelled, n.cancelled_at,
            n.created_at, n.updated_at,
            vm.name AS assigned_member_name,
            vm.initials AS assigned_member_initials
@@ -106,6 +112,7 @@ router.get("/", async (req, res) => {
     ...n,
     vagt_confirmed:
       n.vagt_confirmed === true || (n.vagt_confirmed as unknown) === 1,
+    cancelled: n.cancelled === true || (n.cancelled as unknown) === 1,
     opted_out_members: optOutsResult.recordset
       .filter((o: { club_night_id: number }) => o.club_night_id === n.id)
       .map(
@@ -135,6 +142,7 @@ router.get("/ical", async (_req, res) => {
     FROM dbo.club_nights n
     WHERE n.date >= CAST(GETDATE() AS DATE)
       AND n.vagt_confirmed = 1
+      AND n.cancelled = 0
     ORDER BY n.date
   `);
 
@@ -205,6 +213,7 @@ router.get("/ical/me", async (req, res) => {
              n.time_from, n.time_to, n.location, n.updated_at
       FROM dbo.club_nights n
       WHERE n.vagt_member_id = @memberId
+        AND n.cancelled = 0
       ORDER BY n.date
     `);
 
@@ -262,9 +271,15 @@ router.post("/:id/follow", requireAuth, async (req, res) => {
   const nightCheck = await pool
     .request()
     .input("id", sql.Int, nightId)
-    .query("SELECT id FROM dbo.club_nights WHERE id = @id");
+    .query("SELECT id, cancelled FROM dbo.club_nights WHERE id = @id");
   if (nightCheck.recordset.length === 0)
     return res.status(404).json({ error: "Not found" });
+
+  const isNightCancelled =
+    nightCheck.recordset[0].cancelled === true ||
+    nightCheck.recordset[0].cancelled === 1;
+  if (isNightCancelled)
+    return res.status(400).json({ error: "Cannot follow a cancelled night" });
 
   // Upsert — silently succeeds if already following
   await pool
@@ -837,6 +852,99 @@ router.put("/:id", requireAuth, async (req, res) => {
   return res.json(editedNight);
 });
 
+// POST /api/club-nights/:id/cancel — admin only
+router.post("/:id/cancel", requireAuth, async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
+
+  const pool = await getPool();
+  const nightId = Number(req.params.id);
+
+  const nightCheck = await pool.request().input("id", sql.Int, nightId).query(`
+    SELECT n.id, n.name, CONVERT(varchar(10), n.date, 120) AS date,
+           n.time_from, n.time_to, n.location, n.vagt_member_id, n.cancelled
+    FROM dbo.club_nights n
+    WHERE n.id = @id
+  `);
+  if (nightCheck.recordset.length === 0)
+    return res.status(404).json({ error: "Not found" });
+
+  const nightData = nightCheck.recordset[0];
+  const alreadyCancelled =
+    nightData.cancelled === true || nightData.cancelled === 1;
+  if (alreadyCancelled)
+    return res.status(409).json({ error: "Already cancelled" });
+
+  await pool
+    .request()
+    .input("id", sql.Int, nightId)
+    .input("cancelledAt", sql.DateTime2, new Date().toISOString())
+    .query(
+      "UPDATE dbo.club_nights SET cancelled = 1, cancelled_at = @cancelledAt WHERE id = @id",
+    );
+
+  const cancelledNight = await fetchNightWithOptOuts(pool, nightId);
+
+  const nightSummary = {
+    name: nightData.name as string,
+    date: nightData.date as string,
+    time_from: nightData.time_from as string,
+    time_to: nightData.time_to as string,
+    location: nightData.location as string,
+  };
+
+  const assignedVagtId: number | null = nightData.vagt_member_id ?? null;
+
+  // Notify + email the confirmed vagt
+  if (assignedVagtId !== null) {
+    await createNotification(
+      assignedVagtId,
+      "shift_cancelled",
+      `Klubaften du var tildelt er aflyst: ${nightData.name}`,
+      "/member/schedule",
+    );
+    sendShiftCancelledEmail(assignedVagtId, nightSummary).catch((err) =>
+      console.error("[scheduleEmails] shift-cancelled send failed:", err),
+    );
+  }
+
+  // Notify + email all followers (excluding the vagt who already got a notice)
+  const followerRows = await pool
+    .request()
+    .input("nightId", sql.Int, nightId)
+    .query(
+      "SELECT member_id FROM dbo.club_night_followers WHERE club_night_id = @nightId",
+    );
+  const followerIds: number[] = followerRows.recordset.map(
+    (r: { member_id: number }) => r.member_id,
+  );
+  const followersToNotify = followerIds.filter((id) => id !== assignedVagtId);
+  await createNotificationForMany(
+    followersToNotify,
+    "night_cancelled",
+    `En klubaften du fulgte er aflyst: ${nightData.name}`,
+    "/events",
+  );
+  sendFollowerCancelledEmails(nightId, nightSummary).catch((err) =>
+    console.error("[scheduleEmails] follower-cancelled send failed:", err),
+  );
+
+  logEvent({
+    eventType: "shift.cancel",
+    actorMemberId: callerId(res),
+    targetMemberId: assignedVagtId,
+    detail: { nightId, name: nightData.name, date: nightData.date },
+  });
+
+  // Broadcast so schedule page updates live
+  const payload = {
+    event: "schedule_updated",
+    data: { type: "night_cancelled", night: cancelledNight },
+  };
+  for (const uid of getConnectedUserIds()) broadcastToUser(uid, payload);
+
+  return res.json(cancelledNight);
+});
+
 // DELETE /api/club-nights/:id — admin only
 router.delete("/:id", requireAuth, async (req, res) => {
   if (!(await requireAdmin(req, res))) return;
@@ -846,7 +954,8 @@ router.delete("/:id", requireAuth, async (req, res) => {
 
   const nightCheck = await pool.request().input("id", sql.Int, nightId).query(`
     SELECT n.id, n.name, CONVERT(varchar(10), n.date, 120) AS date,
-           n.time_from, n.time_to, n.location, n.vagt_member_id
+           n.time_from, n.time_to, n.location, n.vagt_member_id,
+           n.vagt_confirmed, n.cancelled
     FROM dbo.club_nights n
     WHERE n.id = @id
   `);
@@ -854,6 +963,18 @@ router.delete("/:id", requireAuth, async (req, res) => {
     return res.status(404).json({ error: "Not found" });
 
   const night = nightCheck.recordset[0];
+
+  // Block deletion of a confirmed (and not yet cancelled) shift — use cancel instead
+  const isConfirmed =
+    night.vagt_confirmed === true || night.vagt_confirmed === 1;
+  const isCancelled = night.cancelled === true || night.cancelled === 1;
+  if (isConfirmed && !isCancelled) {
+    return res.status(409).json({
+      error:
+        "Cannot delete a confirmed shift — cancel it first using POST /:id/cancel",
+    });
+  }
+
   const assignedVagtId: number | null = night.vagt_member_id ?? null;
 
   // Fetch followers before deleting (CASCADE removes them alongside the night)

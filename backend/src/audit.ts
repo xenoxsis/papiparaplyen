@@ -21,6 +21,7 @@ export type AuditEventType =
   | "shift.create"
   | "shift.edit"
   | "shift.delete"
+  | "shift.cancel"
   | "shift.assign"
   | "shift.unassign"
   | "shift.confirm"

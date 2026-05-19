@@ -24,6 +24,7 @@ import {
   postClubNight,
   postClubNightOptOut,
   putClubNight,
+  cancelClubNight,
   markNotificationsReadByLink,
   type ApiClubNight,
 } from "@/lib/api";
@@ -78,6 +79,8 @@ export default function SchedulePage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingNight, setEditingNight] = useState<ApiClubNight | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
+  const [cancelConfirmNight, setCancelConfirmNight] =
+    useState<ApiClubNight | null>(null);
   const [assignModalNightId, setAssignModalNightId] = useState<number | null>(
     null,
   );
@@ -270,7 +273,63 @@ export default function SchedulePage() {
           );
         })()}
 
-      {/* Delete night confirmation dialog */}
+      {/* Cancel night confirmation dialog */}
+      {cancelConfirmNight !== null && (
+        <Modal
+          open={cancelConfirmNight !== null}
+          onClose={() => setCancelConfirmNight(null)}
+          maxWidth="max-w-sm"
+          panelClassName="p-6 flex flex-col gap-4"
+        >
+          <h2 className="font-semibold text-base text-neutral-900">
+            Aflys klubaften?
+          </h2>
+          <p className="text-sm text-neutral-500">
+            Er du sikker på at du vil aflyse{" "}
+            <span className="font-semibold text-neutral-900">
+              {cancelConfirmNight.name}
+            </span>
+            ? Aftenen forbliver synlig på begivenhedssiden markeret som aflyst.
+          </p>
+          <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2.5">
+            <span className="text-amber-500 shrink-0 mt-0.5 text-base leading-4">
+              ⚠️
+            </span>
+            <p className="text-xs text-amber-800 leading-5">
+              Vagten og alle følgere vil modtage en notifikation og e-mail om
+              aflysningen.
+            </p>
+          </div>
+          <div className="flex gap-2 justify-end">
+            <Button
+              variant="outline"
+              onClick={() => setCancelConfirmNight(null)}
+            >
+              Annuller
+            </Button>
+            <Button
+              className="bg-brand-red hover:bg-red-600 text-white"
+              onClick={async () => {
+                const night = cancelConfirmNight;
+                setCancelConfirmNight(null);
+                try {
+                  const updated = await cancelClubNight(night.id);
+                  setNights((prev) =>
+                    prev.map((n) => (n.id === updated.id ? updated : n)),
+                  );
+                } catch (err) {
+                  console.error(err);
+                  toast.error("Noget gik galt. Prøv igen.");
+                }
+              }}
+            >
+              Aflys
+            </Button>
+          </div>
+        </Modal>
+      )}
+
+      {/* Delete night confirmation dialog */}}
       {deleteConfirmId !== null &&
         (() => {
           const night = nights.find((n) => n.id === deleteConfirmId);
@@ -581,6 +640,7 @@ export default function SchedulePage() {
                           onRemoveVagt={() => draft.removeVagt(night.id)}
                           onEdit={() => setEditingNight(night)}
                           onDelete={() => setDeleteConfirmId(night.id)}
+                          onCancel={() => setCancelConfirmNight(night)}
                           onToggleOptOut={() =>
                             toggleOptOut(night.id, myOptOut)
                           }

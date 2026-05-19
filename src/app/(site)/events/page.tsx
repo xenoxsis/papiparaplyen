@@ -26,7 +26,7 @@ export default function EventsPage() {
       .then((upcoming) => {
         setNights(
           upcoming
-            .filter((n) => n.vagt_confirmed)
+            .filter((n) => n.vagt_confirmed || n.cancelled)
             .sort((a, b) => a.date.localeCompare(b.date)),
         );
       })
@@ -130,9 +130,15 @@ export default function EventsPage() {
                     key={night.id}
                     night={night}
                     index={i}
-                    isFollowing={user ? followingIds.has(night.id) : undefined}
+                    isFollowing={
+                      user && !night.cancelled
+                        ? followingIds.has(night.id)
+                        : undefined
+                    }
                     onFollowToggle={
-                      user ? (f) => handleFollowToggle(night.id, f) : undefined
+                      user && !night.cancelled
+                        ? (f) => handleFollowToggle(night.id, f)
+                        : undefined
                     }
                   />
                 ))}
@@ -149,9 +155,15 @@ export default function EventsPage() {
                     night={night}
                     index={i}
                     variant="row"
-                    isFollowing={user ? followingIds.has(night.id) : undefined}
+                    isFollowing={
+                      user && !night.cancelled
+                        ? followingIds.has(night.id)
+                        : undefined
+                    }
                     onFollowToggle={
-                      user ? (f) => handleFollowToggle(night.id, f) : undefined
+                      user && !night.cancelled
+                        ? (f) => handleFollowToggle(night.id, f)
+                        : undefined
                     }
                   />
                 ))}

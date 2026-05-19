@@ -14,6 +14,7 @@ import {
   UserPlus,
   Wand2,
   X,
+  XCircle,
 } from "lucide-react";
 import type { ApiClubNight, ApiMessage } from "@/lib/api";
 
@@ -38,6 +39,7 @@ interface ScheduleNightCardProps {
   onRemoveVagt: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  onCancel?: () => void;
   onToggleOptOut: () => void;
 }
 
@@ -60,6 +62,7 @@ export function ScheduleNightCard({
   onRemoveVagt,
   onEdit,
   onDelete,
+  onCancel,
   onToggleOptOut,
 }: ScheduleNightCardProps) {
   const d = new Date(night.date);
@@ -74,18 +77,31 @@ export function ScheduleNightCard({
             onDrop,
           }
         : {})}
-      className={`rounded-lg flex flex-col p-4 gap-3 border transition-colors ${
-        isOver
-          ? "border-brand-teal bg-brand-teal/5"
-          : isProblem
-            ? "border-red-400 bg-red-50"
-            : isPending
-              ? "border-brand-orange/60 bg-brand-orange/5"
-              : hasVagt
-                ? "border-neutral-200 bg-white"
-                : "border-brand-red/40 bg-brand-red/5"
+      className={`relative overflow-hidden rounded-lg flex flex-col p-4 gap-3 border transition-colors ${
+        night.cancelled
+          ? "border-neutral-300 bg-neutral-50"
+          : isOver
+            ? "border-brand-teal bg-brand-teal/5"
+            : isProblem
+              ? "border-red-400 bg-red-50"
+              : isPending
+                ? "border-brand-orange/60 bg-brand-orange/5"
+                : hasVagt
+                  ? "border-neutral-200 bg-white"
+                  : "border-brand-red/40 bg-brand-red/5"
       }`}
     >
+      {/* Aflyst overlay */}
+      {night.cancelled && (
+        <>
+          <div className="absolute inset-0 bg-neutral-100/60 z-10 pointer-events-none" />
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
+            <span className="font-black text-4xl text-red-600 rotate-[-25deg] tracking-widest uppercase select-none border-4 border-red-600 px-4 py-1 opacity-75">
+              Aflyst
+            </span>
+          </div>
+        </>
+      )}
       {/* Top row: date badge + info + assignment badge */}
       <div className="flex items-center gap-4">
         <div
@@ -232,20 +248,32 @@ export function ScheduleNightCard({
         </div>
         {isAdmin && (
           <div className="shrink-0 flex items-center gap-1">
-            <button
-              onClick={onEdit}
-              className="inline-flex items-center justify-center w-7 h-7 rounded-md border-none bg-transparent text-neutral-400 hover:text-brand-teal hover:bg-brand-teal/10 transition-colors cursor-pointer"
-              title="Rediger klubaften"
-            >
-              <Pencil className="size-3.5" />
-            </button>
-            <button
-              onClick={onDelete}
-              className="inline-flex items-center justify-center w-7 h-7 rounded-md border-none bg-transparent text-neutral-400 hover:text-brand-red hover:bg-brand-red/10 transition-colors cursor-pointer"
-              title="Slet klubaften"
-            >
-              <Trash2 className="size-3.5" />
-            </button>
+            {!night.cancelled && (
+              <button
+                onClick={onEdit}
+                className="inline-flex items-center justify-center w-7 h-7 rounded-md border-none bg-transparent text-neutral-400 hover:text-brand-teal hover:bg-brand-teal/10 transition-colors cursor-pointer"
+                title="Rediger klubaften"
+              >
+                <Pencil className="size-3.5" />
+              </button>
+            )}
+            {!night.cancelled && night.vagt_confirmed ? (
+              <button
+                onClick={onCancel}
+                className="inline-flex items-center justify-center w-7 h-7 rounded-md border-none bg-transparent text-neutral-400 hover:text-brand-red hover:bg-brand-red/10 transition-colors cursor-pointer"
+                title="Aflys klubaften"
+              >
+                <XCircle className="size-3.5" />
+              </button>
+            ) : !night.cancelled ? (
+              <button
+                onClick={onDelete}
+                className="inline-flex items-center justify-center w-7 h-7 rounded-md border-none bg-transparent text-neutral-400 hover:text-brand-red hover:bg-brand-red/10 transition-colors cursor-pointer"
+                title="Slet klubaften"
+              >
+                <Trash2 className="size-3.5" />
+              </button>
+            ) : null}
           </div>
         )}
       </div>
