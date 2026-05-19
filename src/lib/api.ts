@@ -51,6 +51,9 @@ export type ApiMember = {
   is_superuser: boolean;
   is_virtual: boolean;
   show_on_about_page: boolean;
+  rule_allow_two_in_a_row: boolean;
+  rule_allow_weekday_after_sunday: boolean;
+  rule_no_weekends: boolean;
 };
 
 export type ApiClubNight = {

@@ -7,6 +7,7 @@ import {
   Check,
   Plus,
   Search,
+  Settings,
   UserCheck,
   Wand2,
 } from "lucide-react";
@@ -37,7 +38,7 @@ import {
 } from "./ScheduleNightCard";
 import { VagterPanel } from "./VagterPanel";
 import { AssignModal } from "./AssignModal";
-import { IcalCard } from "./IcalCard";
+import { AutoAssignSettingsModal } from "./AutoAssignSettingsModal";
 
 export default function SchedulePage() {
   const { user, authorized } = useRequireAuth([
@@ -59,6 +60,7 @@ export default function SchedulePage() {
     nights,
     setNights,
     vagter,
+    setVagter,
     reviews,
     pendingSwapMsgs,
     submittingReview,
@@ -84,6 +86,7 @@ export default function SchedulePage() {
   const [assignModalNightId, setAssignModalNightId] = useState<number | null>(
     null,
   );
+  const [showAutoAssignSettings, setShowAutoAssignSettings] = useState(false);
 
   // ── Derived ──────────────────────────────────────────────────────────────
   const missingCount = nights.filter(
@@ -464,17 +467,29 @@ export default function SchedulePage() {
               )}
             </div>
 
-            {/* Auto-assign button — mobile only */}
+            {/* Auto-assign buttons — mobile only */}
             {isAdmin && (
-              <Button
-                variant="outline"
-                className="md:hidden gap-2 border-purple-200 text-purple-700 hover:bg-purple-50 hover:border-purple-400"
-                onClick={draft.handleAutoAssign}
-                disabled={draft.saving}
-              >
-                <Wand2 className="size-4" />
-                Auto-tildel vagter
-              </Button>
+              <div className="md:hidden flex gap-2">
+                <Button
+                  variant="outline"
+                  className="flex-1 gap-2 border-purple-200 text-purple-700 hover:bg-purple-50 hover:border-purple-400"
+                  onClick={draft.handleAutoAssign}
+                  disabled={draft.saving}
+                >
+                  <Wand2 className="size-4" />
+                  Auto-tildel vagter
+                </Button>
+                <Button
+                  variant="outline"
+                  className="shrink-0 px-2 border-purple-200 text-purple-700 hover:bg-purple-50 hover:border-purple-400"
+                  onClick={() => setShowAutoAssignSettings(true)}
+                  disabled={draft.saving}
+                  aria-label="Auto-tildel indstillinger"
+                  title="Auto-tildel indstillinger"
+                >
+                  <Settings className="size-4" />
+                </Button>
+              </div>
             )}
 
             {/* Save/discard pending changes */}
@@ -671,6 +686,7 @@ export default function SchedulePage() {
                 draft.setDragOverNightId(null);
               }}
               onAutoAssign={draft.handleAutoAssign}
+              onOpenAutoAssignSettings={() => setShowAutoAssignSettings(true)}
             />
 
             {/* Review status panel */}
@@ -748,9 +764,6 @@ export default function SchedulePage() {
         )}
       </div>
 
-      {/* iCal subscription — Vagt and Admin only */}
-      {!isTilskuer && <IcalCard />}
-
       {/* Mobile assign-vagt bottom sheet */}
       {isAdmin &&
         assignModalNightId !== null &&
@@ -775,6 +788,15 @@ export default function SchedulePage() {
             />
           );
         })()}
+
+      {isAdmin && (
+        <AutoAssignSettingsModal
+          open={showAutoAssignSettings}
+          onClose={() => setShowAutoAssignSettings(false)}
+          vagter={vagter}
+          setVagter={setVagter}
+        />
+      )}
     </main>
   );
 }

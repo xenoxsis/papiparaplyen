@@ -1,7 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { GripVertical, Search, Users, Wand2, Ghost } from "lucide-react";
+import {
+  GripVertical,
+  Search,
+  Users,
+  Wand2,
+  Ghost,
+  Settings,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,6 +22,7 @@ interface VagterPanelProps {
   onDragStart: (id: number) => void;
   onDragEnd: () => void;
   onAutoAssign: () => void;
+  onOpenAutoAssignSettings: () => void;
 }
 
 export function VagterPanel({
@@ -24,6 +32,7 @@ export function VagterPanel({
   onDragStart,
   onDragEnd,
   onAutoAssign,
+  onOpenAutoAssignSettings,
 }: VagterPanelProps) {
   const [memberSearch, setMemberSearch] = useState("");
 
@@ -90,15 +99,27 @@ export function VagterPanel({
             </div>
           ))}
         </div>
-        <Button
-          variant="outline"
-          className="mt-2 w-full gap-2 border-purple-200 text-purple-700 hover:bg-purple-50 hover:border-purple-400"
-          onClick={onAutoAssign}
-          disabled={saving}
-        >
-          <Wand2 className="size-4" />
-          Auto-tildel vagter
-        </Button>
+        <div className="mt-2 flex gap-2">
+          <Button
+            variant="outline"
+            className="flex-1 gap-2 border-purple-200 text-purple-700 hover:bg-purple-50 hover:border-purple-400"
+            onClick={onAutoAssign}
+            disabled={saving}
+          >
+            <Wand2 className="size-4" />
+            Auto-tildel vagter
+          </Button>
+          <Button
+            variant="outline"
+            className="shrink-0 px-2 border-purple-200 text-purple-700 hover:bg-purple-50 hover:border-purple-400"
+            onClick={onOpenAutoAssignSettings}
+            disabled={saving}
+            aria-label="Auto-tildel indstillinger"
+            title="Auto-tildel indstillinger"
+          >
+            <Settings className="size-4" />
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );

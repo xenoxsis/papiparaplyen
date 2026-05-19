@@ -21,6 +21,14 @@ function mapMember(row: Record<string, unknown>) {
     is_virtual: row.is_virtual === true || row.is_virtual === 1,
     show_on_about_page:
       row.show_on_about_page === true || row.show_on_about_page === 1,
+    rule_allow_two_in_a_row:
+      row.rule_allow_two_in_a_row === true ||
+      row.rule_allow_two_in_a_row === 1,
+    rule_allow_weekday_after_sunday:
+      row.rule_allow_weekday_after_sunday === true ||
+      row.rule_allow_weekday_after_sunday === 1,
+    rule_no_weekends:
+      row.rule_no_weekends === true || row.rule_no_weekends === 1,
     roles: row.roles_agg
       ? (row.roles_agg as string).split(",")
       : ([] as string[]),
@@ -34,6 +42,8 @@ function mapMember(row: Record<string, unknown>) {
 const MEMBER_SELECT = `
   SELECT m.id, m.name, m.initials, m.email, m.joined_date,
          m.is_virtual, m.show_on_about_page,
+         m.rule_allow_two_in_a_row, m.rule_allow_weekday_after_sunday,
+         m.rule_no_weekends,
          ISNULL(u.banned, 0) AS banned,
          STRING_AGG(r.name, ',') AS roles_agg
   FROM dbo.members m
@@ -44,7 +54,9 @@ const MEMBER_SELECT = `
 
 const MEMBER_GROUP_BY = `
   GROUP BY m.id, m.name, m.initials, m.email, m.joined_date,
-           m.is_virtual, m.show_on_about_page, u.banned
+           m.is_virtual, m.show_on_about_page,
+           m.rule_allow_two_in_a_row, m.rule_allow_weekday_after_sunday,
+           m.rule_no_weekends, u.banned
 `;
 
 const router = Router();
@@ -203,6 +215,21 @@ router.patch("/:id", requireAuth, async (req, res) => {
       .query(
         "UPDATE dbo.members SET show_on_about_page = @val WHERE id = @memberId",
       );
+  }
+
+  const RULE_COLUMNS = [
+    "rule_allow_two_in_a_row",
+    "rule_allow_weekday_after_sunday",
+    "rule_no_weekends",
+  ] as const;
+  for (const col of RULE_COLUMNS) {
+    if (typeof req.body[col] === "boolean") {
+      await pool
+        .request()
+        .input("val", sql.Bit, req.body[col] ? 1 : 0)
+        .input("memberId", sql.Int, memberId)
+        .query(`UPDATE dbo.members SET ${col} = @val WHERE id = @memberId`);
+    }
   }
 
   const result = await pool.request().input("id", sql.Int, memberId).query(`

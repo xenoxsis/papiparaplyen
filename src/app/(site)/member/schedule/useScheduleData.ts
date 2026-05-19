@@ -147,6 +147,7 @@ export function useScheduleData(isAdmin: boolean) {
     nights,
     setNights,
     vagter,
+    setVagter,
     reviews,
     pendingSwapMsgs,
     submittingReview,

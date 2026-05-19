@@ -172,6 +172,30 @@ export default function AdminPage() {
     }
   }
 
+  async function toggleAutoAssignRule(
+    id: number,
+    key:
+      | "rule_allow_two_in_a_row"
+      | "rule_allow_weekday_after_sunday"
+      | "rule_no_weekends",
+  ) {
+    const m = members.find((m) => m.id === id);
+    if (!m) return;
+    const newValue = !m[key];
+    setMembers((prev) =>
+      prev.map((x) => (x.id === id ? { ...x, [key]: newValue } : x)),
+    );
+    try {
+      const updated = await patchMember(id, { [key]: newValue });
+      setMembers((prev) => prev.map((x) => (x.id === id ? updated : x)));
+    } catch (err) {
+      setMembers((prev) =>
+        prev.map((x) => (x.id === id ? { ...x, [key]: !newValue } : x)),
+      );
+      console.error(err);
+    }
+  }
+
   const filtered = members.filter((m) => {
     const matchesSearch =
       m.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -466,6 +490,7 @@ export default function AdminPage() {
                 <th className="pb-2 pr-4 font-medium">E-mail</th>
                 <th className="pb-2 pr-4 font-medium">Tilmeldt</th>
                 <th className="pb-2 pr-4 font-medium">Rolle</th>
+                <th className="pb-2 pr-4 font-medium">Auto-tildel</th>
                 <th className="pb-2 font-medium">Handlinger</th>
               </tr>
             </thead>
@@ -488,6 +513,9 @@ export default function AdminPage() {
                     <td className="py-3 pr-4">
                       <Skeleton className="h-5 w-16 rounded-full" />
                     </td>
+                    <td className="py-3 pr-4">
+                      <Skeleton className="h-5 w-20 rounded" />
+                    </td>
                     <td className="py-3">
                       <Skeleton className="h-7 w-24 rounded" />
                     </td>
@@ -498,7 +526,7 @@ export default function AdminPage() {
                   {filtered.length === 0 && (
                     <tr>
                       <td
-                        colSpan={5}
+                        colSpan={6}
                         className="py-8 text-center text-neutral-400 text-sm"
                       >
                         Ingen medlemmer fundet
@@ -582,6 +610,62 @@ export default function AdminPage() {
                                 {r}
                               </button>
                             ))}
+                          </div>
+                        )}
+                      </td>
+                      <td className="py-3 pr-4">
+                        {m.banned || !m.roles.includes("Vagt") ? (
+                          <span className="text-neutral-300 text-xs">—</span>
+                        ) : (
+                          <div className="flex gap-1 flex-wrap">
+                            <button
+                              onClick={() =>
+                                toggleAutoAssignRule(
+                                  m.id,
+                                  "rule_allow_two_in_a_row",
+                                )
+                              }
+                              title="Tillad to vagter i træk"
+                              className={`text-[11px] font-medium px-2 py-0.5 rounded-full border transition-colors ${
+                                m.rule_allow_two_in_a_row
+                                  ? "bg-purple-100 text-purple-700 border-transparent"
+                                  : "bg-white text-neutral-400 border-neutral-200 hover:border-neutral-400"
+                              }`}
+                            >
+                              2 i træk
+                            </button>
+                            <button
+                              onClick={() =>
+                                toggleAutoAssignRule(
+                                  m.id,
+                                  "rule_allow_weekday_after_sunday",
+                                )
+                              }
+                              title="Tillad hverdag efter søndag"
+                              className={`text-[11px] font-medium px-2 py-0.5 rounded-full border transition-colors ${
+                                m.rule_allow_weekday_after_sunday
+                                  ? "bg-purple-100 text-purple-700 border-transparent"
+                                  : "bg-white text-neutral-400 border-neutral-200 hover:border-neutral-400"
+                              }`}
+                            >
+                              Hverdag e. søndag
+                            </button>
+                            <button
+                              onClick={() =>
+                                toggleAutoAssignRule(
+                                  m.id,
+                                  "rule_no_weekends",
+                                )
+                              }
+                              title="Ingen weekendvagter"
+                              className={`text-[11px] font-medium px-2 py-0.5 rounded-full border transition-colors ${
+                                m.rule_no_weekends
+                                  ? "bg-purple-100 text-purple-700 border-transparent"
+                                  : "bg-white text-neutral-400 border-neutral-200 hover:border-neutral-400"
+                              }`}
+                            >
+                              Ingen weekend
+                            </button>
                           </div>
                         )}
                       </td>

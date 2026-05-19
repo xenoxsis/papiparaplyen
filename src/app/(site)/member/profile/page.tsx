@@ -40,6 +40,7 @@ import {
 } from "@/lib/api";
 import { useChannelSSE } from "@/lib/useChannelSSE";
 import { useUserSSE } from "@/lib/UserSSEContext";
+import { IcalCard } from "../schedule/IcalCard";
 import { ShiftsPanel } from "./ShiftsPanel";
 import { SwapModal } from "./SwapModal";
 import { SwapConfirmModal } from "./SwapConfirmModal";
@@ -717,6 +718,9 @@ export default function ProfilePage() {
           </div>
         </div>
       </div>
+
+      {/* iCal subscription — Vagt only */}
+      {isVagt && <IcalCard />}
 
       {/* Chat */}
       <ChatPanel

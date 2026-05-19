@@ -1,8 +1,8 @@
 /**
  * Auto-assign rule engine for club night shifts (vagtplan).
  *
- * Rules are plain functions — add, remove or toggle them in the RULES array
- * at the bottom of this file. No backend changes required.
+ * Rules can be enabled/disabled per member via the rule_* flags on ApiMember.
+ * See the eligibility filter inside `autoAssign` for how each rule is gated.
  */
 
 import type { ApiClubNight, ApiMember } from "./api";
@@ -85,17 +85,34 @@ export const ruleNoWeekdayAfterSunday: Rule = (candidate, night, assigned) => {
   return { ok: true };
 };
 
-// ── Active rule set (add / remove rules here) ────────────────────────────────
-
-const RULES: Rule[] = [ruleNotTwoInARow, ruleNoWeekdayAfterSunday];
+/**
+ * Opt-in per-member rule: blocks the member from being assigned to any
+ * Saturday or Sunday night. Independent of `assigned`.
+ */
+export function ruleNoWeekends(night: ApiClubNight): {
+  blocks: boolean;
+} {
+  const dow = new Date(night.date).getDay();
+  return { blocks: dow === 0 || dow === 6 };
+}
 
 // ── Core algorithm ────────────────────────────────────────────────────────────
 
-/**
- * Counts how many times a member appears across all assignments.
- */
 function shiftCount(memberId: number, assigned: Assignment[]): number {
   return assigned.filter((a) => a.memberId === memberId).length;
+}
+
+/**
+ * Most recent shift date for a member (ISO YYYY-MM-DD).
+ * Returns "" when the member has never worked — sorts lexicographically before
+ * any real date, so never-worked members are preferred by the tie-breaker.
+ */
+function lastShiftDate(memberId: number, assigned: Assignment[]): string {
+  let max = "";
+  for (const a of assigned) {
+    if (a.memberId === memberId && a.date > max) max = a.date;
+  }
+  return max;
 }
 
 export type AutoAssignResult = {
@@ -157,22 +174,39 @@ export function autoAssign(
     const optedOutIds = new Set(night.opted_out_members.map((o) => o.id));
     const candidates = vagter.filter((v) => !optedOutIds.has(v.id));
 
-    // Apply rules
-    const eligible = candidates.filter((member) =>
-      RULES.every((rule) => rule(member, night, allAssigned).ok),
-    );
+    // Apply rules — each rule can be disabled per-member via rule_* flags.
+    const eligible = candidates.filter((m) => {
+      if (
+        !m.rule_allow_two_in_a_row &&
+        !ruleNotTwoInARow(m, night, allAssigned).ok
+      )
+        return false;
+      if (
+        !m.rule_allow_weekday_after_sunday &&
+        !ruleNoWeekdayAfterSunday(m, night, allAssigned).ok
+      )
+        return false;
+      if (m.rule_no_weekends && ruleNoWeekends(night).blocks) return false;
+      return true;
+    });
 
     if (eligible.length === 0) {
       problemNightIds.push(night.id);
       continue;
     }
 
-    // Pick the member with the fewest total shifts so far
-    const chosen = eligible.reduce((best, m) =>
-      shiftCount(m.id, allAssigned) < shiftCount(best.id, allAssigned)
+    // Pick: fewest total shifts first, then prefer the member whose last
+    // shift was longest ago (or who's never worked). This spreads shifts
+    // out even when rules technically allow stacking.
+    const chosen = eligible.reduce((best, m) => {
+      const bCount = shiftCount(best.id, allAssigned);
+      const mCount = shiftCount(m.id, allAssigned);
+      if (mCount !== bCount) return mCount < bCount ? m : best;
+      return lastShiftDate(m.id, allAssigned) <
+        lastShiftDate(best.id, allAssigned)
         ? m
-        : best,
-    );
+        : best;
+    });
 
     assignments[night.id] = chosen.id;
     runAssigned.push({
