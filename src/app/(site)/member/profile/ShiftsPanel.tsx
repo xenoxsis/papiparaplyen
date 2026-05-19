@@ -167,7 +167,7 @@ export function ShiftsPanel({
             {nextShift ? (
               <div className="flex flex-col gap-3">
                 <div className="bg-neutral-100 rounded-lg flex p-3 items-center gap-3">
-                  <DateBadge date={nextShift.date} colorClass="bg-brand-red" />
+                  <DateBadge date={nextShift.date} colorClass="bg-brand-teal" />
                   <div className="flex flex-col gap-1">
                     <span className="font-semibold text-sm text-neutral-900">
                       {nextShift.name}
@@ -247,7 +247,7 @@ export function ShiftsPanel({
                   className="rounded-lg flex flex-col gap-2 p-3 border bg-white border-neutral-200"
                 >
                   <div className="flex items-center gap-3">
-                    <DateBadge date={s.date} colorClass="bg-brand-red" />
+                    <DateBadge date={s.date} colorClass="bg-brand-teal" />
                     <div className="flex flex-col gap-0.5 flex-1 min-w-0">
                       <span className="font-semibold text-sm text-neutral-900 truncate">
                         {s.name}

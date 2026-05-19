@@ -5,6 +5,8 @@ import { toast } from "sonner";
 import {
   CalendarDays,
   Check,
+  LayoutGrid,
+  List as ListIcon,
   Plus,
   Search,
   Settings,
@@ -39,6 +41,10 @@ import {
 import { VagterPanel } from "./VagterPanel";
 import { AssignModal } from "./AssignModal";
 import { AutoAssignSettingsModal } from "./AutoAssignSettingsModal";
+import { CalendarView } from "./_calendar/CalendarView";
+
+type ScheduleView = "list" | "calendar";
+const VIEW_STORAGE_KEY = "schedule.view";
 
 export default function SchedulePage() {
   const { user, authorized } = useRequireAuth([
@@ -87,6 +93,18 @@ export default function SchedulePage() {
     null,
   );
   const [showAutoAssignSettings, setShowAutoAssignSettings] = useState(false);
+  const [view, setView] = useState<ScheduleView>("list");
+
+  // Persist + restore selected view.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const stored = window.localStorage.getItem(VIEW_STORAGE_KEY);
+    if (stored === "calendar" || stored === "list") setView(stored);
+  }, []);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(VIEW_STORAGE_KEY, view);
+  }, [view]);
 
   // ── Derived ──────────────────────────────────────────────────────────────
   const missingCount = nights.filter(
@@ -441,6 +459,143 @@ export default function SchedulePage() {
         )}
       </MemberHero>
 
+      {/* View toggle (list / calendar) — always visible above the main area. */}
+      <div className="flex items-center justify-between gap-3 flex-wrap print:hidden">
+        <div
+          className="inline-flex rounded-md border border-neutral-200 bg-white overflow-hidden"
+          role="tablist"
+          aria-label="Visningstilstand"
+        >
+          <button
+            role="tab"
+            aria-selected={view === "list"}
+            onClick={() => setView("list")}
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer border-none ${
+              view === "list"
+                ? "bg-brand-red text-white"
+                : "bg-white text-neutral-600 hover:bg-neutral-50"
+            }`}
+          >
+            <ListIcon className="size-3.5" />
+            Liste
+          </button>
+          <button
+            role="tab"
+            aria-selected={view === "calendar"}
+            onClick={() => setView("calendar")}
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer border-none border-l border-l-neutral-200 ${
+              view === "calendar"
+                ? "bg-brand-red text-white"
+                : "bg-white text-neutral-600 hover:bg-neutral-50"
+            }`}
+          >
+            <LayoutGrid className="size-3.5" />
+            Kalender
+          </button>
+        </div>
+        {view === "calendar" && isAdmin && (
+          <div className="flex items-center gap-2 flex-wrap">
+            {draft.hasPendingChanges && (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={draft.discard}
+                  disabled={draft.saving}
+                >
+                  Fortryd
+                </Button>
+                <Button
+                  size="sm"
+                  className="bg-brand-teal hover:bg-teal-700 text-white gap-2"
+                  onClick={draft.saveChanges}
+                  disabled={draft.saving}
+                >
+                  <Check className="size-4" />
+                  {draft.saving
+                    ? "Gemmer…"
+                    : `Gem ${Object.keys(draft.pendingChanges).length} ændring${Object.keys(draft.pendingChanges).length !== 1 ? "er" : ""}`}
+                </Button>
+              </>
+            )}
+            <Button
+              size="sm"
+              className="bg-brand-red text-white gap-2"
+              onClick={() => setShowAddModal(true)}
+            >
+              <Plus className="size-4" />
+              Tilføj klubaften
+            </Button>
+          </div>
+        )}
+      </div>
+
+      {view === "calendar" ? (
+        <div className="flex flex-col gap-4">
+          {/* Auto-assign on mobile (member chip strip is hidden below md). */}
+          {isAdmin && (
+            <div className="md:hidden flex gap-2 print:hidden">
+              <Button
+                variant="outline"
+                className="flex-1 gap-2 border-purple-200 text-purple-700 hover:bg-purple-50 hover:border-purple-400"
+                onClick={draft.handleAutoAssign}
+                disabled={draft.saving}
+              >
+                <Wand2 className="size-4" />
+                Auto-tildel vagter
+              </Button>
+              <Button
+                variant="outline"
+                className="shrink-0 px-2 border-purple-200 text-purple-700 hover:bg-purple-50 hover:border-purple-400"
+                onClick={() => setShowAutoAssignSettings(true)}
+                disabled={draft.saving}
+                aria-label="Auto-tildel indstillinger"
+                title="Auto-tildel indstillinger"
+              >
+                <Settings className="size-4" />
+              </Button>
+            </div>
+          )}
+          {isAdmin && (
+            <div className="hidden md:block sticky top-14 z-20 bg-neutral-100 -mx-4 sm:-mx-8 px-4 sm:px-8 pb-2 pt-1 print:static print:mx-0 print:px-0">
+              <VagterPanel
+                vagter={vagter}
+                draggingMemberId={draft.draggingMemberId}
+                saving={draft.saving}
+                onDragStart={(id) => draft.setDraggingMemberId(id)}
+                onDragEnd={() => {
+                  draft.setDraggingMemberId(null);
+                  draft.setDragOverNightId(null);
+                }}
+                onAutoAssign={draft.handleAutoAssign}
+                onOpenAutoAssignSettings={() => setShowAutoAssignSettings(true)}
+                orientation="horizontal"
+              />
+            </div>
+          )}
+          <CalendarView
+            nights={nights}
+            vagter={vagter}
+            isAdmin={isAdmin}
+            pendingChanges={draft.pendingChanges}
+            autoAssignedIds={draft.autoAssignedIds}
+            problemNightIds={draft.problemNightIds}
+            draggingMemberId={draft.draggingMemberId}
+            dragOverNightId={draft.dragOverNightId}
+            effectiveVagt={draft.effectiveVagt}
+            setDragOverNightId={draft.setDragOverNightId}
+            onCellDrop={(nightId) => draft.handleDrop(nightId)}
+            onCellReassignDrop={(from, to) =>
+              draft.handleReassignDrop(from, to)
+            }
+            onAssignClick={(nightId) => setAssignModalNightId(nightId)}
+            onRemoveVagt={(nightId) => draft.removeVagt(nightId)}
+            onEdit={(night) => setEditingNight(night)}
+            onDelete={(nightId) => setDeleteConfirmId(nightId)}
+            onCancel={(night) => setCancelConfirmNight(night)}
+          />
+        </div>
+      ) : (
       <div
         className={`grid gap-6 ${isAdmin ? "grid-cols-1 md:grid-cols-3 items-stretch" : "grid-cols-1"}`}
       >
@@ -763,6 +918,7 @@ export default function SchedulePage() {
           </div>
         )}
       </div>
+      )}
 
       {/* Mobile assign-vagt bottom sheet */}
       {isAdmin &&

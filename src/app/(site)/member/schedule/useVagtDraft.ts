@@ -120,6 +120,44 @@ export function useVagtDraft(
     setPendingChanges((prev) => ({ ...prev, [nightId]: null }));
   }
 
+  /**
+   * Move the effective member from one club night to another. Used by the
+   * calendar's cell-to-cell drag. If the target already has someone, the
+   * normal replace-confirmation dialog kicks in (memorising the source so the
+   * source is cleared once the user confirms).
+   */
+  function handleReassignDrop(fromNightId: number, toNightId: number) {
+    if (fromNightId === toNightId) return;
+    const fromNight = nights.find((n) => n.id === fromNightId);
+    const toNight = nights.find((n) => n.id === toNightId);
+    if (!fromNight || !toNight) return;
+
+    const movingMember = effectiveVagt(fromNight);
+    if (!movingMember) return;
+
+    const optedOut = toNight.opted_out_members.find(
+      (o) => o.id === movingMember.id,
+    );
+    if (optedOut) {
+      showDragError(`${optedOut.name} har meldt fra denne aften`);
+      return;
+    }
+
+    const targetCurrent = effectiveVagt(toNight);
+    if (targetCurrent && targetCurrent.id !== movingMember.id) {
+      // Pre-clear the source so confirming the replace also empties it.
+      setPendingChanges((prev) => ({ ...prev, [fromNightId]: null }));
+      setConfirmDialog({ nightId: toNightId, newMemberId: movingMember.id });
+      return;
+    }
+
+    setPendingChanges((prev) => ({
+      ...prev,
+      [fromNightId]: null,
+      [toNightId]: movingMember.id,
+    }));
+  }
+
   function handleAssignFromModal(nightId: number, memberId: number) {
     const night = nights.find((n) => n.id === nightId);
     if (!night) return;
@@ -221,6 +259,7 @@ export function useVagtDraft(
     confirmDialog,
     effectiveVagt,
     handleDrop,
+    handleReassignDrop,
     removeVagt,
     handleAssignFromModal,
     confirmReplace,

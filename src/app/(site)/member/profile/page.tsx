@@ -331,7 +331,19 @@ export default function ProfilePage() {
   }, [messageMap, user, vagterChannelId]);
 
   const today = new Date().toISOString().slice(0, 10);
-  const confirmedNightsCount = nights.filter((n) => n.vagt_confirmed).length;
+  const upcomingShifts = (() => {
+    const todayStr = today;
+    const now = new Date();
+    return shifts.filter((n) => {
+      if (n.date > todayStr) return true;
+      if (n.date < todayStr) return false;
+      // Same date — use time_to to decide, with a safe fallback if parsing fails.
+      const end = new Date(`${n.date}T${n.time_to || "23:59:59"}`);
+      if (!Number.isFinite(end.getTime())) return true;
+      return end > now;
+    });
+  })();
+  const confirmedNightsCount = nights.filter((n) => n.vagt_confirmed && n.date >= today).length;
   const isVagt = user?.roles.includes("Vagt") ?? false;
   const hasUnreviewedNights =
     isVagt &&
@@ -579,7 +591,7 @@ export default function ProfilePage() {
       >
         <div className="flex flex-col items-center">
           <span className="font-bold text-2xl text-brand-orange">
-            {shifts.length}
+            {upcomingShifts.length}
           </span>
           <span className="text-white/60 text-xs">Vagter</span>
         </div>
@@ -622,21 +634,24 @@ export default function ProfilePage() {
       <div
         className={`grid grid-cols-1 gap-6 ${isVagtOrAdmin ? "md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]" : ""}`}
       >
-        {/* Left: Shifts panel — Vagt/Admin only */}
+        {/* Left: Shifts panel + iCal — Vagt/Admin only */}
         {isVagtOrAdmin && (
-          <ShiftsPanel
-            loading={loading}
-            shifts={shifts}
-            pendingShiftsForMe={pendingShiftsForMe}
-            pendingSwap={pendingSwap}
-            onConfirmShift={handleConfirmShift}
-            onOptOut={handleOptOut}
-            onConfirmAllShifts={handleConfirmAllShifts}
-            onRequestSwap={(shift) => {
-              dispatchSwap({ type: "OPEN", shift });
-            }}
-            onCancelSwap={cancelSwap}
-          />
+          <div className="flex flex-col gap-6">
+            <ShiftsPanel
+              loading={loading}
+              shifts={upcomingShifts}
+              pendingShiftsForMe={pendingShiftsForMe}
+              pendingSwap={pendingSwap}
+              onConfirmShift={handleConfirmShift}
+              onOptOut={handleOptOut}
+              onConfirmAllShifts={handleConfirmAllShifts}
+              onRequestSwap={(shift) => {
+                dispatchSwap({ type: "OPEN", shift });
+              }}
+              onCancelSwap={cancelSwap}
+            />
+            {isVagt && <IcalCard />}
+          </div>
         )}
 
         {/* Right: Club nights list */}
@@ -663,7 +678,7 @@ export default function ProfilePage() {
             style={{ maxHeight: "calc(5 * 4.5rem + 4 * 0.75rem)" }}
           >
             {nights
-              .filter((n) => n.vagt_confirmed)
+              .filter((n) => n.vagt_confirmed && n.date >= today)
               .map((evt) => {
                 const isMyShift = evt.vagt_member_id === user?.id;
                 const hasOtherVagt = evt.vagt_member_id !== null && !isMyShift;
@@ -718,9 +733,6 @@ export default function ProfilePage() {
           </div>
         </div>
       </div>
-
-      {/* iCal subscription — Vagt only */}
-      {isVagt && <IcalCard />}
 
       {/* Chat */}
       <ChatPanel

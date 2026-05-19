@@ -2,99 +2,17 @@
  * Auto-assign rule engine for club night shifts (vagtplan).
  *
  * Rules can be enabled/disabled per member via the rule_* flags on ApiMember.
- * See the eligibility filter inside `autoAssign` for how each rule is gated.
+ * The rule primitives live in `schedule-validation.ts` so the calendar view
+ * and the auto-assigner can never drift apart.
  */
 
 import type { ApiClubNight, ApiMember } from "./api";
-
-// ── Types ────────────────────────────────────────────────────────────────────
-
-/** A resolved assignment: night id + the member assigned to it. */
-export type Assignment = {
-  nightId: number;
-  memberId: number;
-  /** ISO date string of the night, kept so rules can do date arithmetic. */
-  date: string;
-};
-
-/**
- * A rule returns `{ ok: true }` when the candidate is eligible,
- * or `{ ok: false, reason: string }` when they should be excluded.
- *
- * @param candidate   The member being evaluated.
- * @param night       The night being filled.
- * @param assigned    All assignments decided so far (saved + pending + earlier
- *                    in the current auto-assign run), sorted by date ascending.
- */
-export type Rule = (
-  candidate: ApiMember,
-  night: ApiClubNight,
-  assigned: Assignment[],
-) => { ok: true } | { ok: false; reason: string };
-
-// ── Built-in rules ───────────────────────────────────────────────────────────
-
-/**
- * A member may not work two consecutive nights.
- * "Consecutive" means the immediately preceding or following night in the list.
- */
-export const ruleNotTwoInARow: Rule = (candidate, night, assigned) => {
-  const sorted = [...assigned].sort((a, b) => a.date.localeCompare(b.date));
-  const idx = sorted.findIndex((a) => a.date >= night.date);
-
-  // Night directly before this one (in assignment list)
-  const prev = idx > 0 ? sorted[idx - 1] : sorted[sorted.length - 1];
-  // Night directly after this one
-  const next = idx !== -1 ? sorted[idx] : undefined;
-
-  if (prev?.memberId === candidate.id) {
-    return { ok: false, reason: "Ville give to vagter i træk" };
-  }
-  if (next?.memberId === candidate.id && next.date <= night.date) {
-    return { ok: false, reason: "Ville give to vagter i træk" };
-  }
-  return { ok: true };
-};
-
-/**
- * A member may not work a weekday night (Mon–Sat) if they worked the Sunday
- * immediately preceding it (i.e. within the same 7-day window).
- */
-export const ruleNoWeekdayAfterSunday: Rule = (candidate, night, assigned) => {
-  const nightDate = new Date(night.date);
-  const dayOfWeek = nightDate.getDay(); // 0 = Sun, 1 = Mon … 6 = Sat
-
-  // Only applies to weekday nights (Mon=1 … Sat=6)
-  if (dayOfWeek === 0) return { ok: true };
-
-  // Find the most recent Sunday before this night
-  const sundayDate = new Date(nightDate);
-  sundayDate.setDate(nightDate.getDate() - dayOfWeek); // rewind to Sunday
-  const sundayStr = sundayDate.toISOString().slice(0, 10);
-
-  const workedSunday = assigned.some(
-    (a) => a.memberId === candidate.id && a.date === sundayStr,
-  );
-
-  if (workedSunday) {
-    return {
-      ok: false,
-      reason: "Arbejdede søndagen inden denne hverdag",
-    };
-  }
-  return { ok: true };
-};
-
-/**
- * Opt-in per-member rule: blocks the member from being assigned to any
- * Saturday or Sunday night. Independent of `assigned`.
- */
-export function ruleNoWeekends(night: ApiClubNight): {
-  blocks: boolean;
-} {
-  const dow = new Date(night.date).getDay();
-  return { blocks: dow === 0 || dow === 6 };
-}
+import {
+  type Assignment,
+  isWeekendDate,
+  violatesTwoInARow,
+  violatesWeekdayAfterSunday,
+} from "./schedule-validation";
 
 // ── Core algorithm ────────────────────────────────────────────────────────────
 
@@ -178,15 +96,15 @@ export function autoAssign(
     const eligible = candidates.filter((m) => {
       if (
         !m.rule_allow_two_in_a_row &&
-        !ruleNotTwoInARow(m, night, allAssigned).ok
+        violatesTwoInARow(m.id, night.date, allAssigned)
       )
         return false;
       if (
         !m.rule_allow_weekday_after_sunday &&
-        !ruleNoWeekdayAfterSunday(m, night, allAssigned).ok
+        violatesWeekdayAfterSunday(m.id, night.date, allAssigned)
       )
         return false;
-      if (m.rule_no_weekends && ruleNoWeekends(night).blocks) return false;
+      if (m.rule_no_weekends && isWeekendDate(night.date)) return false;
       return true;
     });
 

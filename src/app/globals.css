@@ -69,3 +69,40 @@ a {
   text-decoration: none;
   color: inherit;
 }
+
+/* ── Calendar print layout ────────────────────────────────────────────────
+   Trigger: the Printer button in CalendarHeader → window.print().
+   Goal: only the 3-month calendar grid prints on a single landscape page,
+   keeping brand colors. Everything else on the page is hidden. */
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 8mm;
+  }
+  body {
+    background: white !important;
+  }
+  /* Hide everything by default, then opt back in below. */
+  body * {
+    visibility: hidden;
+  }
+  [data-calendar-print-root],
+  [data-calendar-print-root] * {
+    visibility: visible;
+  }
+  [data-calendar-print-root] {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 4mm !important;
+  }
+  /* Preserve our brand background colors on print. */
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
