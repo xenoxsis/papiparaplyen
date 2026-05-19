@@ -25,6 +25,7 @@ export interface CalendarDayProps
   isOver: boolean;
   isAdmin: boolean;
   isToday: boolean;
+  optOuts: { id: number; initials: string; name: string }[];
   onCellDragEnd?: () => void;
   onCellDragOver?: (e: React.DragEvent, nightId: number) => void;
   onCellDragLeave?: () => void;
@@ -47,6 +48,7 @@ export const CalendarDay = forwardRef<HTMLDivElement, CalendarDayProps>(
       isOver,
       isAdmin,
       isToday,
+      optOuts,
       onCellDragEnd,
       onCellDragOver,
       onCellDragLeave,
@@ -60,7 +62,8 @@ export const CalendarDay = forwardRef<HTMLDivElement, CalendarDayProps>(
     const weekend = dow >= 5;
     const hasNight = night !== null;
     const cancelled = !!night?.cancelled;
-    const isDroppable = isAdmin && hasNight && !cancelled;
+    const isPast = hasNight && night ? new Date(`${night.date}T${night.time_to || "23:59:59"}`) < new Date() : false;
+    const isDroppable = isAdmin && hasNight && !cancelled && !isPast;
 
     function handleDragOver(e: React.DragEvent) {
       if (!isDroppable || !night) return;
@@ -199,6 +202,26 @@ export const CalendarDay = forwardRef<HTMLDivElement, CalendarDayProps>(
               </span>
             )}
           </>
+        )}
+
+        {/* Opt-out dots */}
+        {hasNight && optOuts.length > 0 && (
+          <div className="flex items-center gap-0.5 shrink-0">
+            {optOuts.slice(0, 3).map((o) => (
+              <div
+                key={o.id}
+                title={o.name}
+                className="w-3.5 h-3.5 rounded-full bg-neutral-300 text-neutral-600 flex items-center justify-center text-[0.42rem] font-bold select-none"
+              >
+                {o.initials}
+              </div>
+            ))}
+            {optOuts.length > 3 && (
+              <span className="text-[9px] text-neutral-400 font-medium leading-none">
+                +{optOuts.length - 3}
+              </span>
+            )}
+          </div>
         )}
 
         {/* ISO week number — bold, right-aligned, on Mondays only */}

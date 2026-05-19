@@ -7,6 +7,8 @@ import { CalendarHeader } from "./CalendarHeader";
 import { CalendarMonth } from "./CalendarMonth";
 import {
   getQuarter,
+  monthNameDa,
+  quarterLabelDa,
   quarterMonths,
 } from "./calendarGrid";
 import { useHolidays } from "./useHolidays";
@@ -39,6 +41,21 @@ function isMobile(): boolean {
   return window.matchMedia("(max-width: 767px)").matches;
 }
 
+/** Returns the number of month columns currently visible on desktop (2 or 3). */
+function desktopCols(): 2 | 3 {
+  if (typeof window === "undefined") return 3;
+  return window.matchMedia("(min-width: 1024px)").matches ? 3 : 2;
+}
+
+/** Step a {year, month} forward or back by `step` months. */
+function stepMonth(year: number, month: number, step: number): { year: number; month: number } {
+  let m = month + step;
+  let y = year;
+  while (m > 11) { m -= 12; y++; }
+  while (m < 0)  { m += 12; y--; }
+  return { year: y, month: m };
+}
+
 export function CalendarView({
   nights,
   vagter,
@@ -59,12 +76,59 @@ export function CalendarView({
   onCancel,
 }: CalendarViewProps) {
   const now = new Date();
-  const [quarter, setQuarter] = useState<1 | 2 | 3 | 4>(() => getQuarter(now));
-  const [year, setYear] = useState<number>(() => now.getFullYear());
-  const [popoverNightId, setPopoverNightId] = useState<number | null>(null);
 
-  const holidays = useHolidays(year);
-  const months = useMemo(() => quarterMonths(quarter), [quarter]);
+  // ── Mobile: single-month navigation ───────────────────────────────────────
+  const [mobileMonth, setMobileMonth] = useState<number>(() => now.getMonth());
+  const [mobileYear, setMobileYear]   = useState<number>(() => now.getFullYear());
+
+  // ── Desktop: first visible month + how many cols are showing ──────────────
+  // Start snapped to the current quarter's first month for the lg view,
+  // or current 2-month block for md.
+  const [desktopStart, setDesktopStart] = useState<{ year: number; month: number }>(() => {
+    const q = getQuarter(now);
+    return { year: now.getFullYear(), month: quarterMonths(q)[0] };
+  });
+  const [cols, setCols] = useState<2 | 3>(() => desktopCols());
+  const [isDesktop, setIsDesktop] = useState<boolean>(() =>
+    typeof window !== "undefined" ? window.matchMedia("(min-width: 768px)").matches : true,
+  );
+
+  useEffect(() => {
+    function updateCols() { setCols(desktopCols()); }
+    function updateDesktop(e: MediaQueryListEvent) { setIsDesktop(e.matches); }
+    const mqLg = window.matchMedia("(min-width: 1024px)");
+    const mqMd = window.matchMedia("(min-width: 768px)");
+    mqLg.addEventListener("change", updateCols);
+    mqMd.addEventListener("change", updateDesktop);
+    // Sync initial state immediately in case SSR defaulted differently
+    setCols(desktopCols());
+    setIsDesktop(mqMd.matches);
+    return () => {
+      mqLg.removeEventListener("change", updateCols);
+      mqMd.removeEventListener("change", updateDesktop);
+    };
+  }, []);
+
+  // Months to render on desktop: `cols` consecutive months from desktopStart.
+  const desktopMonths = useMemo<{ year: number; month: number }[]>(() => {
+    return Array.from({ length: cols }, (_, i) =>
+      stepMonth(desktopStart.year, desktopStart.month, i),
+    );
+  }, [desktopStart, cols]);
+
+  // For holiday fetching we may need up to two different years.
+  const desktopYear1 = desktopStart.year;
+  const desktopYear2 = desktopMonths[desktopMonths.length - 1].year;
+
+  const holidaysDesktop1 = useHolidays(desktopYear1);
+  const holidaysDesktop2 = useHolidays(desktopYear2);
+  const holidaysMobile   = useHolidays(mobileYear);
+
+  function getHolidays(year: number) {
+    if (year === desktopYear1) return holidaysDesktop1;
+    if (year === desktopYear2) return holidaysDesktop2;
+    return holidaysDesktop1;
+  }
 
   // ── Rule-violation map ─────────────────────────────────────────────────────
   const violations = useMemo<Map<number, string>>(() => {
@@ -74,13 +138,7 @@ export function CalendarView({
       if (n.cancelled) continue;
       const v = effectiveVagt(n);
       if (!v) continue;
-      const violationList = validateAssignment(
-        v.id,
-        n,
-        nights,
-        effectiveVagt,
-        vagter,
-      );
+      const violationList = validateAssignment(v.id, n, nights, effectiveVagt, vagter);
       if (violationList.length > 0) {
         map.set(n.id, violationList.map((x) => x.message).join(" · "));
       }
@@ -116,29 +174,31 @@ export function CalendarView({
 
   // ── Navigation handlers ────────────────────────────────────────────────────
   const goPrev = useCallback(() => {
-    setQuarter((q) => {
-      if (q === 1) {
-        setYear((y) => y - 1);
-        return 4;
-      }
-      return (q - 1) as 1 | 2 | 3 | 4;
-    });
-  }, []);
+    setDesktopStart((s) => stepMonth(s.year, s.month, -cols));
+  }, [cols]);
 
   const goNext = useCallback(() => {
-    setQuarter((q) => {
-      if (q === 4) {
-        setYear((y) => y + 1);
-        return 1;
-      }
-      return (q + 1) as 1 | 2 | 3 | 4;
-    });
-  }, []);
+    setDesktopStart((s) => stepMonth(s.year, s.month, cols));
+  }, [cols]);
+
+  const goPrevMonth = useCallback(() => {
+    const next = stepMonth(mobileYear, mobileMonth, -1);
+    setMobileYear(next.year);
+    setMobileMonth(next.month);
+  }, [mobileYear, mobileMonth]);
+
+  const goNextMonth = useCallback(() => {
+    const next = stepMonth(mobileYear, mobileMonth, 1);
+    setMobileYear(next.year);
+    setMobileMonth(next.month);
+  }, [mobileYear, mobileMonth]);
 
   const goToday = useCallback(() => {
     const t = new Date();
-    setYear(t.getFullYear());
-    setQuarter(getQuarter(t));
+    const q = getQuarter(t);
+    setDesktopStart({ year: t.getFullYear(), month: quarterMonths(q)[0] });
+    setMobileYear(t.getFullYear());
+    setMobileMonth(t.getMonth());
   }, []);
 
   const handlePrint = useCallback(() => {
@@ -151,9 +211,7 @@ export function CalendarView({
   }, [setDragOverNightId]);
 
   const handleCellDragOver = useCallback(
-    (_e: React.DragEvent, nightId: number) => {
-      setDragOverNightId(nightId);
-    },
+    (_e: React.DragEvent, nightId: number) => { setDragOverNightId(nightId); },
     [setDragOverNightId],
   );
 
@@ -174,6 +232,8 @@ export function CalendarView({
     [draggingMemberId, onCellReassignDrop, onCellDrop, setDragOverNightId],
   );
 
+  const [popoverNightId, setPopoverNightId] = useState<number | null>(null);
+
   const handleCellClick = useCallback(
     (nightId: number) => {
       if (isMobile()) {
@@ -186,50 +246,95 @@ export function CalendarView({
     [onAssignClick],
   );
 
+  const sharedMonthProps = {
+    nights,
+    pendingChanges,
+    autoAssignedIds,
+    problemNightIds,
+    dragOverNightId,
+    isAdmin,
+    effectiveVagt,
+    violations,
+    popoverNightId,
+    onPopoverChange: setPopoverNightId,
+    onCellDragEnd: handleCellDragEnd,
+    onCellDragOver: handleCellDragOver,
+    onCellDragLeave: handleCellDragLeave,
+    onCellDrop: handleCellDrop,
+    onCellClick: handleCellClick,
+    onAssignClick,
+    onRemoveVagt,
+    onEdit,
+    onDelete,
+    onCancel,
+  };
+
+  // Header label for desktop
+  const desktopLabel = (() => {
+    const first = desktopMonths[0];
+    const last  = desktopMonths[desktopMonths.length - 1];
+    const crossYear = first.year !== last.year;
+    const monthRange = crossYear
+      ? `${monthNameDa(first.month)} ${first.year} – ${monthNameDa(last.month)} ${last.year}`
+      : `${monthNameDa(first.month)} – ${monthNameDa(last.month)}`;
+    if (cols === 3) {
+      // Quarter label: Q1–Q4 + year as subtitle
+      const q = (Math.floor(first.month / 3) + 1) as 1 | 2 | 3 | 4;
+      return {
+        primary: `${quarterLabelDa(q)} ${first.year}`,
+        secondary: crossYear ? monthRange : `${monthNameDa(first.month)} – ${monthNameDa(last.month)} ${first.year}`,
+      };
+    }
+    // 2-column: show month range as primary, year as secondary
+    return {
+      primary: monthRange,
+      secondary: crossYear ? "" : String(first.year),
+    };
+  })();
+
   return (
     <div className="flex flex-col gap-4">
       <CalendarHeader
-        quarter={quarter}
-        year={year}
+        desktopPrimary={desktopLabel.primary}
+        desktopSecondary={desktopLabel.secondary}
+        mobileMonth={mobileMonth}
+        mobileYear={mobileYear}
         onPrev={goPrev}
         onNext={goNext}
+        onPrevMonth={goPrevMonth}
+        onNextMonth={goNextMonth}
         onToday={goToday}
         onPrint={handlePrint}
       />
 
-      <div
-        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 print:grid-cols-3 print:gap-2"
-        data-calendar-print-root
-      >
-        {months.map((m) => (
-          <CalendarMonth
-            key={m}
-            year={year}
-            monthIdx={m}
-            nights={nights}
-            pendingChanges={pendingChanges}
-            autoAssignedIds={autoAssignedIds}
-            problemNightIds={problemNightIds}
-            dragOverNightId={dragOverNightId}
-            isAdmin={isAdmin}
-            effectiveVagt={effectiveVagt}
-            holidays={holidays}
-            violations={violations}
-            popoverNightId={popoverNightId}
-            onPopoverChange={setPopoverNightId}
-            onCellDragEnd={handleCellDragEnd}
-            onCellDragOver={handleCellDragOver}
-            onCellDragLeave={handleCellDragLeave}
-            onCellDrop={handleCellDrop}
-            onCellClick={handleCellClick}
-            onAssignClick={onAssignClick}
-            onRemoveVagt={onRemoveVagt}
-            onEdit={onEdit}
-            onDelete={onDelete}
-            onCancel={onCancel}
-          />
-        ))}
-      </div>
+      {/* Mobile: single month (only mounted when actually mobile) */}
+      {!isDesktop && (
+        <CalendarMonth
+          key={`${mobileYear}-${mobileMonth}`}
+          year={mobileYear}
+          monthIdx={mobileMonth}
+          holidays={holidaysMobile}
+          {...sharedMonthProps}
+        />
+      )}
+
+      {/* Desktop: 2 or 3 months depending on breakpoint (only mounted when desktop) */}
+      {isDesktop && (
+        <div
+          className="grid md:grid-cols-2 lg:grid-cols-3 gap-3 print:grid-cols-3 print:gap-2"
+          data-calendar-print-root
+        >
+          {desktopMonths.map(({ year, month }) => (
+            <CalendarMonth
+              key={`${year}-${month}`}
+              year={year}
+              monthIdx={month}
+              holidays={getHolidays(year)}
+              {...sharedMonthProps}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

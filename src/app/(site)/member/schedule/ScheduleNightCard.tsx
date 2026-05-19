@@ -67,6 +67,7 @@ export function ScheduleNightCard({
 }: ScheduleNightCardProps) {
   const d = new Date(night.date);
   const hasVagt = vagt !== null;
+  const isPast = new Date(`${night.date}T${night.time_to || "23:59:59"}`) < new Date();
 
   return (
     <div
@@ -166,7 +167,7 @@ export function ScheduleNightCard({
                     {vagt.initials}
                   </div>
                   <span className="text-xs leading-4">{vagt.name}</span>
-                  {isAdmin && (
+                  {isAdmin && !isPast && (
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -246,7 +247,7 @@ export function ScheduleNightCard({
             )}
           </div>
         </div>
-        {isAdmin && (
+        {isAdmin && !isPast && (
           <div className="shrink-0 flex items-center gap-1">
             {!night.cancelled && (
               <button

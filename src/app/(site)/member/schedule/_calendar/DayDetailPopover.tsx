@@ -49,6 +49,7 @@ export function DayDetailPopover({
   onCancel,
   children,
 }: DayDetailPopoverProps) {
+  const isPast = new Date(`${night.date}T${night.time_to || "23:59:59"}`) < new Date();
   const dateLabel = new Date(night.date).toLocaleDateString("da-DK", {
     weekday: "long",
     day: "numeric",
@@ -115,7 +116,7 @@ export function DayDetailPopover({
                       : "Afventer bekræftelse"}
                 </span>
               </div>
-              {isAdmin && !night.cancelled && (
+              {isAdmin && !night.cancelled && !isPast && (
                 <button
                   onClick={() => {
                     onRemoveVagt();
@@ -161,7 +162,7 @@ export function DayDetailPopover({
         </div>
 
         {/* Admin actions */}
-        {isAdmin && (
+        {isAdmin && !isPast && (
           <div className="border-t border-neutral-100 px-3 py-2 flex items-center gap-1 flex-wrap">
             <button
               onClick={() => {

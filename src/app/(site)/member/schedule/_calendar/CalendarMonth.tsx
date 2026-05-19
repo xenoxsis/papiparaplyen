@@ -101,6 +101,7 @@ export function CalendarMonth({
               isOver={dragOverNightId === (cellNight?.id ?? -1)}
               isAdmin={isAdmin}
               isToday={cell.date === today}
+              optOuts={cellNight?.opted_out_members ?? []}
               onCellDragEnd={onCellDragEnd}
               onCellDragOver={onCellDragOver}
               onCellDragLeave={onCellDragLeave}
