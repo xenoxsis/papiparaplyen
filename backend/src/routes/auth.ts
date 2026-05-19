@@ -747,6 +747,18 @@ router.patch("/bgg-prefs", requireAuth, async (req, res) => {
   return res.json({ ok: true });
 });
 
+// GET /api/auth/ical-token — return existing token or null
+router.get("/ical-token", requireAuth, async (_req, res) => {
+  const memberId: number = res.locals.jwt.memberId;
+  const pool = await getPool();
+  const result = await pool
+    .request()
+    .input("memberId", sql.Int, memberId)
+    .query("SELECT ical_token FROM dbo.users WHERE member_id = @memberId");
+  const token: string | null = result.recordset[0]?.ical_token ?? null;
+  return res.json({ token });
+});
+
 // POST /api/auth/ical-token — generate (or return existing) personal iCal feed token
 router.post("/ical-token", requireAuth, async (_req, res) => {
   const memberId: number = res.locals.jwt.memberId;

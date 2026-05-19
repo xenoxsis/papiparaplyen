@@ -166,7 +166,7 @@ router.get("/ical", async (_req, res) => {
     }),
   );
 
-  const ical = buildIcal("Esbjerg Br\u00e6tspil \u2013 Klubaftener", events);
+  const ical = buildIcal("Esbjerg Br\u00e6tspil - Arrangementer", events);
   res.setHeader("Content-Type", "text/calendar; charset=utf-8");
   res.setHeader("Content-Disposition", 'inline; filename="klubaftener.ics"'); // Public feed: allow CDNs and calendar app proxies to cache for 1 hour
   res.setHeader("Cache-Control", "public, max-age=3600");
@@ -234,11 +234,11 @@ router.get("/ical/me", async (req, res) => {
       timeFrom: n.time_from,
       timeTo: n.time_to,
       updatedAt: n.updated_at,
-      description: `Vagtvagt for ${memberName}`,
+      description: `Vagt - ${memberName}`,
     }),
   );
 
-  const ical = buildIcal(`Mine vagter \u2013 ${memberName}`, events);
+  const ical = buildIcal("Esbjerg Br\u00e6tspil - Vagter", events);
   res.setHeader("Content-Type", "text/calendar; charset=utf-8");
   res.setHeader("Content-Disposition", 'inline; filename="mine-vagter.ics"'); // Private feed: client may cache but proxies must not share between users
   res.setHeader("Cache-Control", "private, max-age=3600");

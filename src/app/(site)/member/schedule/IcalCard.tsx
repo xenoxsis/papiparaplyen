@@ -1,17 +1,24 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CalendarPlus, Check, Copy, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { postIcalToken, deleteIcalToken } from "@/lib/api";
+import { getIcalToken, postIcalToken, deleteIcalToken } from "@/lib/api";
 
 export function IcalCard() {
   const [token, setToken] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [revoking, setRevoking] = useState(false);
   const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    getIcalToken()
+      .then((r) => setToken(r.token))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
 
   const origin = typeof window !== "undefined" ? window.location.origin : "";
 
@@ -25,7 +32,7 @@ export function IcalCard() {
   // Android doesn't handle webcal:// — use Google Calendar's subscription URL instead.
   const webcalUrl = feedUrl
     ? isAndroid
-      ? `https://www.google.com/calendar/render?cid=${encodeURIComponent(feedUrl)}`
+      ? `https://calendar.google.com/calendar/r?cid=${encodeURIComponent(feedUrl)}&name=${encodeURIComponent("Esbjerg Brætspil - Vagter")}`
       : feedUrl.replace(/^https?/, "webcal")
     : null;
 
@@ -76,7 +83,9 @@ export function IcalCard() {
       </CardHeader>
 
       <CardContent className="p-0 flex flex-col gap-3">
-        {!token ? (
+        {loading ? (
+          <div className="h-9 w-40 rounded-md bg-neutral-100 animate-pulse" />
+        ) : !token ? (
           <Button
             variant="outline"
             className="gap-2 self-start text-sm"
@@ -84,7 +93,7 @@ export function IcalCard() {
             disabled={loading}
           >
             <CalendarPlus className="size-4" />
-            {loading ? "Genererer…" : "Generér kalenderlink"}
+            Generér kalenderlink
           </Button>
         ) : (
           <>
@@ -108,13 +117,15 @@ export function IcalCard() {
 
             {/* Action buttons */}
             <div className="flex items-center gap-3 flex-wrap">
-              <a
-                href={webcalUrl!}
-                className="inline-flex items-center gap-1.5 text-xs font-medium rounded-lg px-3 py-1.5 border border-brand-teal text-brand-teal hover:bg-brand-teal/10 transition-colors"
-              >
-                <CalendarPlus className="size-3.5" />
-                Åbn i kalender
-              </a>
+              {!isAndroid && (
+                <a
+                  href={webcalUrl!}
+                  className="inline-flex items-center gap-1.5 text-xs font-medium rounded-lg px-3 py-1.5 border border-brand-teal text-brand-teal hover:bg-brand-teal/10 transition-colors"
+                >
+                  <CalendarPlus className="size-3.5" />
+                  Åbn i kalender
+                </a>
+              )}
               <button
                 onClick={revoke}
                 disabled={revoking}

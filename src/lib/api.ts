@@ -445,6 +445,10 @@ export const setSilence = (silenced: boolean) =>
 
 // ── iCal ─────────────────────────────────────────────────────────────────────
 
+/** Fetch existing personal iCal feed token (null if not yet generated). */
+export const getIcalToken = () =>
+  api<{ token: string | null }>("/api/auth/ical-token");
+
 /** Generate (or return existing) personal iCal feed token. */
 export const postIcalToken = () =>
   apiPost<{ token: string }>("/api/auth/ical-token");

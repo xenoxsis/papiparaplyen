@@ -67,11 +67,15 @@ export default function EventsPage() {
     [user],
   );
 
-  const webcalUrl =
+  const isAndroid =
+    typeof navigator !== "undefined" && /android/i.test(navigator.userAgent);
+  const feedUrl =
     typeof window !== "undefined"
-      ? window.location.origin.replace(/^https?/, "webcal") +
-        "/api/club-nights/ical"
+      ? `${window.location.origin}/api/club-nights/ical`
       : "/api/club-nights/ical";
+  const webcalUrl = isAndroid
+    ? `https://calendar.google.com/calendar/r?cid=${encodeURIComponent(feedUrl)}&name=${encodeURIComponent("Esbjerg Brætspil - Arrangementer")}`
+    : feedUrl.replace(/^https?/, "webcal");
 
   return (
     <section className="bg-neutral-100 w-full min-h-[60vh]">
@@ -86,14 +90,16 @@ export default function EventsPage() {
             </h1>
           </div>
           <div className="flex items-center gap-2">
-            <a
-              href={webcalUrl}
-              title="Abonnér på klubaftener i din kalender (opdateres automatisk)"
-              className="hidden sm:inline-flex items-center gap-1.5 text-xs font-medium rounded-lg px-3 py-1.5 border border-neutral-200 bg-white text-neutral-600 hover:border-neutral-400 hover:text-neutral-900 transition-colors"
-            >
-              <CalendarPlus className="size-3.5" />
-              Abonnér på kalender
-            </a>
+            {!isAndroid && (
+              <a
+                href={webcalUrl}
+                title="Abonnér på klubaftener i din kalender (opdateres automatisk)"
+                className="hidden sm:inline-flex items-center gap-1.5 text-xs font-medium rounded-lg px-3 py-1.5 border border-neutral-200 bg-white text-neutral-600 hover:border-neutral-400 hover:text-neutral-900 transition-colors"
+              >
+                <CalendarPlus className="size-3.5" />
+                Abonnér på kalender
+              </a>
+            )}
             <div className="flex items-center gap-1 border border-neutral-200 rounded-lg p-1 bg-white">
               <button
                 onClick={() => setView("grid")}
