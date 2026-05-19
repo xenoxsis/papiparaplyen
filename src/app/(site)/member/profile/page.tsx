@@ -150,6 +150,23 @@ export default function ProfilePage() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
+  // ── Left column height tracking (caps Klubaftener card height) ──────────
+  const leftColRef = useRef<HTMLDivElement>(null);
+  const [leftColHeight, setLeftColHeight] = useState<number | null>(null);
+  useEffect(() => {
+    const el = leftColRef.current;
+    if (!el) return;
+    const update = () => setLeftColHeight(el.getBoundingClientRect().height);
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    window.addEventListener("resize", update);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", update);
+    };
+  }, [user]);
+
   // ── Scroll refs (shared with ChatPanel) ──────────────────────────────────
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -524,7 +541,7 @@ export default function ProfilePage() {
   if (!authorized) return null;
 
   return (
-    <main className="bg-neutral-100 min-h-[calc(100vh-3.5rem)] p-4 sm:p-8 flex flex-col gap-6 sm:gap-8">
+    <main className="bg-neutral-100 min-h-[calc(100vh-3.5rem)] p-4 sm:p-8 flex flex-col gap-6">
       {/* Add night modal */}
       {showAddModal && (
         <ClubNightModal
@@ -629,14 +646,13 @@ export default function ProfilePage() {
         </div>
       )}
 
-      {/* Inline profile settings */}
       {/* Two-column grid */}
       <div
-        className={`grid grid-cols-1 gap-6 ${isVagtOrAdmin ? "md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]" : ""}`}
+        className={`grid grid-cols-1 gap-6 items-start ${isVagtOrAdmin ? "md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]" : ""}`}
       >
         {/* Left: Shifts panel + iCal — Vagt/Admin only */}
         {isVagtOrAdmin && (
-          <div className="flex flex-col gap-6">
+          <div ref={leftColRef} className="flex flex-col gap-6">
             <ShiftsPanel
               loading={loading}
               shifts={upcomingShifts}
@@ -654,8 +670,19 @@ export default function ProfilePage() {
           </div>
         )}
 
-        {/* Right: Club nights list */}
-        <div className="bg-white rounded-xl border border-neutral-200 p-6 flex flex-col gap-4 shadow-sm">
+        {/* Right: Club nights list.
+            - Min height: ~5.5 items (494px scroll area + ~110px card chrome ≈ 604px)
+            - Max height: matches left column height (when Vagt/Admin and measured) */}
+        <div
+          className="bg-white rounded-xl border border-neutral-200 p-6 flex flex-col gap-4 shadow-sm"
+          style={
+            isVagtOrAdmin
+              ? leftColHeight
+                ? { maxHeight: leftColHeight }
+                : {}
+              : { height: 604 }
+          }
+        >
           <div className="flex flex-col gap-2">
             <div className="flex justify-between items-center">
               <div className="flex items-center gap-2">
@@ -673,10 +700,7 @@ export default function ProfilePage() {
             </p>
           </div>
 
-          <div
-            className="flex flex-col gap-3 overflow-y-auto"
-            style={{ maxHeight: "calc(5 * 4.5rem + 4 * 0.75rem)" }}
-          >
+          <div className="flex flex-col gap-3 overflow-y-auto flex-1 min-h-0">
             {nights
               .filter((n) => n.vagt_confirmed && n.date >= today)
               .map((evt) => {
