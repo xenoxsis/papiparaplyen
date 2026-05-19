@@ -3,7 +3,7 @@
 import type { ApiClubNight } from "@/lib/api";
 import { CalendarDay } from "./CalendarDay";
 import { DayDetailPopover } from "./DayDetailPopover";
-import { buildMonthDays, monthNameDa, todayIso } from "./calendarGrid";
+import { buildMonthDays, isoWeek, monthNameDa, todayIso } from "./calendarGrid";
 
 type VagtInfo = { id: number; name: string; initials: string } | null;
 
@@ -15,6 +15,8 @@ export interface CalendarMonthProps {
   autoAssignedIds: Set<number>;
   problemNightIds: number[];
   dragOverNightId: number | null;
+  isDragging: boolean;
+  draggingMemberId: number | null;
   isAdmin: boolean;
   effectiveVagt: (night: ApiClubNight) => VagtInfo;
   holidays: Map<string, string>;
@@ -41,6 +43,8 @@ export function CalendarMonth({
   autoAssignedIds,
   problemNightIds,
   dragOverNightId,
+  isDragging,
+  draggingMemberId,
   isAdmin,
   effectiveVagt,
   holidays,
@@ -60,6 +64,7 @@ export function CalendarMonth({
 }: CalendarMonthProps) {
   const days = buildMonthDays(year, monthIdx);
   const today = todayIso();
+  const currentWeek = isoWeek(today);
 
   const byDate = new Map<string, ApiClubNight>();
   for (const n of nights) byDate.set(n.date, n);
@@ -101,6 +106,9 @@ export function CalendarMonth({
               isOver={dragOverNightId === (cellNight?.id ?? -1)}
               isAdmin={isAdmin}
               isToday={cell.date === today}
+              isCurrentWeek={isoWeek(cell.date) === currentWeek}
+              isDragging={isDragging}
+              draggingMemberId={draggingMemberId}
               optOuts={cellNight?.opted_out_members ?? []}
               onCellDragEnd={onCellDragEnd}
               onCellDragOver={onCellDragOver}

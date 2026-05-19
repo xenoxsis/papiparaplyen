@@ -202,7 +202,89 @@ export function CalendarView({
   }, []);
 
   const handlePrint = useCallback(() => {
-    if (typeof window !== "undefined") window.print();
+    if (typeof window === "undefined") return;
+    const el = document.querySelector("[data-calendar-print-root]") as HTMLElement | null;
+    if (!el) { window.print(); return; }
+
+    // Collect all <link rel="stylesheet"> and <style> from the current page.
+    const styles = Array.from(document.querySelectorAll('link[rel="stylesheet"], style'))
+      .map((n) => n.outerHTML)
+      .join("\n");
+
+    const win = window.open("", "_blank", "width=1200,height=800");
+    if (!win) { window.print(); return; }
+
+    win.document.write(`<!DOCTYPE html><html><head>
+      <meta charset="utf-8">
+      ${styles}
+      <style>
+        #print-toolbar {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+          padding: 12px 16px;
+          background: #f5f5f5;
+          border-bottom: 1px solid #e5e5e5;
+          font-family: ui-sans-serif, system-ui, sans-serif;
+          font-size: 14px;
+        }
+        #print-toolbar button {
+          padding: 6px 16px;
+          background: #0a0a0a;
+          color: #fff;
+          border: none;
+          border-radius: 6px;
+          cursor: pointer;
+          font-size: 14px;
+          font-weight: 500;
+        }
+        #print-toolbar button:hover { background: #333; }
+        #print-toolbar label {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          cursor: pointer;
+          user-select: none;
+        }
+        @media print {
+          #print-toolbar { display: none !important; }
+          .vagt-badge { display: var(--vagt-display, flex); }
+        }
+      </style>
+      <script>
+        function toggleVagter(checked) {
+          document.querySelectorAll('[data-vagt-badge], [data-optout-dots]').forEach(function(el) {
+            el.style.display = checked ? '' : 'none';
+          });
+        }
+        function toggleGenericName(checked) {
+          document.querySelectorAll('[data-night-name]').forEach(function(el) {
+            el.textContent = checked ? 'Pap i Paraplyen' : el.getAttribute('data-night-name');
+          });
+        }
+        window.onload = function() {
+          document.querySelectorAll('[data-calendar-print-root]').forEach(function(root) {
+            root.querySelectorAll('.rounded-full.border.shrink-0').forEach(function(el) {
+              el.setAttribute('data-vagt-badge', '');
+            });
+          });
+        };
+      <\/script>
+    </head><body>
+      <div id="print-toolbar">
+        <button onclick="window.print()">Udskriv</button>
+        <label>
+          <input type="checkbox" checked onchange="toggleVagter(this.checked)" />
+          Vis vagter
+        </label>
+        <label>
+          <input type="checkbox" onchange="toggleGenericName(this.checked)" />
+          Brug "Pap i Paraplyen"
+        </label>
+      </div>
+      ${el.outerHTML}
+    </body></html>`);
+    win.document.close();
   }, []);
 
   // ── Cell handlers ──────────────────────────────────────────────────────────
@@ -252,6 +334,8 @@ export function CalendarView({
     autoAssignedIds,
     problemNightIds,
     dragOverNightId,
+    isDragging,
+    draggingMemberId,
     isAdmin,
     effectiveVagt,
     violations,

@@ -25,6 +25,9 @@ export interface CalendarDayProps
   isOver: boolean;
   isAdmin: boolean;
   isToday: boolean;
+  isCurrentWeek: boolean;
+  isDragging: boolean;
+  draggingMemberId: number | null;
   optOuts: { id: number; initials: string; name: string }[];
   onCellDragEnd?: () => void;
   onCellDragOver?: (e: React.DragEvent, nightId: number) => void;
@@ -48,6 +51,9 @@ export const CalendarDay = forwardRef<HTMLDivElement, CalendarDayProps>(
       isOver,
       isAdmin,
       isToday,
+      isCurrentWeek,
+      isDragging,
+      draggingMemberId,
       optOuts,
       onCellDragEnd,
       onCellDragOver,
@@ -63,7 +69,8 @@ export const CalendarDay = forwardRef<HTMLDivElement, CalendarDayProps>(
     const hasNight = night !== null;
     const cancelled = !!night?.cancelled;
     const isPast = hasNight && night ? new Date(`${night.date}T${night.time_to || "23:59:59"}`) < new Date() : false;
-    const isDroppable = isAdmin && hasNight && !cancelled && !isPast;
+    const alreadyAssigned = draggingMemberId !== null && vagt?.id === draggingMemberId;
+    const isDroppable = isAdmin && hasNight && !cancelled && !isPast && !alreadyAssigned;
 
     function handleDragOver(e: React.DragEvent) {
       if (!isDroppable || !night) return;
@@ -102,7 +109,9 @@ export const CalendarDay = forwardRef<HTMLDivElement, CalendarDayProps>(
         ? "border-red-400"
         : isToday
           ? "border-brand-orange"
-          : "border-transparent";
+          : isCurrentWeek
+            ? "border-blue-300"
+            : "border-transparent";
 
     const interactive = hasNight && !cancelled;
 
@@ -134,9 +143,13 @@ export const CalendarDay = forwardRef<HTMLDivElement, CalendarDayProps>(
         }
         title={violationMessage ?? undefined}
         {...rest}
-        className={`relative flex items-center gap-1.5 px-2 h-7 border-l-2 border-b border-b-neutral-200 ${rowBorder} ${rowBg} ${
+        className={`relative flex items-center gap-1.5 px-2 h-7 border-l-2 border-b-2 ${
+          isCurrentWeek && dow === 6 ? "border-b-blue-300" : "border-b-neutral-200"
+        } ${rowBorder} ${rowBg} ${
+          isCurrentWeek ? "border-r-2 border-r-blue-300" : ""
+        } ${isCurrentWeek && isMonday ? "border-t-2 border-t-blue-300" : ""} ${
           interactive ? "cursor-pointer hover:bg-neutral-50" : ""
-        } transition-colors`}
+        } transition-colors ${isDragging && !isDroppable ? "opacity-30" : ""}`}
       >
         {/* Day letter (M / T / O / T / F / L / S) */}
         <span className="text-[11px] font-semibold w-3 text-neutral-700 select-none">
@@ -150,6 +163,7 @@ export const CalendarDay = forwardRef<HTMLDivElement, CalendarDayProps>(
 
         {/* Holiday name OR club-night name */}
         <span
+          data-night-name={hasNight && night ? night.name : undefined}
           className={`text-[11px] leading-4 flex-1 min-w-0 truncate ${
             cancelled
               ? "text-neutral-400 line-through"
@@ -195,6 +209,9 @@ export const CalendarDay = forwardRef<HTMLDivElement, CalendarDayProps>(
                 >
                   {vagt.initials}
                 </div>
+                <span className={`text-[10px] leading-4 font-medium ml-0.5 ${cancelled ? "text-neutral-400" : "text-neutral-700"}`}>
+                  {vagt.name.split(" ")[0]}
+                </span>
               </div>
             ) : (
               <span className="text-[10px] font-medium rounded-full px-1.5 py-0.5 border border-dashed border-brand-red/40 text-brand-red bg-brand-red/5 shrink-0">
@@ -206,7 +223,7 @@ export const CalendarDay = forwardRef<HTMLDivElement, CalendarDayProps>(
 
         {/* Opt-out dots */}
         {hasNight && optOuts.length > 0 && (
-          <div className="flex items-center gap-0.5 shrink-0">
+          <div data-optout-dots className="flex items-center gap-0.5 shrink-0">
             {optOuts.slice(0, 3).map((o) => (
               <div
                 key={o.id}

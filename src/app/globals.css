@@ -3,6 +3,7 @@
 
 /* Ensure brand-color utilities are always emitted even when used only inside
    template-literal ternaries or prop variables that the Tailwind v4 scanner may not detect. */
+@source inline("border-r-2 border-r-blue-300 border-t-2 border-t-blue-300 border-b-2 border-b-blue-300 border-b-neutral-200");
 @source inline("bg-brand-red bg-brand-teal bg-brand-orange bg-brand-blue text-brand-red text-brand-teal text-brand-orange text-brand-blue border-brand-red border-brand-teal border-brand-orange border-brand-blue bg-brand-red/5 bg-brand-red/10 bg-brand-red/15 bg-brand-red/20 bg-brand-red/40 bg-brand-red/60 bg-brand-teal/5 bg-brand-teal/10 bg-brand-teal/15 bg-brand-teal/20 bg-brand-teal/40 bg-brand-teal/60 bg-brand-orange/5 bg-brand-orange/10 bg-brand-orange/15 bg-brand-orange/20 bg-brand-orange/40 bg-brand-orange/60 bg-brand-blue/5 bg-brand-blue/10 bg-brand-blue/15 bg-brand-blue/20 bg-brand-blue/40 bg-brand-blue/60 border-brand-teal/30 border-brand-teal/40 border-brand-orange/40 border-brand-orange/60 border-brand-red/40 text-brand-teal/30 text-brand-orange/40");
 
 @custom-variant dark (&:is(.dark *));
@@ -82,25 +83,17 @@ a {
   body {
     background: white !important;
   }
-  /* Hide everything by default, then opt back in below. */
-  body * {
-    visibility: hidden;
-  }
-  [data-calendar-print-root],
-  [data-calendar-print-root] * {
-    visibility: visible;
-  }
   [data-calendar-print-root] {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    width: 100%;
     display: grid !important;
     grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
-    gap: 4mm !important;
+    gap: 3mm !important;
+    width: 277mm;
+    zoom: 0.78;
   }
-  /* Preserve our brand background colors on print. */
+  [data-calendar-print-root] > * {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
   * {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;

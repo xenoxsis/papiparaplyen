@@ -65,6 +65,7 @@ export function useScheduleData(isAdmin: boolean) {
     : undefined;
   const hasUnreviewedNights =
     !!user &&
+    !loading &&
     nights.some(
       (n) => !myReview || n.created_at > (myReview.reviewed_at ?? ""),
     );
