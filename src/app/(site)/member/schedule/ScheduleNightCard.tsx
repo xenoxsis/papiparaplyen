@@ -77,7 +77,7 @@ export function ScheduleNightCard({
             onDrop,
           }
         : {})}
-      className={`relative overflow-hidden rounded-lg flex flex-col p-4 gap-3 border transition-colors ${
+      className={`relative shrink-0 overflow-hidden rounded-lg flex flex-col p-4 gap-3 border transition-colors ${
         night.cancelled
           ? "border-neutral-300 bg-neutral-50"
           : isOver
@@ -321,7 +321,7 @@ export function ScheduleNightCard({
 
 export function ScheduleNightCardSkeleton() {
   return (
-    <div className="rounded-lg flex flex-col p-4 gap-3 border border-neutral-200 bg-white animate-pulse">
+    <div className="shrink-0 rounded-lg flex flex-col p-4 gap-3 border border-neutral-200 bg-white animate-pulse">
       {/* Date + title row */}
       <div className="flex items-center gap-3">
         <Skeleton className="w-10 h-12 rounded-lg shrink-0" />
