@@ -86,6 +86,7 @@ export default function SchedulePage() {
   const [filterMissingVagt, setFilterMissingVagt] = useState(false);
   const [filterUnreviewed, setFilterUnreviewed] = useState(false);
   const [filterMyShifts, setFilterMyShifts] = useState(false);
+  const [filterDrafts, setFilterDrafts] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingNight, setEditingNight] = useState<ApiClubNight | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
@@ -144,10 +145,11 @@ export default function SchedulePage() {
       .filter(
         (n) =>
           !filterUnreviewed ||
-          !myReview ||
-          n.created_at > (myReview.reviewed_at ?? ""),
+          (n.status !== "draft" &&
+            (!myReview || n.created_at > (myReview.reviewed_at ?? ""))),
       )
       .filter((n) => !filterMyShifts || n.vagt_member_id === user?.id)
+      .filter((n) => !filterDrafts || n.status === "draft")
       .sort((a, b) => a.date.localeCompare(b.date));
   }, [
     nights,
@@ -155,6 +157,7 @@ export default function SchedulePage() {
     filterMissingVagt,
     filterUnreviewed,
     filterMyShifts,
+    filterDrafts,
     myReview,
     draft,
     user,
@@ -755,6 +758,7 @@ export default function SchedulePage() {
                     setFilterUnreviewed((v) => !v);
                     setFilterMissingVagt(false);
                     setFilterMyShifts(false);
+                    setFilterDrafts(false);
                   }}
                   className={`flex items-center gap-1.5 text-xs font-medium rounded-full px-3 py-1 border cursor-pointer transition-colors ${
                     filterUnreviewed
@@ -770,6 +774,7 @@ export default function SchedulePage() {
                       setFilterMyShifts((v) => !v);
                       setFilterMissingVagt(false);
                       setFilterUnreviewed(false);
+                      setFilterDrafts(false);
                     }}
                     className={`flex items-center gap-1.5 text-xs font-medium rounded-full px-3 py-1 border cursor-pointer transition-colors ${
                       filterMyShifts
@@ -786,6 +791,7 @@ export default function SchedulePage() {
                       setFilterMissingVagt((v) => !v);
                       setFilterUnreviewed(false);
                       setFilterMyShifts(false);
+                      setFilterDrafts(false);
                     }}
                     className={`flex items-center gap-1.5 text-xs font-medium rounded-full px-3 py-1 border cursor-pointer transition-colors ${
                       filterMissingVagt
@@ -794,6 +800,23 @@ export default function SchedulePage() {
                     }`}
                   >
                     Mangler vagt
+                  </button>
+                )}
+                {isAdmin && draftCount > 0 && (
+                  <button
+                    onClick={() => {
+                      setFilterDrafts((v) => !v);
+                      setFilterMissingVagt(false);
+                      setFilterUnreviewed(false);
+                      setFilterMyShifts(false);
+                    }}
+                    className={`flex items-center gap-1.5 text-xs font-medium rounded-full px-3 py-1 border cursor-pointer transition-colors ${
+                      filterDrafts
+                        ? "bg-amber-500 border-amber-500 text-white"
+                        : "bg-white border-amber-300 text-amber-700 hover:border-amber-500"
+                    }`}
+                  >
+                    Kladder{draftCount > 0 && ` (${draftCount})`}
                   </button>
                 )}
               </div>
@@ -952,7 +975,8 @@ export default function SchedulePage() {
                     const review = reviews.find((r) => r.member_id === m.id);
                     const hasUnreviewed = nights.some(
                       (n) =>
-                        !review || n.created_at > (review.reviewed_at ?? ""),
+                        n.status === "published" &&
+                        (!review || n.created_at > (review.reviewed_at ?? "")),
                     );
                     return (
                       <div

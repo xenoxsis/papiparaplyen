@@ -67,7 +67,9 @@ export function useScheduleData(isAdmin: boolean) {
     !!user &&
     !loading &&
     nights.some(
-      (n) => !myReview || n.created_at > (myReview.reviewed_at ?? ""),
+      (n) =>
+        n.status === "published" &&
+        (!myReview || n.created_at > (myReview.reviewed_at ?? "")),
     );
 
   async function submitReview() {

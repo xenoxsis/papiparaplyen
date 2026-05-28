@@ -360,12 +360,16 @@ export default function ProfilePage() {
       return end > now;
     });
   })();
-  const confirmedNightsCount = nights.filter((n) => n.vagt_confirmed && n.date >= today).length;
+  const confirmedNightsCount = nights.filter(
+    (n) => n.vagt_confirmed && n.date >= today,
+  ).length;
   const isVagt = user?.roles.includes("Vagt") ?? false;
   const hasUnreviewedNights =
     isVagt &&
     nights.some(
-      (n) => !myReview || n.created_at > (myReview.reviewed_at ?? ""),
+      (n) =>
+        n.status === "published" &&
+        (!myReview || n.created_at > (myReview.reviewed_at ?? "")),
     );
   const pendingShiftsForMe = user
     ? nights.filter(
