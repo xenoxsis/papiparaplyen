@@ -9,6 +9,7 @@ import {
   List as ListIcon,
   Plus,
   Search,
+  Send,
   Settings,
   UserCheck,
   Wand2,
@@ -28,6 +29,7 @@ import {
   postClubNightOptOut,
   putClubNight,
   cancelClubNight,
+  publishDraftNights,
   markNotificationsReadByLink,
   type ApiClubNight,
 } from "@/lib/api";
@@ -94,6 +96,7 @@ export default function SchedulePage() {
   );
   const [showAutoAssignSettings, setShowAutoAssignSettings] = useState(false);
   const [view, setView] = useState<ScheduleView>("list");
+  const [publishingDrafts, setPublishingDrafts] = useState(false);
 
   // Persist + restore selected view.
   useEffect(() => {
@@ -113,6 +116,9 @@ export default function SchedulePage() {
   const awaitingConfirmCount = nights.filter(
     (n) => n.vagt_member_id !== null && !n.vagt_confirmed,
   ).length;
+  const draftCount = isAdmin
+    ? nights.filter((n) => n.status === "draft").length
+    : 0;
 
   const filteredNights = useMemo(() => {
     const now = new Date();
@@ -185,6 +191,29 @@ export default function SchedulePage() {
       setNights(restored);
       console.error(err);
       toast.error("Noget gik galt. Prøv igen.");
+    }
+  }
+
+  async function handlePublishDrafts() {
+    setPublishingDrafts(true);
+    try {
+      const result = await publishDraftNights();
+      setNights((prev) =>
+        prev.map((n) => {
+          const published = result.nights.find((p) => p.id === n.id);
+          return published ?? n;
+        }),
+      );
+      toast.success(
+        result.published === 1
+          ? `1 klubaften er nu udgivet og synlig for vagterne.`
+          : `${result.published} klubaftener er nu udgivet og synlige for vagterne.`,
+      );
+    } catch (err) {
+      console.error(err);
+      toast.error("Noget gik galt. Prøv igen.");
+    } finally {
+      setPublishingDrafts(false);
     }
   }
 
@@ -495,6 +524,19 @@ export default function SchedulePage() {
         </div>
         {view === "calendar" && isAdmin && (
           <div className="flex items-center gap-2 flex-wrap">
+            {draftCount > 0 && (
+              <Button
+                size="sm"
+                className="bg-amber-500 hover:bg-amber-600 text-white gap-2"
+                onClick={handlePublishDrafts}
+                disabled={publishingDrafts}
+              >
+                <Send className="size-4" />
+                {publishingDrafts
+                  ? "Udgiver…"
+                  : `Udgiv ${draftCount} kladde${draftCount !== 1 ? "r" : ""}`}
+              </Button>
+            )}
             {draft.hasPendingChanges && (
               <>
                 <Button
@@ -596,328 +638,353 @@ export default function SchedulePage() {
           />
         </div>
       ) : (
-      <div
-        className={`grid gap-6 ${isAdmin ? "grid-cols-1 md:grid-cols-3 items-stretch" : "grid-cols-1"}`}
-      >
-        {/* Shift list */}
-        <Card
-          className={`${isAdmin ? "md:col-span-2" : "col-span-1"} p-6 gap-4 flex flex-col`}
+        <div
+          className={`grid gap-6 ${isAdmin ? "grid-cols-1 md:grid-cols-3 items-stretch" : "grid-cols-1"}`}
         >
-          <CardHeader className="p-0 gap-4 flex flex-col">
-            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
-              <div className="flex items-center gap-2">
-                <CalendarDays className="size-5" />
-                <CardTitle className="text-base leading-6">
-                  Klubaftener · Vagtplan
-                </CardTitle>
+          {/* Shift list */}
+          <Card
+            className={`${isAdmin ? "md:col-span-2" : "col-span-1"} p-6 gap-4 flex flex-col`}
+          >
+            <CardHeader className="p-0 gap-4 flex flex-col">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
+                <div className="flex items-center gap-2">
+                  <CalendarDays className="size-5" />
+                  <CardTitle className="text-base leading-6">
+                    Klubaftener · Vagtplan
+                  </CardTitle>
+                </div>
+                {isAdmin && (
+                  <Button
+                    className="bg-brand-red text-white gap-2"
+                    onClick={() => setShowAddModal(true)}
+                  >
+                    <Plus className="size-4" />
+                    Tilføj klubaften
+                  </Button>
+                )}
               </div>
-              {isAdmin && (
-                <Button
-                  className="bg-brand-red text-white gap-2"
-                  onClick={() => setShowAddModal(true)}
-                >
-                  <Plus className="size-4" />
-                  Tilføj klubaften
-                </Button>
+
+              {/* Publish drafts banner — shown when admin has unpublished nights */}
+              {isAdmin && draftCount > 0 && (
+                <div className="flex items-center gap-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-2.5">
+                  <span className="text-amber-600 text-sm font-medium flex-1">
+                    {draftCount === 1
+                      ? `1 klubaften er kladde og ikke synlig for vagterne endnu.`
+                      : `${draftCount} klubaftener er kladder og ikke synlige for vagterne endnu.`}
+                  </span>
+                  <Button
+                    size="sm"
+                    className="bg-amber-500 hover:bg-amber-600 text-white gap-2 shrink-0"
+                    onClick={handlePublishDrafts}
+                    disabled={publishingDrafts}
+                  >
+                    <Send className="size-4" />
+                    {publishingDrafts
+                      ? "Udgiver…"
+                      : `Udgiv ${draftCount === 1 ? "kladde" : "alle kladder"}`}
+                  </Button>
+                </div>
               )}
-            </div>
 
-            {/* Auto-assign buttons — mobile only */}
-            {isAdmin && (
-              <div className="md:hidden flex gap-2">
-                <Button
-                  variant="outline"
-                  className="flex-1 gap-2 border-purple-200 text-purple-700 hover:bg-purple-50 hover:border-purple-400"
-                  onClick={draft.handleAutoAssign}
-                  disabled={draft.saving}
-                >
-                  <Wand2 className="size-4" />
-                  Auto-tildel vagter
-                </Button>
-                <Button
-                  variant="outline"
-                  className="shrink-0 px-2 border-purple-200 text-purple-700 hover:bg-purple-50 hover:border-purple-400"
-                  onClick={() => setShowAutoAssignSettings(true)}
-                  disabled={draft.saving}
-                  aria-label="Auto-tildel indstillinger"
-                  title="Auto-tildel indstillinger"
-                >
-                  <Settings className="size-4" />
-                </Button>
+              {/* Auto-assign buttons — mobile only */}
+              {isAdmin && (
+                <div className="md:hidden flex gap-2">
+                  <Button
+                    variant="outline"
+                    className="flex-1 gap-2 border-purple-200 text-purple-700 hover:bg-purple-50 hover:border-purple-400"
+                    onClick={draft.handleAutoAssign}
+                    disabled={draft.saving}
+                  >
+                    <Wand2 className="size-4" />
+                    Auto-tildel vagter
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="shrink-0 px-2 border-purple-200 text-purple-700 hover:bg-purple-50 hover:border-purple-400"
+                    onClick={() => setShowAutoAssignSettings(true)}
+                    disabled={draft.saving}
+                    aria-label="Auto-tildel indstillinger"
+                    title="Auto-tildel indstillinger"
+                  >
+                    <Settings className="size-4" />
+                  </Button>
+                </div>
+              )}
+
+              {/* Save/discard pending changes */}
+              {isAdmin && draft.hasPendingChanges && (
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={draft.discard}
+                    disabled={draft.saving}
+                  >
+                    Fortryd
+                  </Button>
+                  <Button
+                    className="bg-brand-teal hover:bg-teal-700 text-white gap-2"
+                    onClick={draft.saveChanges}
+                    disabled={draft.saving}
+                  >
+                    <Check className="size-4" />
+                    {draft.saving
+                      ? "Gemmer…"
+                      : `Gem ${Object.keys(draft.pendingChanges).length} ændring${Object.keys(draft.pendingChanges).length !== 1 ? "er" : ""}`}
+                  </Button>
+                </div>
+              )}
+
+              <div className="relative">
+                <Search
+                  className="size-4 top-1/2 -translate-y-1/2 text-neutral-500 absolute left-3"
+                  aria-hidden="true"
+                />
+                <Input
+                  aria-label="Søg efter klubaften"
+                  placeholder="Søg på navn, dato eller vagt…"
+                  className="pl-9 h-9"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
               </div>
-            )}
 
-            {/* Save/discard pending changes */}
-            {isAdmin && draft.hasPendingChanges && (
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  onClick={draft.discard}
-                  disabled={draft.saving}
-                >
-                  Fortryd
-                </Button>
-                <Button
-                  className="bg-brand-teal hover:bg-teal-700 text-white gap-2"
-                  onClick={draft.saveChanges}
-                  disabled={draft.saving}
-                >
-                  <Check className="size-4" />
-                  {draft.saving
-                    ? "Gemmer…"
-                    : `Gem ${Object.keys(draft.pendingChanges).length} ændring${Object.keys(draft.pendingChanges).length !== 1 ? "er" : ""}`}
-                </Button>
-              </div>
-            )}
-
-            <div className="relative">
-              <Search
-                className="size-4 top-1/2 -translate-y-1/2 text-neutral-500 absolute left-3"
-                aria-hidden="true"
-              />
-              <Input
-                aria-label="Søg efter klubaften"
-                placeholder="Søg på navn, dato eller vagt…"
-                className="pl-9 h-9"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-            </div>
-
-            {/* Filter toggles */}
-            <div className="flex gap-2 flex-wrap">
-              <button
-                onClick={() => {
-                  setFilterUnreviewed((v) => !v);
-                  setFilterMissingVagt(false);
-                  setFilterMyShifts(false);
-                }}
-                className={`flex items-center gap-1.5 text-xs font-medium rounded-full px-3 py-1 border cursor-pointer transition-colors ${
-                  filterUnreviewed
-                    ? "bg-brand-orange border-brand-orange text-white"
-                    : "bg-white border-neutral-200 text-neutral-600 hover:border-neutral-400"
-                }`}
-              >
-                Ikke gennemgået
-              </button>
-              {!isTilskuer && (
+              {/* Filter toggles */}
+              <div className="flex gap-2 flex-wrap">
                 <button
                   onClick={() => {
-                    setFilterMyShifts((v) => !v);
+                    setFilterUnreviewed((v) => !v);
                     setFilterMissingVagt(false);
-                    setFilterUnreviewed(false);
-                  }}
-                  className={`flex items-center gap-1.5 text-xs font-medium rounded-full px-3 py-1 border cursor-pointer transition-colors ${
-                    filterMyShifts
-                      ? "bg-brand-teal border-brand-teal text-white"
-                      : "bg-white border-neutral-200 text-neutral-600 hover:border-neutral-400"
-                  }`}
-                >
-                  Mine vagter
-                </button>
-              )}
-              {isAdmin && (
-                <button
-                  onClick={() => {
-                    setFilterMissingVagt((v) => !v);
-                    setFilterUnreviewed(false);
                     setFilterMyShifts(false);
                   }}
                   className={`flex items-center gap-1.5 text-xs font-medium rounded-full px-3 py-1 border cursor-pointer transition-colors ${
-                    filterMissingVagt
-                      ? "bg-brand-red border-brand-red text-white"
+                    filterUnreviewed
+                      ? "bg-brand-orange border-brand-orange text-white"
                       : "bg-white border-neutral-200 text-neutral-600 hover:border-neutral-400"
                   }`}
                 >
-                  Mangler vagt
+                  Ikke gennemgået
                 </button>
+                {!isTilskuer && (
+                  <button
+                    onClick={() => {
+                      setFilterMyShifts((v) => !v);
+                      setFilterMissingVagt(false);
+                      setFilterUnreviewed(false);
+                    }}
+                    className={`flex items-center gap-1.5 text-xs font-medium rounded-full px-3 py-1 border cursor-pointer transition-colors ${
+                      filterMyShifts
+                        ? "bg-brand-teal border-brand-teal text-white"
+                        : "bg-white border-neutral-200 text-neutral-600 hover:border-neutral-400"
+                    }`}
+                  >
+                    Mine vagter
+                  </button>
+                )}
+                {isAdmin && (
+                  <button
+                    onClick={() => {
+                      setFilterMissingVagt((v) => !v);
+                      setFilterUnreviewed(false);
+                      setFilterMyShifts(false);
+                    }}
+                    className={`flex items-center gap-1.5 text-xs font-medium rounded-full px-3 py-1 border cursor-pointer transition-colors ${
+                      filterMissingVagt
+                        ? "bg-brand-red border-brand-red text-white"
+                        : "bg-white border-neutral-200 text-neutral-600 hover:border-neutral-400"
+                    }`}
+                  >
+                    Mangler vagt
+                  </button>
+                )}
+              </div>
+            </CardHeader>
+
+            <CardContent className="flex p-0 flex-col gap-3 flex-1 min-h-0">
+              {/* Vagt review banner */}
+              {hasUnreviewedNights && !isTilskuer && (
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-lg border border-brand-orange/40 bg-brand-orange/10 p-3">
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-neutral-800">
+                      Der er nye aftener siden du sidst gennemgik skemaet
+                    </p>
+                    <p className="text-xs text-neutral-500 mt-0.5">
+                      Gennemgå listen og meld fra på de aftener du ikke kan tage
+                    </p>
+                  </div>
+                  <button
+                    onClick={submitReview}
+                    disabled={submittingReview}
+                    className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-orange text-white text-xs font-semibold hover:bg-orange-400 transition-colors cursor-pointer border-none disabled:opacity-60 w-full sm:w-auto justify-center"
+                  >
+                    <Check className="size-3.5" />
+                    {submittingReview
+                      ? "Gemmer…"
+                      : "Jeg har gennemgået skemaet"}
+                  </button>
+                </div>
               )}
-            </div>
-          </CardHeader>
-
-          <CardContent className="flex p-0 flex-col gap-3 flex-1 min-h-0">
-            {/* Vagt review banner */}
-            {hasUnreviewedNights && !isTilskuer && (
-              <div className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-lg border border-brand-orange/40 bg-brand-orange/10 p-3">
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-neutral-800">
-                    Der er nye aftener siden du sidst gennemgik skemaet
-                  </p>
-                  <p className="text-xs text-neutral-500 mt-0.5">
-                    Gennemgå listen og meld fra på de aftener du ikke kan tage
-                  </p>
-                </div>
-                <button
-                  onClick={submitReview}
-                  disabled={submittingReview}
-                  className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-orange text-white text-xs font-semibold hover:bg-orange-400 transition-colors cursor-pointer border-none disabled:opacity-60 w-full sm:w-auto justify-center"
+              <div className="relative flex-1 min-h-0 flex flex-col">
+                <div
+                  className="flex flex-col gap-3 overflow-y-auto flex-1 min-h-0"
+                  style={{ maxHeight: "calc(8 * 5.5rem + 7 * 0.75rem)" }}
                 >
-                  <Check className="size-3.5" />
-                  {submittingReview ? "Gemmer…" : "Jeg har gennemgået skemaet"}
-                </button>
-              </div>
-            )}
-            <div className="relative flex-1 min-h-0 flex flex-col">
-              <div
-                className="flex flex-col gap-3 overflow-y-auto flex-1 min-h-0"
-                style={{ maxHeight: "calc(8 * 5.5rem + 7 * 0.75rem)" }}
-              >
-                {scheduleLoading ? (
-                  Array.from({ length: 6 }).map((_, i) => (
-                    <ScheduleNightCardSkeleton key={i} />
-                  ))
-                ) : (
-                  <>
-                    {filteredNights.length === 0 && (
-                      <p className="text-sm text-neutral-400 py-6 text-center">
-                        Ingen klubaftener fundet
-                      </p>
-                    )}
-                    {filteredNights.map((night) => {
-                      const vagt = draft.effectiveVagt(night);
-                      const isPending = night.id in draft.pendingChanges;
-                      const swapMsg =
-                        pendingSwapMsgs.find(
-                          (m) => m.shift_night_id === night.id,
-                        ) ?? null;
-                      const myOptOut =
-                        user !== null &&
-                        night.opted_out_members.some((o) => o.id === user.id);
-                      const canOptOut =
-                        !!user && !user.roles.includes("Tilskuer");
+                  {scheduleLoading ? (
+                    Array.from({ length: 6 }).map((_, i) => (
+                      <ScheduleNightCardSkeleton key={i} />
+                    ))
+                  ) : (
+                    <>
+                      {filteredNights.length === 0 && (
+                        <p className="text-sm text-neutral-400 py-6 text-center">
+                          Ingen klubaftener fundet
+                        </p>
+                      )}
+                      {filteredNights.map((night) => {
+                        const vagt = draft.effectiveVagt(night);
+                        const isPending = night.id in draft.pendingChanges;
+                        const swapMsg =
+                          pendingSwapMsgs.find(
+                            (m) => m.shift_night_id === night.id,
+                          ) ?? null;
+                        const myOptOut =
+                          user !== null &&
+                          night.opted_out_members.some((o) => o.id === user.id);
+                        const canOptOut =
+                          !!user && !user.roles.includes("Tilskuer");
 
-                      return (
-                        <ScheduleNightCard
-                          key={night.id}
-                          night={night}
-                          vagt={vagt}
-                          isPending={isPending}
-                          isAutoAssigned={draft.autoAssignedIds.has(night.id)}
-                          isProblem={draft.problemNightIds.includes(night.id)}
-                          isOver={draft.dragOverNightId === night.id}
-                          swapMsg={swapMsg}
-                          myOptOut={myOptOut}
-                          canOptOut={canOptOut}
-                          isAdmin={isAdmin}
-                          userId={user?.id ?? null}
-                          onDragOver={(e) => {
-                            e.preventDefault();
-                            draft.setDragOverNightId(night.id);
-                          }}
-                          onDragLeave={() => draft.setDragOverNightId(null)}
-                          onDrop={() => draft.handleDrop(night.id)}
-                          onAssign={() => setAssignModalNightId(night.id)}
-                          onRemoveVagt={() => draft.removeVagt(night.id)}
-                          onEdit={() => setEditingNight(night)}
-                          onDelete={() => setDeleteConfirmId(night.id)}
-                          onCancel={() => setCancelConfirmNight(night)}
-                          onToggleOptOut={() =>
-                            toggleOptOut(night.id, myOptOut)
-                          }
-                        />
-                      );
-                    })}
-                  </>
-                )}
-              </div>
-              {/* Top fade */}
-              <div className="pointer-events-none absolute inset-x-0 top-0 h-6 bg-gradient-to-b from-white to-transparent" />
-              {/* Bottom fade */}
-              <div className="pointer-events-none absolute inset-x-0 bottom-0 h-6 bg-gradient-to-t from-white to-transparent" />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Sidebar — admins only */}
-        {isAdmin && (
-          <div className="col-span-1 flex flex-col gap-6 min-h-0">
-            <VagterPanel
-              vagter={vagter}
-              draggingMemberId={draft.draggingMemberId}
-              saving={draft.saving}
-              onDragStart={(id) => draft.setDraggingMemberId(id)}
-              onDragEnd={() => {
-                draft.setDraggingMemberId(null);
-                draft.setDragOverNightId(null);
-              }}
-              onAutoAssign={draft.handleAutoAssign}
-              onOpenAutoAssignSettings={() => setShowAutoAssignSettings(true)}
-            />
-
-            {/* Review status panel */}
-            <Card className="p-6 gap-4 flex flex-col">
-              <CardHeader className="p-0 gap-1 flex flex-col">
-                <div className="flex items-center gap-2">
-                  <UserCheck className="size-5 text-brand-teal" />
-                  <CardTitle className="text-base leading-6">
-                    Skemaoversigt
-                  </CardTitle>
+                        return (
+                          <ScheduleNightCard
+                            key={night.id}
+                            night={night}
+                            vagt={vagt}
+                            isPending={isPending}
+                            isAutoAssigned={draft.autoAssignedIds.has(night.id)}
+                            isProblem={draft.problemNightIds.includes(night.id)}
+                            isOver={draft.dragOverNightId === night.id}
+                            swapMsg={swapMsg}
+                            myOptOut={myOptOut}
+                            canOptOut={canOptOut}
+                            isAdmin={isAdmin}
+                            userId={user?.id ?? null}
+                            onDragOver={(e) => {
+                              e.preventDefault();
+                              draft.setDragOverNightId(night.id);
+                            }}
+                            onDragLeave={() => draft.setDragOverNightId(null)}
+                            onDrop={() => draft.handleDrop(night.id)}
+                            onAssign={() => setAssignModalNightId(night.id)}
+                            onRemoveVagt={() => draft.removeVagt(night.id)}
+                            onEdit={() => setEditingNight(night)}
+                            onDelete={() => setDeleteConfirmId(night.id)}
+                            onCancel={() => setCancelConfirmNight(night)}
+                            onToggleOptOut={() =>
+                              toggleOptOut(night.id, myOptOut)
+                            }
+                          />
+                        );
+                      })}
+                    </>
+                  )}
                 </div>
-                <p className="text-xs text-neutral-500">
-                  Har vagterne gennemgået de nyeste aftener?
-                </p>
-              </CardHeader>
-              <CardContent className="flex p-0 flex-col gap-2">
-                {vagter.length === 0 && (
-                  <p className="text-xs text-neutral-400 py-2 text-center">
-                    Ingen vagter
+                {/* Top fade */}
+                <div className="pointer-events-none absolute inset-x-0 top-0 h-6 bg-gradient-to-b from-white to-transparent" />
+                {/* Bottom fade */}
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-6 bg-gradient-to-t from-white to-transparent" />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Sidebar — admins only */}
+          {isAdmin && (
+            <div className="col-span-1 flex flex-col gap-6 min-h-0">
+              <VagterPanel
+                vagter={vagter}
+                draggingMemberId={draft.draggingMemberId}
+                saving={draft.saving}
+                onDragStart={(id) => draft.setDraggingMemberId(id)}
+                onDragEnd={() => {
+                  draft.setDraggingMemberId(null);
+                  draft.setDragOverNightId(null);
+                }}
+                onAutoAssign={draft.handleAutoAssign}
+                onOpenAutoAssignSettings={() => setShowAutoAssignSettings(true)}
+              />
+
+              {/* Review status panel */}
+              <Card className="p-6 gap-4 flex flex-col">
+                <CardHeader className="p-0 gap-1 flex flex-col">
+                  <div className="flex items-center gap-2">
+                    <UserCheck className="size-5 text-brand-teal" />
+                    <CardTitle className="text-base leading-6">
+                      Skemaoversigt
+                    </CardTitle>
+                  </div>
+                  <p className="text-xs text-neutral-500">
+                    Har vagterne gennemgået de nyeste aftener?
                   </p>
-                )}
-                {vagter.map((m) => {
-                  if (m.is_virtual) {
+                </CardHeader>
+                <CardContent className="flex p-0 flex-col gap-2">
+                  {vagter.length === 0 && (
+                    <p className="text-xs text-neutral-400 py-2 text-center">
+                      Ingen vagter
+                    </p>
+                  )}
+                  {vagter.map((m) => {
+                    if (m.is_virtual) {
+                      return (
+                        <div
+                          key={m.id}
+                          className="flex items-center gap-2 rounded-md px-2 py-2 border border-brand-teal/20 bg-brand-teal/5"
+                        >
+                          <div className="w-7 h-7 rounded-full bg-brand-teal/30 border-2 border-dashed border-brand-teal text-brand-teal flex items-center justify-center text-[0.55rem] font-bold select-none shrink-0">
+                            {m.initials}
+                          </div>
+                          <span className="text-xs font-medium text-neutral-800 flex-1 truncate">
+                            {m.name}
+                          </span>
+                          <span className="flex items-center gap-1 text-[10px] text-brand-teal font-medium whitespace-nowrap">
+                            <Check className="size-3" />
+                            Auto-godkendt
+                          </span>
+                        </div>
+                      );
+                    }
+                    const review = reviews.find((r) => r.member_id === m.id);
+                    const hasUnreviewed = nights.some(
+                      (n) =>
+                        !review || n.created_at > (review.reviewed_at ?? ""),
+                    );
                     return (
                       <div
                         key={m.id}
-                        className="flex items-center gap-2 rounded-md px-2 py-2 border border-brand-teal/20 bg-brand-teal/5"
+                        className="flex items-center gap-2 rounded-md px-2 py-2 border border-neutral-100 bg-white"
                       >
-                        <div className="w-7 h-7 rounded-full bg-brand-teal/30 border-2 border-dashed border-brand-teal text-brand-teal flex items-center justify-center text-[0.55rem] font-bold select-none shrink-0">
+                        <div
+                          className={`w-7 h-7 rounded-full text-white flex items-center justify-center text-[0.55rem] font-bold select-none shrink-0 ${m.is_virtual ? "bg-brand-teal/40 border border-dashed border-brand-teal" : "bg-brand-red"}`}
+                        >
                           {m.initials}
                         </div>
                         <span className="text-xs font-medium text-neutral-800 flex-1 truncate">
                           {m.name}
                         </span>
-                        <span className="flex items-center gap-1 text-[10px] text-brand-teal font-medium whitespace-nowrap">
-                          <Check className="size-3" />
-                          Auto-godkendt
-                        </span>
+                        {hasUnreviewed ? (
+                          <span className="text-[10px] text-brand-red font-medium whitespace-nowrap">
+                            Ikke gennemgået
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-1 text-[10px] text-brand-teal font-medium whitespace-nowrap">
+                            <Check className="size-3" />
+                            Gennemgået
+                          </span>
+                        )}
                       </div>
                     );
-                  }
-                  const review = reviews.find((r) => r.member_id === m.id);
-                  const hasUnreviewed = nights.some(
-                    (n) => !review || n.created_at > (review.reviewed_at ?? ""),
-                  );
-                  return (
-                    <div
-                      key={m.id}
-                      className="flex items-center gap-2 rounded-md px-2 py-2 border border-neutral-100 bg-white"
-                    >
-                      <div
-                        className={`w-7 h-7 rounded-full text-white flex items-center justify-center text-[0.55rem] font-bold select-none shrink-0 ${m.is_virtual ? "bg-brand-teal/40 border border-dashed border-brand-teal" : "bg-brand-red"}`}
-                      >
-                        {m.initials}
-                      </div>
-                      <span className="text-xs font-medium text-neutral-800 flex-1 truncate">
-                        {m.name}
-                      </span>
-                      {hasUnreviewed ? (
-                        <span className="text-[10px] text-brand-red font-medium whitespace-nowrap">
-                          Ikke gennemgået
-                        </span>
-                      ) : (
-                        <span className="flex items-center gap-1 text-[10px] text-brand-teal font-medium whitespace-nowrap">
-                          <Check className="size-3" />
-                          Gennemgået
-                        </span>
-                      )}
-                    </div>
-                  );
-                })}
-              </CardContent>
-            </Card>
-          </div>
-        )}
-      </div>
+                  })}
+                </CardContent>
+              </Card>
+            </div>
+          )}
+        </div>
       )}
 
       {/* Mobile assign-vagt bottom sheet */}

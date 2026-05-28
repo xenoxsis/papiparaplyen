@@ -47,6 +47,7 @@ type NightRow = {
   updated_at: string;
   assigned_member_name: string | null;
   assigned_member_initials: string | null;
+  status: string;
 };
 
 async function fetchNightWithOptOuts(
@@ -62,7 +63,8 @@ async function fetchNightWithOptOuts(
              n.cancelled, n.cancelled_at,
              n.created_at, n.updated_at,
              vm.name AS assigned_member_name,
-             vm.initials AS assigned_member_initials
+             vm.initials AS assigned_member_initials,
+             n.[status]
       FROM dbo.club_nights n
       LEFT JOIN dbo.members vm ON vm.id = n.vagt_member_id
       LEFT JOIN dbo.locations l ON l.id = n.location_id
@@ -90,6 +92,19 @@ async function fetchNightWithOptOuts(
 // ?upcoming=true  — only return nights with date >= today (DB-side filter)
 router.get("/", async (req, res) => {
   const upcomingOnly = req.query.upcoming === "true";
+
+  // Administrators see all nights (including drafts); everyone else only sees published ones.
+  const token = extractToken(req);
+  const payload = token ? verifyToken(token) : null;
+  const callerIsAdmin = payload?.roles.includes("Administrator") ?? false;
+
+  const draftFilter = callerIsAdmin ? "" : "AND n.[status] = N'published'";
+  const dateFilter = upcomingOnly
+    ? "AND n.date >= CAST(GETDATE() AS DATE)"
+    : "";
+  const whereClause =
+    draftFilter || dateFilter ? `WHERE 1=1 ${draftFilter} ${dateFilter}` : "";
+
   const pool = await getPool();
   const nightsResult = await pool.request().query(`
     SELECT n.id, n.number, n.name,
@@ -100,11 +115,12 @@ router.get("/", async (req, res) => {
            n.cancelled, n.cancelled_at,
            n.created_at, n.updated_at,
            vm.name AS assigned_member_name,
-           vm.initials AS assigned_member_initials
+           vm.initials AS assigned_member_initials,
+           n.[status]
     FROM dbo.club_nights n
     LEFT JOIN dbo.members vm ON vm.id = n.vagt_member_id
     LEFT JOIN dbo.locations l ON l.id = n.location_id
-    ${upcomingOnly ? "WHERE n.date >= CAST(GETDATE() AS DATE)" : ""}
+    ${whereClause}
     ORDER BY n.date
   `);
 
@@ -151,6 +167,7 @@ router.get("/ical", async (_req, res) => {
     FROM dbo.club_nights n
     LEFT JOIN dbo.locations l ON l.id = n.location_id
     WHERE n.date >= CAST(GETDATE() AS DATE)
+      AND n.[status] = N'published'
       AND n.vagt_confirmed = 1
       AND n.cancelled = 0
     ORDER BY n.date
@@ -370,39 +387,16 @@ router.post("/", requireAuth, async (req, res) => {
     .input("createdAt", sql.DateTime2, now)
     .input("updatedAt", sql.DateTime2, now).query(`
       INSERT INTO dbo.club_nights
-        (number, name, date, time_from, time_to, location, location_id, vagt_member_id, vagt_confirmed, created_at, updated_at)
+        (number, name, date, time_from, time_to, location, location_id, vagt_member_id, vagt_confirmed, [status], created_at, updated_at)
       OUTPUT INSERTED.id
-      VALUES (@number, @name, @date, @timeFrom, @timeTo, @location, @locationId, @vagtMemberId, 0, @createdAt, @updatedAt)
+      VALUES (@number, @name, @date, @timeFrom, @timeTo, @location, @locationId, @vagtMemberId, 0, N'draft', @createdAt, @updatedAt)
     `);
 
   const newId: number = insertResult.recordset[0].id;
   const night = await fetchNightWithOptOuts(pool, newId);
 
-  // Notify all Vagt members about the new club night
-  const vagtMembers = await pool.request().query(`
-    SELECT DISTINCT mr.member_id
-    FROM dbo.member_roles mr
-    JOIN dbo.roles r ON r.id = mr.role_id
-    WHERE r.name IN (N'Vagt', N'Administrator')
-  `);
-  const vagtMemberIds: number[] = vagtMembers.recordset.map(
-    (r: { member_id: number }) => r.member_id,
-  );
-  await createNotificationForMany(
-    vagtMemberIds,
-    "nights_added",
-    `Ny klubaften tilføjet: ${night.name}`,
-    "/member/schedule",
-  );
-
-  // Queue debounced digest email to all Vagter/Admins
-  queueNewNightEmail({
-    name: night.name,
-    date: night.date,
-    time_from: night.time_from,
-    time_to: night.time_to,
-    location: night.location,
-  });
+  // Night is created in draft mode — notifications and emails are sent only
+  // when all drafts are published via POST /api/club-nights/publish-drafts.
 
   logEvent({
     eventType: "shift.create",
@@ -748,13 +742,17 @@ router.put("/:id", requireAuth, async (req, res) => {
     return res.status(404).json({ error: "Not found" });
 
   const current = nightCheck.recordset[0];
-  const { name, time_from, time_to, location_id: incomingLocationId } =
-    req.body as {
-      name?: string;
-      time_from?: string;
-      time_to?: string;
-      location_id?: number | null;
-    };
+  const {
+    name,
+    time_from,
+    time_to,
+    location_id: incomingLocationId,
+  } = req.body as {
+    name?: string;
+    time_from?: string;
+    time_to?: string;
+    location_id?: number | null;
+  };
 
   // Resolve new location text for the legacy column and emails
   let resolvedLocationText: string = current.location;
@@ -777,7 +775,8 @@ router.put("/:id", requireAuth, async (req, res) => {
   const destructive =
     (time_from !== undefined && time_from !== current.time_from) ||
     (time_to !== undefined && time_to !== current.time_to) ||
-    (incomingLocationId !== undefined && incomingLocationId !== current.location_id);
+    (incomingLocationId !== undefined &&
+      incomingLocationId !== current.location_id);
   const hadVagt = current.vagt_member_id !== null;
 
   if (destructive && hadVagt) {
@@ -846,8 +845,14 @@ router.put("/:id", requireAuth, async (req, res) => {
         ...(time_to !== undefined && time_to !== current.time_to
           ? { time_to: { from: current.time_to, to: time_to } }
           : {}),
-        ...(incomingLocationId !== undefined && incomingLocationId !== current.location_id
-          ? { location_id: { from: current.location_id, to: incomingLocationId } }
+        ...(incomingLocationId !== undefined &&
+        incomingLocationId !== current.location_id
+          ? {
+              location_id: {
+                from: current.location_id,
+                to: incomingLocationId,
+              },
+            }
           : {}),
       },
     },
@@ -858,7 +863,8 @@ router.put("/:id", requireAuth, async (req, res) => {
     (name !== undefined && name !== current.name) ||
     (time_from !== undefined && time_from !== current.time_from) ||
     (time_to !== undefined && time_to !== current.time_to) ||
-    (incomingLocationId !== undefined && incomingLocationId !== current.location_id);
+    (incomingLocationId !== undefined &&
+      incomingLocationId !== current.location_id);
   if (anyChange) {
     const oldNight = {
       name: current.name,
@@ -1093,6 +1099,99 @@ router.delete("/:id", requireAuth, async (req, res) => {
   );
 
   return res.status(200).json({ ok: true });
+});
+
+// POST /api/club-nights/publish-drafts — admin only
+// Publishes all draft nights at once, then sends a single batch notification
+// and queues a single digest email to all Vagter/Administrators.
+router.post("/publish-drafts", requireAuth, async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
+
+  const pool = await getPool();
+
+  // Fetch all draft nights
+  const draftsResult = await pool.request().query(`
+    SELECT n.id, n.name,
+           CONVERT(varchar(10), n.date, 120) AS date,
+           n.time_from, n.time_to, n.location
+    FROM dbo.club_nights n
+    WHERE n.[status] = N'draft'
+    ORDER BY n.date
+  `);
+
+  const drafts = draftsResult.recordset as Array<{
+    id: number;
+    name: string;
+    date: string;
+    time_from: string;
+    time_to: string;
+    location: string;
+  }>;
+
+  if (drafts.length === 0) {
+    return res.status(200).json({ published: 0, nights: [] });
+  }
+
+  // Publish all drafts in a single update
+  const draftIds = drafts.map((d) => d.id).join(",");
+  await pool.request().query(`
+    UPDATE dbo.club_nights
+    SET [status] = N'published'
+    WHERE id IN (${draftIds})
+  `);
+
+  // Send a single batch notification to all Vagt + Administrator members
+  const vagtMembersResult = await pool.request().query(`
+    SELECT DISTINCT mr.member_id
+    FROM dbo.member_roles mr
+    JOIN dbo.roles r ON r.id = mr.role_id
+    WHERE r.name IN (N'Vagt', N'Administrator')
+  `);
+  const vagtMemberIds: number[] = vagtMembersResult.recordset.map(
+    (r: { member_id: number }) => r.member_id,
+  );
+
+  const count = drafts.length;
+  const notifBody =
+    count === 1
+      ? `Ny klubaften er klar til gennemgang: ${drafts[0].name}`
+      : `${count} nye klubaftener er klar til gennemgang`;
+
+  await createNotificationForMany(
+    vagtMemberIds,
+    "nights_published",
+    notifBody,
+    "/member/schedule",
+  );
+
+  // Queue debounced digest emails (existing 30-min debounce collapses them)
+  for (const night of drafts) {
+    queueNewNightEmail({
+      name: night.name,
+      date: night.date,
+      time_from: night.time_from,
+      time_to: night.time_to,
+      location: night.location,
+    });
+  }
+
+  logEvent({
+    eventType: "shift.publish_drafts",
+    actorMemberId: callerId(res),
+    detail: { count, nightIds: drafts.map((d) => d.id) },
+  });
+
+  // Broadcast so schedule page updates live for any connected admins
+  const publishedNights = await Promise.all(
+    drafts.map((d) => fetchNightWithOptOuts(pool, d.id)),
+  );
+  const payload = {
+    event: "schedule_updated",
+    data: { type: "drafts_published", nights: publishedNights },
+  };
+  for (const uid of getConnectedUserIds()) broadcastToUser(uid, payload);
+
+  return res.status(200).json({ published: count, nights: publishedNights });
 });
 
 export default router;

@@ -120,6 +120,21 @@ export function useScheduleData(isAdmin: boolean) {
     if (d.type === "night_confirmed") {
       const night = d.night;
       setNights((prev) => prev.map((n) => (n.id === night.id ? night : n)));
+    } else if (d.type === "drafts_published") {
+      // For admins: update existing night entries to published status.
+      // For non-admins (Vagter): these nights are new to them — add them.
+      const published: ApiClubNight[] = d.nights;
+      setNights((prev) => {
+        const existingIds = new Set(prev.map((n) => n.id));
+        const updated = prev.map((n) => {
+          const match = published.find((p) => p.id === n.id);
+          return match ? match : n;
+        });
+        const brand_new = published.filter((p) => !existingIds.has(p.id));
+        return [...updated, ...brand_new].sort((a, b) =>
+          a.date.localeCompare(b.date),
+        );
+      });
     } else if (d.type === "review_submitted") {
       const { memberId, memberName, memberInitials, reviewedAt } = d;
       setReviews((prev) => {

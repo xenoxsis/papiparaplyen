@@ -85,6 +85,8 @@ export type ApiClubNight = {
   cancelled_at: string | null;
   created_at: string;
   updated_at: string;
+  /** 'draft' — only visible to admins; 'published' — visible to all Vagter */
+  status: "draft" | "published";
 };
 
 export type ApiScheduleReview = {
@@ -199,6 +201,10 @@ export const deleteClubNightFollow = (nightId: number) =>
   apiDelete<{ ok: boolean }>(`/api/club-nights/${nightId}/follow`);
 export const cancelClubNight = (nightId: number) =>
   apiPost<ApiClubNight>(`/api/club-nights/${nightId}/cancel`);
+export const publishDraftNights = () =>
+  apiPost<{ published: number; nights: ApiClubNight[] }>(
+    "/api/club-nights/publish-drafts",
+  );
 
 // ── Locations ─────────────────────────────────────────────────────────────────
 
@@ -307,6 +313,7 @@ export type NotificationType =
   | "shift_assigned"
   | "shift_cancelled"
   | "nights_added"
+  | "nights_published"
   | "mentioned"
   | "night_cancelled";
 

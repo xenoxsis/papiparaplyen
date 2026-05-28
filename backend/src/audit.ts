@@ -27,6 +27,7 @@ export type AuditEventType =
   | "shift.confirm"
   | "shift.optout"
   | "shift.optout_remove"
+  | "shift.publish_drafts"
   // Vagter page
   | "vagter.settings"
   | "vagter.checklist_create"

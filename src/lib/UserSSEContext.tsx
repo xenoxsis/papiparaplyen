@@ -39,6 +39,7 @@ export type UserSSEEvent =
       event: "schedule_updated";
       data:
         | { type: "night_confirmed"; night: ApiClubNight }
+        | { type: "drafts_published"; nights: ApiClubNight[] }
         | {
             type: "review_submitted";
             memberId: number;

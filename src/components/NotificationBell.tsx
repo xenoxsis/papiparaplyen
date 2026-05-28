@@ -8,6 +8,7 @@ import {
   CheckCheck,
   Clock,
   Repeat2,
+  Send,
   Shield,
   X,
 } from "lucide-react";
@@ -29,6 +30,7 @@ const typeIcon: Record<NotificationType, React.ReactNode> = {
   shift_assigned: <Shield className="size-4 text-brand-red shrink-0" />,
   shift_cancelled: <Ban className="size-4 text-red-500 shrink-0" />,
   nights_added: <Clock className="size-4 text-orange-400 shrink-0" />,
+  nights_published: <Send className="size-4 text-green-500 shrink-0" />,
   mentioned: <AtSign className="size-4 text-purple-500 shrink-0" />,
   night_cancelled: <Ban className="size-4 text-red-500 shrink-0" />,
 };

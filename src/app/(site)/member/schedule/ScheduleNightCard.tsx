@@ -67,7 +67,8 @@ export function ScheduleNightCard({
 }: ScheduleNightCardProps) {
   const d = new Date(night.date);
   const hasVagt = vagt !== null;
-  const isPast = new Date(`${night.date}T${night.time_to || "23:59:59"}`) < new Date();
+  const isPast =
+    new Date(`${night.date}T${night.time_to || "23:59:59"}`) < new Date();
 
   return (
     <div
@@ -92,6 +93,15 @@ export function ScheduleNightCard({
                   : "border-brand-red/40 bg-brand-red/5"
       }`}
     >
+      {/* Draft overlay — only visible to admins (API already hides drafts from others) */}
+      {night.status === "draft" && (
+        <div className="absolute top-2 right-2 z-20 pointer-events-none">
+          <span className="text-[10px] font-bold uppercase tracking-widest bg-amber-100 text-amber-800 border border-amber-300 rounded px-1.5 py-0.5">
+            Kladde
+          </span>
+        </div>
+      )}
+
       {/* Aflyst overlay */}
       {night.cancelled && (
         <>

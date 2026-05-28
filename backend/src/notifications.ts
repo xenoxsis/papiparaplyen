@@ -11,6 +11,7 @@ export type NotificationType =
   | "shift_deleted"
   | "shift_cancelled"
   | "nights_added"
+  | "nights_published"
   | "mentioned"
   | "night_changed"
   | "night_deleted"
