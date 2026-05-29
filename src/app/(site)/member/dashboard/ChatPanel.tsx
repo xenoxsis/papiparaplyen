@@ -142,17 +142,26 @@ export function ChatPanel({
     [messageMap, channelSearch],
   );
 
+  // Virtual entries for group mentions (negative IDs)
+  const GROUP_MENTIONS: ApiChannelMember[] = [
+    { id: -1, name: "vagter", initials: "VAG" },
+    { id: -2, name: "alle", initials: "ALL" },
+  ];
+
   const mentionResults = useMemo(() => {
     if (mentionQuery === null) return [];
     const q = mentionQuery.toLowerCase();
-    return channelMembers
+    const groups = GROUP_MENTIONS.filter((g) => g.name.startsWith(q));
+    const members = channelMembers
       .filter(
         (m) =>
           m.id !== user?.id &&
           (m.name.toLowerCase().includes(q) ||
             m.initials.toLowerCase().includes(q)),
       )
-      .slice(0, 6);
+      .slice(0, 6 - groups.length);
+    return [...groups, ...members];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mentionQuery, channelMembers, user?.id]);
 
   useEffect(() => {
@@ -193,7 +202,9 @@ export function ChatPanel({
     const mentionMatch = textBeforeCursor.match(/@([^@\s]*)$/);
     if (!mentionMatch) return;
     const start = cursor - mentionMatch[0].length;
-    const replacement = `@[${member.name}](${member.id}) `;
+    // Group mentions (id < 0) use bare @keyword syntax; individual members use @[Name](id)
+    const replacement =
+      member.id < 0 ? `@${member.name} ` : `@[${member.name}](${member.id}) `;
     const newBody =
       msgBody.slice(0, start) + replacement + msgBody.slice(cursor);
     setMsgBody(newBody);
@@ -619,15 +630,40 @@ export function ChatPanel({
                             : "hover:bg-neutral-50"
                         }`}
                       >
-                        <div className="w-6 h-6 rounded-full bg-brand-red text-white flex items-center justify-center text-[0.55rem] font-bold shrink-0">
-                          {member.initials}
-                        </div>
+                        {member.id < 0 ? (
+                          <div
+                            className="w-6 h-6 rounded-full text-white flex items-center justify-center shrink-0"
+                            style={{
+                              background:
+                                member.name === "vagter"
+                                  ? "#166534"
+                                  : "#9d174d",
+                              fontSize: "0.5rem",
+                              fontWeight: 700,
+                            }}
+                          >
+                            {member.name === "vagter" ? "VAG" : "ALL"}
+                          </div>
+                        ) : (
+                          <div className="w-6 h-6 rounded-full bg-brand-red text-white flex items-center justify-center text-[0.55rem] font-bold shrink-0">
+                            {member.initials}
+                          </div>
+                        )}
                         <span className="font-medium text-neutral-900">
-                          {member.name}
+                          @{member.name}
                         </span>
-                        <span className="text-neutral-400 text-xs ml-auto">
-                          {member.initials}
-                        </span>
+                        {member.id < 0 && (
+                          <span className="text-neutral-400 text-xs ml-auto">
+                            {member.name === "vagter"
+                              ? "Alle vagter"
+                              : "Alle medlemmer"}
+                          </span>
+                        )}
+                        {member.id >= 0 && (
+                          <span className="text-neutral-400 text-xs ml-auto">
+                            {member.initials}
+                          </span>
+                        )}
                       </button>
                     ))}
                   </div>,

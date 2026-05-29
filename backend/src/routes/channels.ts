@@ -316,7 +316,76 @@ router.post(
       }
     }
 
-    // Notify channel members about the new swap request (excluding sender)
+    // ── Group mentions: @vagter and @alle ────────────────────────────────────
+    const hasVagterMention = /@vagter\b/.test(sanitisedBody ?? "");
+    const hasAlleMention = /@alle\b/.test(sanitisedBody ?? "");
+
+    if (hasVagterMention || hasAlleMention) {
+      const senderNameGroup: string = row.recordset[0]?.sender_name ?? "Nogen";
+      const chanNameResultGroup = await pool
+        .request()
+        .input("channelId", sql.Int, channelId)
+        .query("SELECT name FROM dbo.channels WHERE id = @channelId");
+      const channelNameGroup: string =
+        chanNameResultGroup.recordset[0]?.name ?? "kanalen";
+      const messageBodyGroup: string = req.body.body ?? "";
+
+      if (hasVagterMention) {
+        // Notify all members with the Vagt role (excluding sender)
+        const vagterResult = await pool
+          .request()
+          .query(
+            "SELECT mr.member_id FROM dbo.member_roles mr JOIN dbo.roles r ON r.id = mr.role_id WHERE r.name = 'Vagt'",
+          );
+        const vagterIds: number[] = vagterResult.recordset
+          .map((r: { member_id: number }) => r.member_id)
+          .filter((id: number) => id !== senderId);
+
+        if (vagterIds.length > 0) {
+          await createNotificationForMany(
+            vagterIds,
+            "mentioned",
+            `${senderNameGroup} nævnte @vagter i ${channelNameGroup}`,
+            "/member/dashboard",
+          );
+          // Email each vagter (respects email_on_mention pref)
+          for (const vid of vagterIds) {
+            sendMentionEmail(
+              vid,
+              senderNameGroup,
+              channelNameGroup,
+              messageBodyGroup,
+            ).catch((err) =>
+              console.error("[channels] @vagter mention email failed:", err),
+            );
+          }
+        }
+      }
+
+      if (hasAlleMention) {
+        // Notify all channel members (excluding sender) — no email for @alle
+        const alleMembersResult = await pool
+          .request()
+          .input("channelId", sql.Int, channelId)
+          .query(
+            "SELECT member_id FROM dbo.channel_members WHERE channel_id = @channelId",
+          );
+        const alleIds: number[] = alleMembersResult.recordset
+          .map((r: { member_id: number }) => r.member_id)
+          .filter((id: number) => id !== senderId);
+
+        if (alleIds.length > 0) {
+          await createNotificationForMany(
+            alleIds,
+            "mentioned",
+            `${senderNameGroup} nævnte @alle i ${channelNameGroup}`,
+            "/member/dashboard",
+          );
+          // No email for @alle — push only (push is triggered inside createNotificationForMany)
+        }
+      }
+    }
+
     if (isSwap) {
       const nightName: string =
         row.recordset[0]?.shift_night_name ?? "en aften";
