@@ -9,6 +9,7 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 import { fetchMeSilent, postLogin, postLogout } from "@/lib/api";
+import OneSignal from "react-onesignal";
 
 export type User = {
   id: number;
@@ -87,6 +88,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const user = await postLogin(email, password);
       setUser(user);
       localStorage.setItem("auth_user", JSON.stringify(user));
+      OneSignal.login(String(user.id)).catch(() => {});
       return true;
     } catch {
       return false;
@@ -96,12 +98,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   function loginWithData(user: User) {
     setUser(user);
     localStorage.setItem("auth_user", JSON.stringify(user));
+    OneSignal.login(String(user.id)).catch(() => {});
   }
 
   function logout() {
     setUser(null);
     localStorage.removeItem("auth_user");
     postLogout().catch(() => {});
+    OneSignal.logout().catch(() => {});
   }
 
   function updateUser(partial: Partial<User>) {

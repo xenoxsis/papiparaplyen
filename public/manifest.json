@@ -1,0 +1,21 @@
+{
+  "name": "Esbjerg Brætspil",
+  "short_name": "Paraplyen",
+  "description": "Esbjerg Brætspil brætspilsklub",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#c0392b",
+  "icons": [
+    {
+      "src": "/papiparaplyen-logo.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/papiparaplyen-logo.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

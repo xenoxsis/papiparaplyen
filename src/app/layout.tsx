@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/lib/auth-context";
+import { OneSignalProvider } from "@/components/OneSignalProvider";
 import { Toaster } from "sonner";
 
 const inter = Inter({
@@ -21,8 +22,15 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="da">
+      <head>
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="theme-color" content="#c0392b" />
+      </head>
       <body className={inter.variable}>
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider>
+          <OneSignalProvider />
+          {children}
+        </AuthProvider>
         <Toaster position="bottom-right" richColors />
       </body>
     </html>

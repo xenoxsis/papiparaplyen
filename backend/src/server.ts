@@ -1,6 +1,9 @@
 if (process.env.NODE_ENV !== "production") {
   try {
-    require("dotenv").config();
+    // Explicit path so dotenv finds the file regardless of cwd
+    require("dotenv").config({
+      path: require("path").join(__dirname, "../.env"),
+    });
   } catch {
     /* not available in production */
   }
@@ -31,6 +34,7 @@ const PORT = process.env.PORT ?? 3001;
 const allowedOrigins = [
   "http://localhost:3000",
   "http://localhost:3001",
+  "http://localhost:3010",
   ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : []),
 ];
 app.use(cors({ origin: allowedOrigins, credentials: true }));

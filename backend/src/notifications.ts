@@ -1,6 +1,7 @@
 import { getPool, sql } from "./db";
 import { broadcastToUser } from "./broadcaster";
 import { isSilenced } from "./silence";
+import { sendPushToMembers } from "./push";
 
 export type NotificationType =
   | "swap_requested"
@@ -62,6 +63,8 @@ export async function createNotification(
 
   const notification: Notification = result.recordset[0];
   broadcastToUser(memberId, { event: "notification", data: notification });
+  // Fire-and-forget push — never blocks or throws
+  sendPushToMembers([memberId], type, body, link);
 }
 
 /** Create the same notification for multiple members. */

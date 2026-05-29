@@ -2,7 +2,10 @@ version: "3.9"
 
 services:
   paraplyen:
-    build: .
+    build:
+      context: .
+      args:
+        NEXT_PUBLIC_ONESIGNAL_APP_ID: ${NEXT_PUBLIC_ONESIGNAL_APP_ID:-}
     container_name: paraplyen
     restart: unless-stopped
     ports:
@@ -29,5 +32,7 @@ services:
       DB_TRUST_SERVER_CERTIFICATE: ${DB_TRUST_SERVER_CERTIFICATE:-false}
       SUPERUSER_EMAIL: ${SUPERUSER_EMAIL}
       DANISH_ADDRESS_API_TOKEN: ${DANISH_ADDRESS_API_TOKEN}
+      ONESIGNAL_APP_ID: ${ONESIGNAL_APP_ID:-}
+      ONESIGNAL_API_KEY: ${ONESIGNAL_API_KEY:-}
     extra_hosts:
       - "host.docker.internal:host-gateway"
