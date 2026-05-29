@@ -319,11 +319,24 @@ export default function ProfilePage() {
       }
     }
     if (scrollOnNextRender.current) {
-      const container = messagesContainerRef.current;
-      if (container) container.scrollTop = container.scrollHeight;
+      // Use rAF so the DOM is painted before we measure scrollHeight
+      requestAnimationFrame(() => {
+        const container = messagesContainerRef.current;
+        if (container) container.scrollTop = container.scrollHeight;
+      });
       scrollOnNextRender.current = false;
     }
   }, [messages]);
+
+  // On initial load, scroll to bottom once the chat panel mounts
+  useEffect(() => {
+    if (!loading) {
+      requestAnimationFrame(() => {
+        const container = messagesContainerRef.current;
+        if (container) container.scrollTop = container.scrollHeight;
+      });
+    }
+  }, [loading]);
 
   // ── Derived state ─────────────────────────────────────────────────────────
   const pendingSwap = useMemo(() => {

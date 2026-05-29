@@ -12,7 +12,7 @@ export default function PrivacyPage() {
     <main className="max-w-2xl mx-auto px-4 sm:px-8 py-12 text-neutral-900">
       <h1 className="text-3xl font-bold mb-2">Privatlivspolitik</h1>
       <p className="text-sm text-neutral-500 mb-8">
-        Sidst opdateret: 10. maj 2026
+        Sidst opdateret: 29. maj 2026
       </p>
 
       <section className="mb-8">
@@ -49,6 +49,10 @@ export default function PrivacyPage() {
           <li>Chatbeskeder sendt i klubbens kanaler</li>
           <li>Vagtbooking og skiftanmodninger</li>
           <li>Notifikationer og præferencerne for e-mailmeddelelser</li>
+          <li>
+            Browser push-abonnements-token (OneSignal-enheds-ID) — kun hvis du
+            giver tilladelse i browseren
+          </li>
         </ul>
       </section>
 
@@ -80,6 +84,14 @@ export default function PrivacyPage() {
               <tr>
                 <td className="px-3 py-2 border border-neutral-200">
                   Sende e-mail om vagter, arrangementer og omtaler
+                </td>
+                <td className="px-3 py-2 border border-neutral-200">
+                  Art. 6, stk. 1, litra a (samtykke)
+                </td>
+              </tr>
+              <tr>
+                <td className="px-3 py-2 border border-neutral-200">
+                  Sende browser push-notifikationer om vagter og klubnyheder
                 </td>
                 <td className="px-3 py-2 border border-neutral-200">
                   Art. 6, stk. 1, litra a (samtykke)
@@ -132,6 +144,14 @@ export default function PrivacyPage() {
             <strong>E-mail-udbyder (SMTP)</strong> — din e-mailadresse
             videregives til vores e-mailserver, når vi sender dig notifikationer
             du har tilmeldt dig.
+          </li>
+          <li>
+            <strong>OneSignal, Inc.</strong> — hvis du accepterer browser
+            push-notifikationer, registreres din browser hos OneSignal ved hjælp
+            af et anonymt enheds-ID. OneSignal er en amerikansk tjenesteudbyder;
+            overførslen sker på grundlag af standardkontraktbestemmelser (SCC).
+            Du kan til enhver tid trække dit samtykke tilbage via browserens
+            notifikationsindstillinger.
           </li>
         </ul>
       </section>

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   Check,
+  Download,
   KeyRound,
   Loader2,
   Mail,
@@ -148,6 +149,7 @@ export default function ProfileSettingsPage() {
 
   // Delete account modal
   const [showDelete, setShowDelete] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     if (user?.name) setName(user.name);
@@ -268,6 +270,25 @@ export default function ProfileSettingsPage() {
       );
     } finally {
       if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
+  async function handleExport() {
+    setExporting(true);
+    try {
+      const res = await fetch("/api/auth/export", { credentials: "include" });
+      if (!res.ok) throw new Error("Export fejlede");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "mine-data.json";
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error("Eksport fejlede. Prøv igen.");
+    } finally {
+      setExporting(false);
     }
   }
 
@@ -504,6 +525,26 @@ export default function ProfileSettingsPage() {
             )}
           </div>
         </Section>
+      </div>
+
+      {/* ── Data eksport ── */}
+      <div className="rounded-2xl border border-neutral-200 bg-white p-5 flex flex-col gap-3">
+        <div>
+          <h2 className="font-semibold text-neutral-900 text-sm">
+            Eksportér mine data
+          </h2>
+          <p className="text-xs text-neutral-500 mt-0.5">
+            Download alle dine personoplysninger som en JSON-fil.
+          </p>
+        </div>
+        <button
+          onClick={handleExport}
+          disabled={exporting}
+          className="flex items-center gap-2 h-9 px-4 rounded-lg border border-neutral-300 text-neutral-700 text-sm font-medium hover:bg-neutral-50 transition-colors cursor-pointer bg-transparent w-fit disabled:opacity-50"
+        >
+          <Download className="size-4" />
+          {exporting ? "Eksporterer…" : "Download mine data"}
+        </button>
       </div>
 
       {/* ── Danger zone ── */}

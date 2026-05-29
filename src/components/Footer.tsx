@@ -1,4 +1,4 @@
-import { LogIn, Dices } from "lucide-react";
+import { Dices } from "lucide-react";
 import Link from "next/link";
 
 export default function Footer() {
@@ -30,14 +30,6 @@ export default function Footer() {
           </svg>
           Mød os på Facebook
         </a>
-
-        <Link
-          href="/login"
-          className="inline-flex items-center gap-2 bg-red-500 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-red-600 transition-colors"
-        >
-          <LogIn className="size-4" />
-          Member Login
-        </Link>
       </div>
 
       <div className="border-t border-white/10" />

@@ -814,4 +814,73 @@ router.delete("/ical-token", requireAuth, async (_req, res) => {
   return res.json({ ok: true });
 });
 
+// GET /api/auth/export — download personal data as JSON (GDPR Art. 15)
+router.get("/export", requireAuth, async (req, res) => {
+  const memberId: number = res.locals.jwt.memberId;
+  try {
+    const pool = await getPool();
+    const [memberResult, prefsResult, messagesResult, oauthResult] =
+      await Promise.all([
+        pool
+          .request()
+          .input("memberId", sql.Int, memberId)
+          .query(
+            "SELECT name, initials, email, joined_date FROM dbo.members WHERE id = @memberId",
+          ),
+        pool
+          .request()
+          .input("memberId", sql.Int, memberId)
+          .query(
+            "SELECT email_on_mention, email_on_nights, email_on_shift FROM dbo.users WHERE member_id = @memberId",
+          ),
+        pool
+          .request()
+          .input("memberId", sql.Int, memberId)
+          .query(
+            "SELECT m.body, m.sent_at, c.name AS channel FROM dbo.messages m JOIN dbo.channels c ON c.id = m.channel_id WHERE m.sender_id = @memberId AND (m.is_deleted IS NULL OR m.is_deleted = 0) ORDER BY m.sent_at",
+          ),
+        pool
+          .request()
+          .input("memberId", sql.Int, memberId)
+          .query(
+            "SELECT provider FROM dbo.user_oauth_providers op JOIN dbo.users u ON u.id = op.user_id WHERE u.member_id = @memberId",
+          )
+          .catch(() => ({ recordset: [] })),
+      ]);
+
+    const profile = memberResult.recordset[0] ?? {};
+    const prefs = prefsResult.recordset[0] ?? {};
+
+    const exportData = {
+      exported_at: new Date().toISOString(),
+      profile: {
+        name: profile.name,
+        initials: profile.initials,
+        email: profile.email,
+        joined_date: profile.joined_date,
+      },
+      login_methods: [
+        ...oauthResult.recordset.map((r: { provider: string }) => r.provider),
+        ...(prefs ? ["password"] : []),
+      ],
+      email_preferences: {
+        email_on_mention: prefs.email_on_mention,
+        email_on_nights: prefs.email_on_nights,
+        email_on_shift: prefs.email_on_shift,
+      },
+      messages: messagesResult.recordset,
+    };
+
+    res.setHeader("Content-Type", "application/json");
+    res.setHeader(
+      "Content-Disposition",
+      'attachment; filename="mine-data.json"',
+    );
+    return res.json(exportData);
+  } catch (err) {
+    console.error("[export]", err);
+    return res.status(500).json({ error: "Export fejlede" });
+  }
+});
+
 export default router;
