@@ -301,7 +301,7 @@ router.post(
         Array.from(mentionedIds),
         "mentioned",
         `${senderName} n\u00e6vnte dig i en besked`,
-        "/member/profile",
+        "/member/dashboard",
       );
       // Send mention email to each mentioned member (respects email_on_mention pref)
       for (const mentionedId of mentionedIds) {

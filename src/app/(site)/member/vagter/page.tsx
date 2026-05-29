@@ -43,7 +43,7 @@ import {
 } from "@/lib/api";
 import { useChannelSSE } from "@/lib/useChannelSSE";
 import { useUserSSE } from "@/lib/UserSSEContext";
-import { ChatPanel } from "@/app/(site)/member/profile/ChatPanel";
+import { ChatPanel } from "@/app/(site)/member/dashboard/ChatPanel";
 import { DateBadge } from "@/components/DateBadge";
 import { Skeleton } from "@/components/ui/skeleton";
 

@@ -181,7 +181,7 @@ export function mentionEmailHtml(
       <div style="margin:16px 0;padding:14px 16px;background:#f9f9f9;border-radius:8px;border-left:4px solid #6366f1;font-size:14px;color:#333">
         ${plainBody}
       </div>
-      <a href="${process.env.FRONTEND_URL ?? "http://localhost:3000"}/member/profile"
+      <a href="${process.env.FRONTEND_URL ?? "http://localhost:3000"}/member/dashboard"
          style="display:inline-block;margin:8px 0 16px;padding:10px 20px;background:#e63946;color:white;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px">
         Se besked
       </a>

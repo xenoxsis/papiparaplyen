@@ -500,6 +500,7 @@ export type ApiBoardgame = {
 export type ApiBggPrefs = {
   bgg_share_collection: boolean;
   bgg_share_name: boolean;
+  game_count: number;
 };
 
 export const getBoardgames = () => api<ApiBoardgame[]>("/api/boardgames");

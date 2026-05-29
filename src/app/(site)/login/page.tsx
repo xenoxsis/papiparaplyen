@@ -59,7 +59,7 @@ export default function LoginPage() {
   const router = useRouter();
 
   useEffect(() => {
-    if (!isLoading && user) router.replace("/member/profile");
+    if (!isLoading && user) router.replace("/member/dashboard");
   }, [user, isLoading, router]);
 
   async function handleLogin(e: React.FormEvent) {
@@ -67,7 +67,7 @@ export default function LoginPage() {
     setLoginError("");
     const ok = await login(email, password);
     if (ok) {
-      router.push("/member/profile");
+      router.push("/member/dashboard");
     } else {
       setLoginError("Forkert e-mail eller adgangskode.");
     }
@@ -92,7 +92,7 @@ export default function LoginPage() {
         regPassword,
       );
       loginWithData(user);
-      router.push("/member/profile");
+      router.push("/member/dashboard");
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Noget gik galt.";
       setRegError(

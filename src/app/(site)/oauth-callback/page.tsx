@@ -33,7 +33,7 @@ function OAuthHandler() {
         roles: string[];
       };
       loginWithData(user);
-      router.replace("/member/profile");
+      router.replace("/member/dashboard");
     } catch {
       router.replace("/login?error=oauth");
     }

@@ -16,6 +16,7 @@ import {
   Settings,
   Shield,
   ShieldCheck,
+  SlidersHorizontal,
   User,
   X,
 } from "lucide-react";
@@ -141,6 +142,14 @@ export default function Nav() {
                 <div className="p-1">
                   <Link
                     href="/member/profile"
+                    onClick={() => setOpen(false)}
+                    className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-neutral-700 hover:bg-neutral-100 transition-colors"
+                  >
+                    <SlidersHorizontal className="size-4 text-neutral-500" />
+                    Profil
+                  </Link>
+                  <Link
+                    href="/member/dashboard"
                     onClick={() => setOpen(false)}
                     className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-neutral-700 hover:bg-neutral-100 transition-colors"
                   >
@@ -273,6 +282,14 @@ export default function Nav() {
             <div className="flex flex-col gap-1 mt-1 border-t border-neutral-100 pt-2">
               <Link
                 href="/member/profile"
+                onClick={() => setMenuOpen(false)}
+                className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm text-neutral-700 hover:bg-neutral-100 transition-colors"
+              >
+                <SlidersHorizontal className="size-4 text-neutral-500" />
+                Profil
+              </Link>
+              <Link
+                href="/member/dashboard"
                 onClick={() => setMenuOpen(false)}
                 className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm text-neutral-700 hover:bg-neutral-100 transition-colors"
               >

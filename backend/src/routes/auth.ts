@@ -697,21 +697,34 @@ router.delete("/me", requireAuth, async (_req, res) => {
 // GET /api/auth/bgg-prefs
 router.get("/bgg-prefs", requireAuth, async (req, res) => {
   const memberId: number = res.locals.jwt.memberId;
-  const defaults = { bgg_share_collection: true, bgg_share_name: true };
+  const defaults = {
+    bgg_share_collection: true,
+    bgg_share_name: true,
+    game_count: 0,
+  };
   try {
     const pool = await getPool();
-    const result = await pool
-      .request()
-      .input("memberId", sql.Int, memberId)
-      .query(
-        "SELECT bgg_share_collection, bgg_share_name FROM dbo.users WHERE member_id = @memberId",
-      );
-    if (result.recordset.length === 0) return res.json(defaults);
-    const row = result.recordset[0];
+    const [prefsResult, countResult] = await Promise.all([
+      pool
+        .request()
+        .input("memberId", sql.Int, memberId)
+        .query(
+          "SELECT bgg_share_collection, bgg_share_name FROM dbo.users WHERE member_id = @memberId",
+        ),
+      pool
+        .request()
+        .input("memberId", sql.Int, memberId)
+        .query(
+          "SELECT COUNT(*) AS cnt FROM dbo.member_boardgames WHERE member_id = @memberId",
+        ),
+    ]);
+    if (prefsResult.recordset.length === 0) return res.json(defaults);
+    const row = prefsResult.recordset[0];
     return res.json({
       bgg_share_collection:
         row.bgg_share_collection === 1 || row.bgg_share_collection === true,
       bgg_share_name: row.bgg_share_name === 1 || row.bgg_share_name === true,
+      game_count: countResult.recordset[0]?.cnt ?? 0,
     });
   } catch {
     // Columns may not exist yet (migration pending) — return defaults

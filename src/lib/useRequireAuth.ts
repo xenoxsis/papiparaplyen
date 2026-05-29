@@ -24,7 +24,7 @@ export function useRequireAuth(anyOf?: string[]) {
       return;
     }
     if (anyOf && !anyOf.some((r) => user.roles.includes(r))) {
-      router.replace("/member/profile");
+      router.replace("/member/dashboard");
     }
   }, [user, isLoading, router, anyOf?.join()]);
 

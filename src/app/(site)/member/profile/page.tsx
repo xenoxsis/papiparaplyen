@@ -1,806 +1,532 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useReducer,
-  useRef,
-  useState,
-} from "react";
-import Link from "next/link";
+  Check,
+  KeyRound,
+  Loader2,
+  Mail,
+  User,
+  Upload,
+  X,
+  Trash2,
+} from "lucide-react";
 import { toast } from "sonner";
-import { Bell, CalendarDays, Clock, MapPin, Pencil } from "lucide-react";
-import { MemberHero } from "@/components/MemberHero";
-import { ClubNightModal } from "@/components/ClubNightModal";
-import { DateBadge } from "@/components/DateBadge";
 import { useAuth } from "@/lib/auth-context";
 import { useRequireAuth } from "@/lib/useRequireAuth";
 import {
-  getClubNights,
-  getChannels,
-  getMessages,
-  getMemberShifts,
-  getMyScheduleReview,
-  getChannelMembers,
-  postClubNight,
-  postMessage,
-  patchMessage,
-  deleteMessage,
-  markChannelRead,
-  patchClubNight,
-  postClubNightConfirm,
-  postClubNightOptOut,
-  markNotificationsReadByLink,
-  type ApiClubNight,
-  type ApiChannel,
-  type ApiMessage,
-  type ApiScheduleReview,
-  type ApiChannelMember,
+  patchMe,
+  changePassword,
+  getEmailPrefs,
+  patchEmailPrefs,
+  getBggPrefs,
+  patchBggPrefs,
+  uploadBggCollection,
+  type ApiEmailPrefs,
+  type ApiBggPrefs,
 } from "@/lib/api";
-import { useChannelSSE } from "@/lib/useChannelSSE";
-import { useUserSSE } from "@/lib/UserSSEContext";
-import { IcalCard } from "../schedule/IcalCard";
-import { ShiftsPanel } from "./ShiftsPanel";
-import { SwapModal } from "./SwapModal";
-import { SwapConfirmModal } from "./SwapConfirmModal";
-import { ChatPanel } from "./ChatPanel";
-import { EditProfileModal } from "./EditProfileModal";
-import { DeleteAccountModal } from "./DeleteAccountModal";
+import { DeleteAccountModal } from "@/app/(site)/member/dashboard/DeleteAccountModal";
 
-// ── Message map helpers ─────────────────────────────────────────────────────
-function upsertIntoMap(
-  map: Record<number, ApiMessage[]>,
-  msg: ApiMessage,
-): Record<number, ApiMessage[]> {
-  const bucket = map[msg.channel_id] ?? [];
-  const idx = bucket.findIndex((m) => m.id === msg.id);
-  const next =
-    idx !== -1 ? bucket.map((m, i) => (i === idx ? msg : m)) : [...bucket, msg];
-  return { ...map, [msg.channel_id]: next };
-}
+// ── Toggle ────────────────────────────────────────────────────────────────────
 
-// ── Swap modal state ──────────────────────────────────────────────────────────
-type SwapState = {
-  showModal: boolean;
-  targetShift: ApiClubNight | null;
-  modalMessage: string;
-  confirmMsg: ApiMessage | null;
-};
-type SwapAction =
-  | { type: "OPEN"; shift: ApiClubNight }
-  | { type: "CLOSE" }
-  | { type: "SET_MESSAGE"; message: string }
-  | { type: "SET_CONFIRM"; msg: ApiMessage | null };
-
-const initialSwapState: SwapState = {
-  showModal: false,
-  targetShift: null,
-  modalMessage: "",
-  confirmMsg: null,
-};
-
-function swapReducer(state: SwapState, action: SwapAction): SwapState {
-  switch (action.type) {
-    case "OPEN":
-      return {
-        ...state,
-        showModal: true,
-        targetShift: action.shift,
-        modalMessage: "",
-      };
-    case "CLOSE":
-      return {
-        ...state,
-        showModal: false,
-        targetShift: null,
-        modalMessage: "",
-      };
-    case "SET_MESSAGE":
-      return { ...state, modalMessage: action.message };
-    case "SET_CONFIRM":
-      return { ...state, confirmMsg: action.msg };
-    default:
-      return state;
-  }
-}
-
-export default function ProfilePage() {
-  const { authorized } = useRequireAuth();
-  const { user, setPendingShiftCount } = useAuth();
-
-  // Mark all mention notifications as read when this page is visited
-  useEffect(() => {
-    markNotificationsReadByLink("/member/profile").catch(() => {});
-  }, []);
-
-  // ── Data state ────────────────────────────────────────────────────────────
-  const [activeChannelId, setActiveChannelId] = useState<number>(1);
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [shifts, setShifts] = useState<ApiClubNight[]>([]);
-  const [nights, setNights] = useState<ApiClubNight[]>([]);
-  const [channels, setChannels] = useState<ApiChannel[]>([]);
-  const [messageMap, setMessageMap] = useState<Record<number, ApiMessage[]>>(
-    {},
-  );
-  const messages = messageMap[activeChannelId] ?? [];
-  const [lastSeenIds, setLastSeenIds] = useState<Record<number, number>>({});
-  const [channelMembers, setChannelMembers] = useState<ApiChannelMember[]>([]);
-  const [myReview, setMyReview] = useState<ApiScheduleReview | null>(null);
-
-  // Derived: vagter channel ID (avoids hardcoding channel 2 everywhere)
-  const vagterChannelId = useMemo(
-    () => channels.find((c) => c.type === "vagter")?.id,
-    [channels],
-  );
-
-  // ── Swap state ────────────────────────────────────────────────────────────
-  const [swap, dispatchSwap] = useReducer(swapReducer, initialSwapState);
-
-  // ── Deep link ─────────────────────────────────────────────────────────────
-  const [vagterMsgId, setVagterMsgId] = useState<number | null>(null);
-  const didHandleVagterParam = useRef(false);
-
-  // ── Highlight ─────────────────────────────────────────────────────────────
-  const [highlightMessageId, setHighlightMessageId] = useState<number | null>(
-    null,
-  );
-
-  // ── Edit modal ────────────────────────────────────────────────────────────
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-
-  // ── Left column height tracking (caps Klubaftener card height) ──────────
-  const leftColRef = useRef<HTMLDivElement>(null);
-  const [leftColHeight, setLeftColHeight] = useState<number | null>(null);
-  useEffect(() => {
-    const el = leftColRef.current;
-    if (!el) return;
-    const update = () => setLeftColHeight(el.getBoundingClientRect().height);
-    update();
-    const ro = new ResizeObserver(update);
-    ro.observe(el);
-    window.addEventListener("resize", update);
-    return () => {
-      ro.disconnect();
-      window.removeEventListener("resize", update);
-    };
-  }, [user]);
-
-  // ── Scroll refs (shared with ChatPanel) ──────────────────────────────────
-  const messagesContainerRef = useRef<HTMLDivElement>(null);
-  const chatEndRef = useRef<HTMLDivElement>(null);
-  const scrollOnNextRender = useRef(false);
-  const pendingScrollMsgId = useRef<number | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  // ── Initial data fetch ────────────────────────────────────────────────────
-  useEffect(() => {
-    setLoading(true);
-    const promises: Promise<unknown>[] = [
-      getClubNights().then(setNights).catch(console.error),
-      getMyScheduleReview().then(setMyReview).catch(console.error),
-      getChannels()
-        .then(async (chs) => {
-          setChannels(chs);
-          const all = await Promise.all(chs.map((c) => getMessages(c.id)));
-          const map: Record<number, ApiMessage[]> = {};
-          const seed: Record<number, number> = {};
-          chs.forEach((c, i) => {
-            map[c.id] = all[i];
-            for (const msg of all[i]) {
-              if ((seed[msg.channel_id] ?? 0) < msg.id)
-                seed[msg.channel_id] = msg.id;
-            }
-          });
-          setMessageMap(map);
-          setLastSeenIds(seed);
-        })
-        .catch(console.error),
-    ];
-    if (user)
-      promises.push(
-        getMemberShifts(user.id).then(setShifts).catch(console.error),
-      );
-    Promise.all(promises).finally(() => setLoading(false));
-  }, [user]);
-
-  // Mark active channel seen (persisted to DB, debounced)
-  const markReadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => {
-    const bucket = messageMap[activeChannelId] ?? [];
-    const latestId = Math.max(0, ...bucket.map((m) => m.id));
-    if (latestId > 0) {
-      setLastSeenIds((prev) => ({ ...prev, [activeChannelId]: latestId }));
-      if (markReadTimerRef.current) clearTimeout(markReadTimerRef.current);
-      markReadTimerRef.current = setTimeout(() => {
-        markChannelRead(activeChannelId, latestId).catch(() => {});
-      }, 1500);
-    }
-  }, [activeChannelId, messageMap]);
-
-  // Fetch messages + members for active channel
-  useEffect(() => {
-    getMessages(activeChannelId)
-      .then((msgs) => {
-        scrollOnNextRender.current = true;
-        setMessageMap((prev) => ({ ...prev, [activeChannelId]: msgs }));
-      })
-      .catch(console.error);
-    getChannelMembers(activeChannelId)
-      .then(setChannelMembers)
-      .catch(console.error);
-  }, [activeChannelId]);
-
-  // SSE real-time updates — chat_message (new), message_edited, message_deleted
-  const { connected: sseConnected } = useChannelSSE(activeChannelId, (msg) => {
-    if (msg.channel_id === activeChannelId) scrollOnNextRender.current = true;
-    setMessageMap((prev) => upsertIntoMap(prev, msg));
-  });
-
-  // Handle message_edited and message_deleted from the user SSE stream
-  useUserSSE((evt) => {
-    if (evt.event === "message_edited" || evt.event === "message_deleted") {
-      const msg = evt.data.message as ApiMessage;
-      setMessageMap((prev) => upsertIntoMap(prev, msg));
-    }
-  });
-
-  // Fallback poll — only active when SSE is disconnected
-  useEffect(() => {
-    if (sseConnected) return;
-    const id = setInterval(
-      () =>
-        getMessages(activeChannelId)
-          .then((msgs) =>
-            setMessageMap((prev) => ({ ...prev, [activeChannelId]: msgs })),
-          )
-          .catch(console.error),
-      10_000,
-    );
-    return () => clearInterval(id);
-  }, [activeChannelId, sseConnected]);
-
-  // Read ?vagter= param
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const id = Number(params.get("vagter")) || null;
-    if (id) setVagterMsgId(id);
-  }, []);
-
-  // Handle ?vagter= deep link
-  useEffect(() => {
-    const allMsgs = Object.values(messageMap).flat();
-    if (!vagterMsgId || didHandleVagterParam.current || allMsgs.length === 0)
-      return;
-    const msg = allMsgs.find((m) => m.id === vagterMsgId);
-    if (!msg) return;
-    didHandleVagterParam.current = true;
-    pendingScrollMsgId.current = vagterMsgId;
-    if (activeChannelId !== msg.channel_id) {
-      setActiveChannelId(msg.channel_id);
-    } else {
-      const el = messagesContainerRef.current?.querySelector(
-        `[data-msg-id="${vagterMsgId}"]`,
-      ) as HTMLElement | null;
-      if (el) {
-        el.scrollIntoView({ block: "center" });
-        setHighlightMessageId(vagterMsgId);
-        setTimeout(() => setHighlightMessageId(null), 2000);
-      }
-    }
-  }, [messageMap, vagterMsgId, activeChannelId]);
-
-  // Auto-refresh after swap taken
-  useEffect(() => {
-    if (!user) return;
-    const myTakenSwap = (
-      vagterChannelId !== undefined ? (messageMap[vagterChannelId] ?? []) : []
-    ).find(
-      (m) =>
-        m.type === "shift_swap" &&
-        m.swap_status === "taken" &&
-        m.sender_id === user.id,
-    );
-    if (myTakenSwap) {
-      getClubNights().then(setNights).catch(console.error);
-      getMemberShifts(user.id).then(setShifts).catch(console.error);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [messageMap, vagterChannelId]);
-
-  // Scroll effect for new messages / deep link
-  useEffect(() => {
-    if (pendingScrollMsgId.current !== null) {
-      const el = messagesContainerRef.current?.querySelector(
-        `[data-msg-id="${pendingScrollMsgId.current}"]`,
-      ) as HTMLElement | null;
-      if (el) {
-        el.scrollIntoView({ block: "center" });
-        const id = pendingScrollMsgId.current;
-        pendingScrollMsgId.current = null;
-        setHighlightMessageId(id);
-        setTimeout(() => setHighlightMessageId(null), 2000);
-        return;
-      }
-    }
-    if (scrollOnNextRender.current) {
-      const container = messagesContainerRef.current;
-      if (container) container.scrollTop = container.scrollHeight;
-      scrollOnNextRender.current = false;
-    }
-  }, [messages]);
-
-  // ── Derived state ─────────────────────────────────────────────────────────
-  const pendingSwap = useMemo(() => {
-    if (!user || vagterChannelId === undefined) return null;
-    const m = (
-      vagterChannelId !== undefined ? (messageMap[vagterChannelId] ?? []) : []
-    ).find(
-      (msg) =>
-        msg.type === "shift_swap" &&
-        msg.swap_status === "pending" &&
-        msg.sender_id === user.id,
-    );
-    if (m && m.shift_night_id !== undefined)
-      return { shiftId: m.shift_night_id, messageId: m.id };
-    return null;
-  }, [messageMap, user, vagterChannelId]);
-
-  const today = new Date().toISOString().slice(0, 10);
-  const upcomingShifts = (() => {
-    const todayStr = today;
-    const now = new Date();
-    return shifts.filter((n) => {
-      if (n.date > todayStr) return true;
-      if (n.date < todayStr) return false;
-      // Same date — use time_to to decide, with a safe fallback if parsing fails.
-      const end = new Date(`${n.date}T${n.time_to || "23:59:59"}`);
-      if (!Number.isFinite(end.getTime())) return true;
-      return end > now;
-    });
-  })();
-  const confirmedNightsCount = nights.filter(
-    (n) => n.vagt_confirmed && n.date >= today,
-  ).length;
-  const isVagt = user?.roles.includes("Vagt") ?? false;
-  const hasUnreviewedNights =
-    isVagt &&
-    nights.some(
-      (n) =>
-        n.status === "published" &&
-        (!myReview || n.created_at > (myReview.reviewed_at ?? "")),
-    );
-  const pendingShiftsForMe = user
-    ? nights.filter(
-        (n) =>
-          n.vagt_member_id === user.id && !n.vagt_confirmed && n.date >= today,
-      )
-    : [];
-  const isVagtOrAdmin =
-    user?.roles.includes("Vagt") || user?.roles.includes("Administrator");
-
-  useEffect(() => {
-    setPendingShiftCount(pendingShiftsForMe.length);
-  }, [pendingShiftsForMe.length, setPendingShiftCount]);
-
-  // ── Handlers ──────────────────────────────────────────────────────────────
-  const handleSendMessage = useCallback(
-    async (body: string) => {
-      if (!user) return;
-      const msg = await postMessage(activeChannelId, user.id, body);
-      scrollOnNextRender.current = true;
-      setMessageMap((prev) => upsertIntoMap(prev, msg));
-    },
-    [activeChannelId, user],
-  );
-
-  const handleEditMessage = useCallback(
-    async (msg: ApiMessage, newBody: string) => {
-      // Optimistic update
-      const optimistic: ApiMessage = {
-        ...msg,
-        body: newBody,
-        edited_at: new Date().toISOString(),
-      };
-      setMessageMap((prev) => upsertIntoMap(prev, optimistic));
-      try {
-        await patchMessage(msg.channel_id, msg.id, { body: newBody });
-      } catch (err) {
-        // Roll back
-        setMessageMap((prev) => upsertIntoMap(prev, msg));
-        toast.error(
-          err instanceof Error ? err.message : "Kunne ikke redigere besked.",
-        );
-      }
-    },
-    [],
-  );
-
-  const handleDeleteMessage = useCallback(async (msg: ApiMessage) => {
-    // Optimistic update
-    const optimistic: ApiMessage = { ...msg, is_deleted: true };
-    setMessageMap((prev) => upsertIntoMap(prev, optimistic));
-    try {
-      await deleteMessage(msg.channel_id, msg.id);
-    } catch (err) {
-      // Roll back
-      setMessageMap((prev) => upsertIntoMap(prev, msg));
-      toast.error(
-        err instanceof Error ? err.message : "Kunne ikke slette besked.",
-      );
-    }
-  }, []);
-
-  const requestSwap = useCallback(async () => {
-    if (!user || !swap.targetShift || vagterChannelId === undefined) return;
-    try {
-      const msg = await postMessage(
-        vagterChannelId,
-        user.id,
-        swap.modalMessage.trim() ||
-          `Kan nogen tage min vagt til ${swap.targetShift.name}?`,
-        { type: "shift_swap", shift_night_id: swap.targetShift.id },
-      );
-      setMessageMap((prev) => upsertIntoMap(prev, msg));
-      if (activeChannelId === vagterChannelId)
-        scrollOnNextRender.current = true;
-      dispatchSwap({ type: "CLOSE" });
-    } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Noget gik galt. Prøv igen.",
-      );
-    }
-  }, [
-    user,
-    swap.targetShift,
-    swap.modalMessage,
-    vagterChannelId,
-    activeChannelId,
-  ]);
-
-  const cancelSwap = useCallback(async () => {
-    if (!user || !pendingSwap || vagterChannelId === undefined) return;
-    try {
-      await patchMessage(vagterChannelId, pendingSwap.messageId, {
-        body: `Annulleret af ${user.name}`,
-        swap_status: "cancelled",
-      });
-      getMessages(vagterChannelId).then((msgs) =>
-        setMessageMap((prev) => ({ ...prev, [vagterChannelId]: msgs })),
-      );
-    } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Noget gik galt. Prøv igen.",
-      );
-    }
-  }, [user, pendingSwap, vagterChannelId]);
-
-  const confirmTakeSwap = useCallback(async () => {
-    if (
-      !user ||
-      !swap.confirmMsg ||
-      swap.confirmMsg.shift_night_id === undefined ||
-      vagterChannelId === undefined
-    )
-      return;
-    try {
-      await patchClubNight(swap.confirmMsg.shift_night_id, {
-        vagt_member_id: user.id,
-      });
-      await patchMessage(vagterChannelId, swap.confirmMsg.id, {
-        swap_status: "taken",
-        taken_by_member_id: user.id,
-      });
-      dispatchSwap({ type: "SET_CONFIRM", msg: null });
-      getClubNights().then(setNights).catch(console.error);
-      getMemberShifts(user.id).then(setShifts).catch(console.error);
-      getMessages(vagterChannelId).then((msgs) =>
-        setMessageMap((prev) => ({ ...prev, [vagterChannelId]: msgs })),
-      );
-    } catch (err: unknown) {
-      toast.error(
-        err instanceof Error ? err.message : "Noget gik galt. Prøv igen.",
-      );
-    }
-  }, [user, swap.confirmMsg, vagterChannelId]);
-
-  async function handleConfirmShift(shiftId: number) {
-    try {
-      await postClubNightConfirm(shiftId);
-      const updated = await getClubNights();
-      setNights(updated);
-      getMemberShifts(user!.id).then(setShifts).catch(console.error);
-      toast.success("Vagt bekræftet!");
-    } catch {
-      toast.error("Noget gik galt. Prøv igen.");
-    }
-  }
-
-  async function handleOptOut(shiftId: number) {
-    try {
-      await postClubNightOptOut(shiftId);
-      const updated = await getClubNights();
-      setNights(updated);
-      toast.success("Framelding registreret");
-    } catch {
-      toast.error("Noget gik galt. Prøv igen.");
-    }
-  }
-
-  async function handleConfirmAllShifts() {
-    try {
-      await Promise.all(
-        pendingShiftsForMe.map((s) => postClubNightConfirm(s.id)),
-      );
-      const updated = await getClubNights();
-      setNights(updated);
-      getMemberShifts(user!.id).then(setShifts).catch(console.error);
-      toast.success("Alle vagter bekræftet!");
-    } catch {
-      toast.error("Noget gik galt. Prøv igen.");
-    }
-  }
-
-  if (!authorized) return null;
-
+function Toggle({
+  enabled,
+  label,
+  description,
+  onToggle,
+}: {
+  enabled: boolean;
+  label: string;
+  description?: string;
+  onToggle: () => void;
+}) {
   return (
-    <main className="bg-neutral-100 min-h-[calc(100vh-3.5rem)] p-4 sm:p-8 flex flex-col gap-6">
-      {/* Add night modal */}
-      {showAddModal && (
-        <ClubNightModal
-          nextNumber={
-            nights.length > 0
-              ? Math.max(...nights.map((n) => n.number)) + 1
-              : 51
-          }
-          onClose={() => setShowAddModal(false)}
-          onAdd={async (data) => {
-            try {
-              const created = await postClubNight({
-                name: data.name,
-                date: data.date,
-                time_from: data.timeFrom,
-                time_to: data.timeTo,
-                location_id: data.location_id,
-                vagt_member_id: data.vagt_member_id,
-              });
-              setNights((prev) =>
-                [...prev, created].sort((a, b) => a.date.localeCompare(b.date)),
-              );
-            } catch (err) {
-              console.error(err);
-              toast.error(
-                err instanceof Error
-                  ? err.message
-                  : "Noget gik galt. Prøv igen.",
-              );
-            }
-            setShowAddModal(false);
+    <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-col gap-0.5">
+        <span className="text-sm font-medium text-neutral-900">{label}</span>
+        {description && (
+          <span className="text-xs text-neutral-500">{description}</span>
+        )}
+      </div>
+      <button
+        role="switch"
+        aria-checked={enabled}
+        aria-label={label}
+        onClick={onToggle}
+        className="shrink-0 mt-0.5 cursor-pointer border-none"
+        style={{
+          position: "relative",
+          width: 40,
+          height: 24,
+          borderRadius: 9999,
+          backgroundColor: enabled ? "#171717" : "#e5e5e5",
+          transition: "background-color 150ms",
+        }}
+      >
+        <span
+          style={{
+            position: "absolute",
+            top: "50%",
+            left: enabled ? 20 : 4,
+            transform: "translateY(-50%)",
+            width: 16,
+            height: 16,
+            borderRadius: 9999,
+            backgroundColor: "white",
+            boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+            transition: "left 150ms",
           }}
         />
-      )}
+      </button>
+    </div>
+  );
+}
 
-      {/* Swap modals */}
-      <SwapModal
-        open={swap.showModal && swap.targetShift !== null}
-        onClose={() => dispatchSwap({ type: "CLOSE" })}
-        shift={swap.targetShift}
-        message={swap.modalMessage}
-        setMessage={(m) => dispatchSwap({ type: "SET_MESSAGE", message: m })}
-        onSubmit={requestSwap}
-      />
+// ── Section card ──────────────────────────────────────────────────────────────
 
-      <SwapConfirmModal
-        msg={swap.confirmMsg}
-        nights={nights}
-        onClose={() => dispatchSwap({ type: "SET_CONFIRM", msg: null })}
-        onConfirm={confirmTakeSwap}
-      />
+function Section({
+  icon,
+  title,
+  children,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="bg-white rounded-2xl border border-neutral-200 overflow-hidden">
+      <div className="flex items-center gap-3 px-5 py-4 border-b border-neutral-100">
+        <span className="text-neutral-500">{icon}</span>
+        <h2 className="font-semibold text-neutral-900 text-sm">{title}</h2>
+      </div>
+      <div className="p-5">{children}</div>
+    </div>
+  );
+}
 
-      {/* Profile hero */}
-      <MemberHero
-        action={
-          <button
-            onClick={() => setShowEditModal(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-white/20 text-white/70 hover:bg-white/10 hover:text-white transition-colors text-xs font-medium cursor-pointer"
-          >
-            <Pencil className="size-3.5" />
-            Rediger profil
-          </button>
-        }
-      >
-        <div className="flex flex-col items-center">
-          <span className="font-bold text-2xl text-brand-orange">
-            {upcomingShifts.length}
-          </span>
-          <span className="text-white/60 text-xs">Vagter</span>
-        </div>
-        <div className="hidden sm:block w-px h-10 bg-white/20" />
-        <div className="flex flex-col items-center">
-          <span className="font-bold text-2xl text-brand-teal">
-            {confirmedNightsCount}
-          </span>
-          <span className="text-white/60 text-xs">Klubaftener</span>
-        </div>
-        <div className="hidden sm:block w-px h-10 bg-white/20" />
-      </MemberHero>
+// ── Upload step types ─────────────────────────────────────────────────────────
 
-      {/* Unreviewed nights banner */}
-      {hasUnreviewedNights && (
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl border border-brand-orange/40 bg-brand-orange/10 p-4">
-          <div className="flex items-start gap-3 flex-1">
-            <Bell className="size-5 text-brand-orange shrink-0 mt-0.5" />
-            <div className="flex flex-col gap-0.5">
-              <p className="text-sm font-semibold text-neutral-900">
-                Der er nye aftener siden du sidst gennemgik skemaet
-              </p>
-              <p className="text-xs text-neutral-500">
-                Gennemgå listen og meld fra på de aftener du ikke kan tage
-              </p>
-            </div>
-          </div>
-          <Link
-            href="/member/schedule"
-            className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-orange text-white text-xs font-semibold hover:bg-orange-400 transition-colors w-full sm:w-auto justify-center"
-          >
-            <CalendarDays className="size-3.5" />
-            Gå til vagtplan
-          </Link>
-        </div>
-      )}
+type StepStatus = "idle" | "spinning" | "done" | "error";
+type UploadSteps = {
+  reading: StepStatus;
+  uploading: StepStatus;
+  processing: StepStatus;
+};
+const idleSteps: UploadSteps = {
+  reading: "idle",
+  uploading: "idle",
+  processing: "idle",
+};
 
-      {/* Two-column grid */}
-      <div
-        className={`grid grid-cols-1 gap-6 items-start ${isVagtOrAdmin ? "md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]" : ""}`}
-      >
-        {/* Left: Shifts panel + iCal — Vagt/Admin only */}
-        {isVagtOrAdmin && (
-          <div ref={leftColRef} className="flex flex-col gap-6">
-            <ShiftsPanel
-              loading={loading}
-              shifts={upcomingShifts}
-              pendingShiftsForMe={pendingShiftsForMe}
-              pendingSwap={pendingSwap}
-              onConfirmShift={handleConfirmShift}
-              onOptOut={handleOptOut}
-              onConfirmAllShifts={handleConfirmAllShifts}
-              onRequestSwap={(shift) => {
-                dispatchSwap({ type: "OPEN", shift });
-              }}
-              onCancelSwap={cancelSwap}
-            />
-            {isVagt && <IcalCard />}
-          </div>
-        )}
+// ── Page ──────────────────────────────────────────────────────────────────────
 
-        {/* Right: Club nights list.
-            - Min height: ~5.5 items (494px scroll area + ~110px card chrome ≈ 604px)
-            - Max height: matches left column height (when Vagt/Admin and measured) */}
-        <div
-          className="bg-white rounded-xl border border-neutral-200 p-6 flex flex-col gap-4 shadow-sm"
-          style={
-            isVagtOrAdmin
-              ? leftColHeight
-                ? { maxHeight: leftColHeight }
-                : {}
-              : { height: 604 }
-          }
-        >
-          <div className="flex flex-col gap-2">
-            <div className="flex justify-between items-center">
-              <div className="flex items-center gap-2">
-                <CalendarDays className="size-5 text-neutral-900 shrink-0" />
-                <h2 className="font-semibold text-base text-neutral-900">
-                  Klubaftener
-                </h2>
-                <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-neutral-100 text-neutral-500">
-                  {confirmedNightsCount} kommende
-                </span>
-              </div>
-            </div>
-            <p className="text-xs text-neutral-500">
-              Administrer kommende klubaftener og vagter
-            </p>
-          </div>
+export default function ProfileSettingsPage() {
+  useRequireAuth();
+  const { user, updateUser } = useAuth();
 
-          <div className="flex flex-col gap-3 overflow-y-auto flex-1 min-h-0">
-            {nights
-              .filter((n) => n.vagt_confirmed && n.date >= today)
-              .map((evt) => {
-                const isMyShift = evt.vagt_member_id === user?.id;
-                const hasOtherVagt = evt.vagt_member_id !== null && !isMyShift;
-                const colorClass = isMyShift
-                  ? "bg-brand-teal"
-                  : hasOtherVagt
-                    ? "bg-brand-orange"
-                    : "bg-brand-red";
+  // Name
+  const [name, setName] = useState(user?.name ?? "");
+  const [savingName, setSavingName] = useState(false);
 
-                return (
-                  <div
-                    key={evt.id}
-                    className="border border-neutral-200 rounded-lg flex p-3 items-center gap-4"
-                  >
-                    <DateBadge date={evt.date} colorClass={colorClass} />
-                    <div className="flex flex-col flex-1 min-w-0 gap-0.5">
-                      <span className="font-semibold text-sm text-neutral-900 truncate">
-                        {evt.name}
-                      </span>
-                      <div className="flex items-center gap-3 text-neutral-500 text-xs">
-                        <span className="flex items-center gap-1">
-                          <Clock className="size-3" />
-                          {evt.time_from}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <MapPin className="size-3" />
-                          {evt.location}
-                        </span>
-                      </div>
-                    </div>
-                    {isMyShift ? (
-                      <span className="text-xs font-medium px-2 py-0.5 rounded-full whitespace-nowrap bg-brand-teal/10 text-brand-teal shrink-0">
-                        Din vagt
-                      </span>
-                    ) : hasOtherVagt ? (
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <span className="w-6 h-6 rounded-full bg-brand-orange text-white text-[0.6rem] font-bold flex items-center justify-center shrink-0">
-                          {evt.assigned_member_initials}
-                        </span>
-                        <span className="text-xs font-medium text-neutral-600 whitespace-nowrap">
-                          {evt.assigned_member_name}
-                        </span>
-                      </div>
-                    ) : (
-                      <span className="text-xs font-medium px-2 py-0.5 rounded-full whitespace-nowrap bg-brand-red/10 text-brand-red shrink-0">
-                        Ingen vagt
-                      </span>
-                    )}
-                  </div>
-                );
-              })}
-          </div>
-        </div>
+  // Password
+  const [currentPw, setCurrentPw] = useState("");
+  const [newPw, setNewPw] = useState("");
+  const [confirmPw, setConfirmPw] = useState("");
+  const [savingPw, setSavingPw] = useState(false);
+
+  // Email prefs
+  const [emailPrefs, setEmailPrefs] = useState<ApiEmailPrefs | null>(null);
+
+  // BGG
+  const [bggPrefs, setBggPrefs] = useState<ApiBggPrefs | null>(null);
+  const [uploadSteps, setUploadSteps] = useState<UploadSteps>(idleSteps);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const isUploading =
+    uploadSteps.reading !== "idle" &&
+    uploadSteps.processing !== "done" &&
+    uploadSteps.processing !== "error";
+
+  // Delete account modal
+  const [showDelete, setShowDelete] = useState(false);
+
+  useEffect(() => {
+    if (user?.name) setName(user.name);
+  }, [user?.name]);
+
+  useEffect(() => {
+    getEmailPrefs().then(setEmailPrefs).catch(console.error);
+    getBggPrefs().then(setBggPrefs).catch(console.error);
+  }, []);
+
+  async function handleSaveName(e: React.FormEvent) {
+    e.preventDefault();
+    if (!name.trim()) return;
+    setSavingName(true);
+    try {
+      const result = await patchMe(name.trim());
+      updateUser({ name: result.name, initials: result.initials });
+      toast.success("Navn opdateret");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Noget gik galt");
+    } finally {
+      setSavingName(false);
+    }
+  }
+
+  async function handleSavePassword(e: React.FormEvent) {
+    e.preventDefault();
+    if (newPw.length < 6) {
+      toast.error("Adgangskode skal være mindst 6 tegn");
+      return;
+    }
+    if (newPw !== confirmPw) {
+      toast.error("Adgangskoderne matcher ikke");
+      return;
+    }
+    setSavingPw(true);
+    try {
+      await changePassword(currentPw, newPw);
+      toast.success("Adgangskode ændret");
+      setCurrentPw("");
+      setNewPw("");
+      setConfirmPw("");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Noget gik galt");
+    } finally {
+      setSavingPw(false);
+    }
+  }
+
+  function toggleEmailPref(key: keyof ApiEmailPrefs) {
+    if (!emailPrefs) return;
+    const next = { ...emailPrefs, [key]: !emailPrefs[key] };
+    setEmailPrefs(next);
+    patchEmailPrefs({ [key]: next[key] }).catch(console.error);
+  }
+
+  function toggleBggPref(key: keyof ApiBggPrefs) {
+    if (!bggPrefs) return;
+    const next = { ...bggPrefs, [key]: !bggPrefs[key] };
+    setBggPrefs(next);
+    patchBggPrefs({ [key]: next[key] }).catch(console.error);
+  }
+
+  async function handleBggUpload(file: File) {
+    setUploadSteps({
+      reading: "spinning",
+      uploading: "idle",
+      processing: "idle",
+    });
+    let csvText: string;
+    try {
+      csvText = await file.text();
+      setUploadSteps({
+        reading: "done",
+        uploading: "spinning",
+        processing: "idle",
+      });
+    } catch {
+      setUploadSteps({
+        reading: "error",
+        uploading: "idle",
+        processing: "idle",
+      });
+      toast.error("Kunne ikke læse filen.");
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+    try {
+      setUploadSteps({
+        reading: "done",
+        uploading: "done",
+        processing: "spinning",
+      });
+      const result = await uploadBggCollection(csvText);
+      setUploadSteps({
+        reading: "done",
+        uploading: "done",
+        processing: "done",
+      });
+      const removedPart =
+        result.removed > 0 ? `, ${result.removed} fjernet` : "";
+      toast.success(
+        `Samling opdateret — ${result.imported} spil importeret${removedPart}`,
+      );
+      // Refresh BGG prefs to get updated game count
+      getBggPrefs()
+        .then(setBggPrefs)
+        .catch(() => {});
+      setTimeout(() => setUploadSteps(idleSteps), 2500);
+    } catch (err) {
+      setUploadSteps((s) => ({
+        ...s,
+        uploading: "error",
+        processing: "error",
+      }));
+      toast.error(
+        err instanceof Error ? err.message : "Upload fejlede. Prøv igen.",
+      );
+    } finally {
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
+  const inputCls =
+    "h-9 rounded-lg border border-neutral-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900 w-full";
+  const labelCls = "text-xs font-medium text-neutral-600 mb-1";
+  const saveBtnCls =
+    "h-9 px-4 rounded-lg bg-neutral-900 text-white text-sm font-medium hover:bg-neutral-700 transition-colors cursor-pointer border-none disabled:opacity-50";
+
+  return (
+    <div className="max-w-4xl mx-auto px-4 py-8 flex flex-col gap-6">
+      <div>
+        <h1 className="text-xl font-bold text-neutral-900">Indstillinger</h1>
+        <p className="text-sm text-neutral-500 mt-1">
+          Administrer dit navn, adgangskode og notifikationspræferencer.
+        </p>
       </div>
 
-      {/* Chat */}
-      <ChatPanel
-        loading={loading}
-        channels={channels}
-        activeChannelId={activeChannelId}
-        setActiveChannelId={setActiveChannelId}
-        messages={messages}
-        messageMap={messageMap}
-        lastSeenIds={lastSeenIds}
-        setLastSeenIds={setLastSeenIds}
-        user={user}
-        nights={nights}
-        highlightMessageId={highlightMessageId}
-        setHighlightMessageId={setHighlightMessageId}
-        swapConfirmMsg={swap.confirmMsg}
-        setSwapConfirmMsg={(msg) => dispatchSwap({ type: "SET_CONFIRM", msg })}
-        channelMembers={channelMembers}
-        onSend={handleSendMessage}
-        onEdit={handleEditMessage}
-        onDelete={handleDeleteMessage}
-        messagesContainerRef={messagesContainerRef}
-        chatEndRef={chatEndRef}
-        pendingScrollMsgId={pendingScrollMsgId}
-      />
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+        {/* ── Navn ── */}
+        <Section icon={<User className="size-4" />} title="Navn">
+          <form onSubmit={handleSaveName} className="flex flex-col gap-3">
+            <div>
+              <label className={labelCls}>Fulde navn</label>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className={inputCls}
+                placeholder="Dit navn"
+              />
+            </div>
+            <div>
+              <button
+                type="submit"
+                disabled={savingName || !name.trim()}
+                className={saveBtnCls}
+              >
+                {savingName ? "Gemmer…" : "Gem navn"}
+              </button>
+            </div>
+          </form>
+        </Section>
 
-      {/* Edit profile modal */}
-      <EditProfileModal
-        open={showEditModal}
-        onClose={() => setShowEditModal(false)}
-        onDeleteRequest={() => {
-          setShowEditModal(false);
-          setShowDeleteModal(true);
-        }}
-      />
+        {/* ── Adgangskode ── */}
+        <Section icon={<KeyRound className="size-4" />} title="Adgangskode">
+          <form onSubmit={handleSavePassword} className="flex flex-col gap-3">
+            <div>
+              <label className={labelCls}>Nuværende adgangskode</label>
+              <input
+                type="password"
+                value={currentPw}
+                onChange={(e) => setCurrentPw(e.target.value)}
+                className={inputCls}
+                placeholder="••••••••"
+                autoComplete="current-password"
+              />
+            </div>
+            <div>
+              <label className={labelCls}>Ny adgangskode</label>
+              <input
+                type="password"
+                value={newPw}
+                onChange={(e) => setNewPw(e.target.value)}
+                className={inputCls}
+                placeholder="Mindst 6 tegn"
+                autoComplete="new-password"
+              />
+            </div>
+            <div>
+              <label className={labelCls}>Gentag ny adgangskode</label>
+              <input
+                type="password"
+                value={confirmPw}
+                onChange={(e) => setConfirmPw(e.target.value)}
+                className={inputCls}
+                placeholder="••••••••"
+                autoComplete="new-password"
+              />
+            </div>
+            <div>
+              <button
+                type="submit"
+                disabled={savingPw || !currentPw || !newPw || !confirmPw}
+                className={saveBtnCls}
+              >
+                {savingPw ? "Gemmer…" : "Skift adgangskode"}
+              </button>
+            </div>
+          </form>
+        </Section>
+
+        {/* ── E-mail notifikationer ── */}
+        <Section
+          icon={<Mail className="size-4" />}
+          title="E-mail notifikationer"
+        >
+          <div className="flex flex-col gap-4">
+            {emailPrefs === null ? (
+              <p className="text-sm text-neutral-400">Indlæser…</p>
+            ) : (
+              <>
+                <Toggle
+                  enabled={emailPrefs.email_on_mention}
+                  label="Omtaler"
+                  description="Modtag en e-mail når du @omtales i chatten"
+                  onToggle={() => toggleEmailPref("email_on_mention")}
+                />
+                <div className="border-t border-neutral-100" />
+                <Toggle
+                  enabled={emailPrefs.email_on_nights}
+                  label="Nye klubaftener"
+                  description="Modtag en e-mail når der tilføjes nye aftener til programmet"
+                  onToggle={() => toggleEmailPref("email_on_nights")}
+                />
+                <div className="border-t border-neutral-100" />
+                <Toggle
+                  enabled={emailPrefs.email_on_shift}
+                  label="Vagtplan"
+                  description="Modtag en e-mail når du tildeles en vagt"
+                  onToggle={() => toggleEmailPref("email_on_shift")}
+                />
+              </>
+            )}
+          </div>
+        </Section>
+
+        {/* ── Brætspil (BGG) ── */}
+        <Section
+          icon={<Upload className="size-4" />}
+          title="Brætspil (BoardGameGeek)"
+        >
+          <div className="flex flex-col gap-4">
+            <p className="text-xs text-neutral-500 leading-relaxed">
+              Upload din eksporterede BGG-samling for at vise dine spil på den
+              offentlige brætspilsliste. Hent CSV-filen fra{" "}
+              <a
+                href="https://boardgamegeek.com/collection"
+                target="_blank"
+                rel="noreferrer"
+                className="underline hover:text-neutral-700"
+              >
+                boardgamegeek.com
+              </a>
+              . Kun spil markeret som <em>ejet</em> importeres. Uploader du igen
+              erstattes den gamle liste automatisk.
+            </p>
+            {bggPrefs !== null && bggPrefs.game_count > 0 && (
+              <p className="text-sm font-medium text-neutral-700">
+                {bggPrefs.game_count} spil i din samling
+              </p>
+            )}
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".csv,text/csv"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) handleBggUpload(file);
+              }}
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploading}
+              className="flex items-center justify-center gap-2 h-9 rounded-lg border border-neutral-300 text-sm font-medium text-neutral-700 hover:bg-neutral-50 transition-colors cursor-pointer disabled:opacity-50 bg-white"
+            >
+              <Upload className="size-4" />
+              {isUploading ? "Uploader…" : "Vælg samlings-CSV"}
+            </button>
+
+            {uploadSteps.reading !== "idle" && (
+              <div className="flex flex-col gap-2 rounded-lg border border-neutral-200 bg-neutral-50 px-4 py-3">
+                {(
+                  [
+                    { key: "reading", label: "Læser fil" },
+                    { key: "uploading", label: "Sender til server" },
+                    { key: "processing", label: "Behandler samling" },
+                  ] as { key: keyof UploadSteps; label: string }[]
+                ).map(({ key, label }) => {
+                  const status = uploadSteps[key];
+                  return (
+                    <div key={key} className="flex items-center gap-2.5">
+                      <span className="shrink-0 w-5 h-5 flex items-center justify-center">
+                        {status === "spinning" && (
+                          <Loader2 className="size-4 text-neutral-500 animate-spin" />
+                        )}
+                        {status === "done" && (
+                          <Check className="size-4 text-green-600" />
+                        )}
+                        {status === "error" && (
+                          <X className="size-4 text-red-500" />
+                        )}
+                        {status === "idle" && (
+                          <span className="w-4 h-4 rounded-full border-2 border-neutral-300" />
+                        )}
+                      </span>
+                      <span
+                        className={`text-sm ${
+                          status === "spinning"
+                            ? "text-neutral-800 font-medium"
+                            : status === "done"
+                              ? "text-neutral-500 line-through"
+                              : status === "error"
+                                ? "text-red-500"
+                                : "text-neutral-400"
+                        }`}
+                      >
+                        {label}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {bggPrefs !== null && (
+              <div className="flex flex-col gap-4 pt-2 border-t border-neutral-100">
+                <Toggle
+                  enabled={bggPrefs.bgg_share_collection}
+                  label="Del min samling"
+                  description="Inkluder mine spil på den offentlige brætspilsliste"
+                  onToggle={() => toggleBggPref("bgg_share_collection")}
+                />
+                <div className="border-t border-neutral-100" />
+                <Toggle
+                  enabled={bggPrefs.bgg_share_name}
+                  label="Vis mit navn som ejer"
+                  description="Dit navn vises ved siden af dine spil på listen"
+                  onToggle={() => toggleBggPref("bgg_share_name")}
+                />
+              </div>
+            )}
+          </div>
+        </Section>
+      </div>
+
+      {/* ── Danger zone ── */}
+      <div className="rounded-2xl border border-red-200 bg-red-50 p-5 flex flex-col gap-3">
+        <div>
+          <h2 className="font-semibold text-red-700 text-sm">Slet konto</h2>
+          <p className="text-xs text-red-500 mt-0.5">
+            Disse handlinger kan ikke fortrydes.
+          </p>
+        </div>
+        <button
+          onClick={() => setShowDelete(true)}
+          className="flex items-center gap-2 h-9 px-4 rounded-lg border border-red-300 text-red-700 text-sm font-medium hover:bg-red-100 transition-colors cursor-pointer bg-transparent w-fit"
+        >
+          <Trash2 className="size-4" />
+          Slet min konto
+        </button>
+      </div>
 
       <DeleteAccountModal
-        open={showDeleteModal}
-        onClose={() => setShowDeleteModal(false)}
+        open={showDelete}
+        onClose={() => setShowDelete(false)}
       />
-    </main>
+    </div>
   );
 }
