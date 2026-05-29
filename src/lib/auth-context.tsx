@@ -88,7 +88,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const user = await postLogin(email, password);
       setUser(user);
       localStorage.setItem("auth_user", JSON.stringify(user));
-      OneSignal.login(String(user.id)).catch(() => {});
+      OneSignal.login(String(user.id))
+        .then(() => OneSignal.showSlidedownPrompt())
+        .catch(() => {});
       return true;
     } catch {
       return false;
@@ -98,7 +100,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   function loginWithData(user: User) {
     setUser(user);
     localStorage.setItem("auth_user", JSON.stringify(user));
-    OneSignal.login(String(user.id)).catch(() => {});
+    OneSignal.login(String(user.id))
+      .then(() => OneSignal.showSlidedownPrompt())
+      .catch(() => {});
   }
 
   function logout() {

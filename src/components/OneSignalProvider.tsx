@@ -30,7 +30,7 @@ export function OneSignalProvider() {
       promptOptions: {
         slidedown: {
           enabled: true,
-          autoPrompt: true,
+          autoPrompt: false,
           actionMessage: "Vil du modtage notifikationer fra Esbjerg Brætspil?",
           acceptButtonText: "Ja tak",
           cancelButtonText: "Nej tak",

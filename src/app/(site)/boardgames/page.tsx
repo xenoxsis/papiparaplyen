@@ -176,7 +176,7 @@ export default function BoardgamesPage() {
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl font-bold text-neutral-900">Brætspil</h1>
         <p className="text-sm text-neutral-500">
-          Spil ejet af klubben og dens medlemmer.{" "}
+          Spil ejet af klubbens medlemmer.{" "}
           {!user && (
             <span>
               <Link href="/login" className="underline hover:text-neutral-700">
