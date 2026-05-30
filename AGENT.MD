@@ -15,7 +15,7 @@ Quick-reference for AI agents making changes to this repository.
 
 | Layer           | Technology                                               |
 | --------------- | -------------------------------------------------------- |
-| Frontend        | Next.js 14 (App Router), TypeScript, Tailwind CSS        |
+| Frontend        | Next.js 16 (App Router), TypeScript, Tailwind CSS        |
 | Backend         | Express + TypeScript, runs on port 3001                  |
 | Database        | Microsoft SQL Server (MSSQL) via `mssql` npm package     |
 | Auth            | JWT (7-day expiry) in **httpOnly cookie** (`auth_token`) |
@@ -32,25 +32,35 @@ Quick-reference for AI agents making changes to this repository.
   src/
     app/(site)/            All user-facing pages (layout wraps with Nav+Footer)
       page.tsx             Home (server component)
-      events/page.tsx
-      calendar/page.tsx
+      events/page.tsx      Public events listing
+      about/page.tsx       Public about/team page (shows Vagter with avatars)
+      calendar/page.tsx    Public calendar view
+      boardgames/page.tsx  Public boardgames list (BGG collection)
       login/page.tsx
       privacy/page.tsx     GDPR privacy policy
+      reset-password/      Password reset flow
+      oauth-callback/      OAuth landing page
       member/
-        profile/page.tsx   Main authenticated page: chat, shifts, profile edit
-        schedule/page.tsx  Admin/Vagt schedule management
-        vagter/page.tsx    Vagt info page (codes, checklist, shift note)
-        admin/page.tsx     Admin member management
+        dashboard/page.tsx   Member home: chat, upcoming shifts, swap requests
+        profile/page.tsx     Settings: name, password, email prefs, avatar, BGG
+        schedule/page.tsx    Admin/Vagt schedule management (drag-and-drop)
+        vagter/page.tsx      Vagt info page (codes, checklist, shift note)
+        admin/page.tsx       Admin member management
         admin/logs/page.tsx  Superuser-only audit log browser
     components/
       Nav.tsx              Top nav — includes NotificationBell, useNotifications
       NotificationBell.tsx Notification dropdown
+      MemberAvatar.tsx     Reusable circle avatar — shows photo (next/image) or initials fallback
+                           Props: initials, size, colorClass, memberId?, hasAvatar?, avatarVersion?
+      AvatarCropModal.tsx  Circular crop + zoom modal; uses react-easy-crop; emits a JPEG Blob
       MemberHero.tsx       Profile hero card (accepts `action` prop)
       UserSSEWrapper.tsx   Client wrapper that provides UserSSEContext
       EmailConsentModal.tsx  GDPR email consent modal (shown when needs_consent=true)
     lib/
       api.ts               ALL frontend API calls — single source of truth
       auth-context.tsx     useAuth() — user, logout, updateUser, pendingShiftCount
+                           User type: { id, name, initials, roles, is_superuser?, has_avatar? }
+      config.ts            App feature flags — AVATAR_UPLOAD_ROLES (controls who can upload)
       UserSSEContext.tsx   Single SSE connection per user; useUserSSE(handler)
       useNotifications.ts  Subscribes to UserSSEContext for notification events
       useChannelSSE.ts     Subscribes to UserSSEContext for chat_message events
@@ -64,26 +74,36 @@ backend/src/
   audit.ts                 logEvent() — fire-and-forget audit log writer
   broadcaster.ts           SSE client registry: broadcast(), broadcastToUser(), initSseResponse()
   notifications.ts         createNotification(), createNotificationForMany()
+                           NotificationType union — all valid notification type strings
   scheduleEmails.ts        queueNewNightEmail(), sendShiftAssignedEmail(), sendMentionEmail()
                            Also runs daily data-retention cleanup (tokens, notifications, audit_log)
   presence.ts              isRecentlyActive() — suppresses emails if user active < 5 min
+  push.ts                  OneSignal Web Push via sendPushToMembers(); PUSH_ENABLED_TYPES controls
+                           which NotificationTypes also trigger a push notification
+  ical.ts                  RFC 5545 iCalendar builder for subscription feeds
+  silence.ts               isSilenced() / setSilenced() — in-memory flag to suppress all emails
+                           and push notifications (resets on server restart, useful for testing)
   email.ts                 HTML email templates
   db/index.ts              mssql pool singleton — getPool(), sql tag
   routes/
     auth.ts                /api/auth/* — login, register, GET me, password, email-prefs, erasure, export
     members.ts             /api/members/*
+    avatar.ts              /api/members/me/avatar (POST, DELETE) + /api/members/:id/avatar (GET public)
     channels.ts            /api/channels/* — messages, SSE stream, members
-    club-nights.ts         /api/club-nights/*
+    club-nights.ts         /api/club-nights/* — includes GET /ical for calendar subscriptions
     schedule-reviews.ts    /api/schedule-reviews/*
     notifications.ts       /api/notifications/* — SSE stream, CRUD
     oauth.ts               OAuth strategies (Google, Facebook) + findOrCreateUser helper
     vagter.ts              /api/vagter/* — settings, checklist (Vagt/Admin only)
     audit-log.ts           /api/audit-log/* — superuser-only audit log endpoint
+    boardgames.ts          /api/boardgames/* — BGG collection (public list) + CSV upload
+    locations.ts           /api/locations/* — venue locations (admin CRUD, public GET)
+    address-autocomplete.ts  /api/address-autocomplete?q=... — proxies api.danskadresseapi.dk
 
 database/
   setup.sql                Full schema (idempotent drop+recreate) — update when adding columns
-  migrations/              Incremental idempotent SQL scripts (001…013)
-                           Latest: 013_audit_log.sql
+  migrations/              Incremental idempotent SQL scripts (001…024)
+                           Latest: 024_member_avatars.sql
 ```
 
 ---
@@ -112,14 +132,22 @@ JWT payload: `{ memberId: number, roles: string[] }`
 ## Database Tables
 
 ```
-dbo.members            id, name, initials(UNIQUE), email, joined_date
+dbo.members            id, name, initials(UNIQUE), email, joined_date,
+                       is_virtual BIT DEFAULT 0,          -- virtual = no login account
+                       show_on_about_page BIT DEFAULT 1,
+                       rule_allow_two_in_a_row BIT,        -- auto-assign scheduling rules
+                       rule_allow_weekday_after_sunday BIT,
+                       rule_no_weekends BIT
 
 dbo.users              id, member_id FK, password NVARCHAR(255) NULL (NULL = pure OAuth),
                        banned BIT DEFAULT 0,
                        email_on_mention BIT DEFAULT 0,
                        email_on_nights  BIT DEFAULT 0,
                        email_on_shift   BIT DEFAULT 0,
-                       email_consent_at DATETIME2 NULL  (NULL = consent not given)
+                       email_consent_at DATETIME2 NULL  (NULL = consent not given),
+                       bgg_share_collection BIT DEFAULT 1,
+                       bgg_share_name       BIT DEFAULT 1,
+                       ical_token NVARCHAR(64) NULL       -- secret token for personal iCal feed
 
 dbo.user_oauth_providers  id, user_id FK→users, provider NVARCHAR(50),
                           provider_id NVARCHAR(255), linked_at DATETIME2
@@ -129,11 +157,17 @@ dbo.user_oauth_providers  id, user_id FK→users, provider NVARCHAR(50),
 dbo.roles              id, name
 dbo.member_roles       member_id FK, role_id FK
 
-dbo.club_nights        id, number, name, date, time_from, time_to, location,
+dbo.club_nights        id, number, name, date, time_from, time_to,
+                       location NVARCHAR (legacy free text),
+                       location_id INT NULL FK→dbo.locations,
                        vagt_member_id FK nullable, vagt_confirmed BIT,
+                       cancelled BIT DEFAULT 0, cancelled_at DATETIME2 NULL,
+                       status NVARCHAR(20) DEFAULT 'published'  -- 'draft' | 'published'
                        created_at, updated_at
 
 dbo.club_night_opt_outs   club_night_id FK, member_id FK
+dbo.club_night_followers  club_night_id FK, member_id FK
+                          -- member has opted-in to notifications for a specific night
 dbo.club_schedule_reviews member_id FK, reviewed_at
 
 dbo.channels           id, name, type ('general'|'vagter')
@@ -149,11 +183,26 @@ dbo.password_reset_tokens  id, token, member_id FK, expires_at, used BIT
 dbo.vagt_settings      key NVARCHAR(100) PK, value NVARCHAR(MAX)
 dbo.vagt_checklist     id, text, sort_order INT, is_header BIT
 
+dbo.boardgames         id, bgg_id INT UNIQUE, name, avg_weight, min_players, max_players,
+                       year_published, playing_time, updated_at
+dbo.member_boardgames  member_id FK, bgg_id INT FK→boardgames
+                       -- join table: which member owns which game
+
+dbo.locations          id, name, address, disabled BIT DEFAULT 0, created_at, updated_at
+                       -- reusable venues for club nights (admin managed)
+
 dbo.audit_log          id, event_type NVARCHAR(50), actor_member_id INT NULL,
                        actor_email NVARCHAR(255) NULL, target_member_id INT NULL,
                        target_email NVARCHAR(255) NULL, detail NVARCHAR(MAX) NULL (JSON),
                        ip NVARCHAR(45) NULL, created_at DATETIME2 DEFAULT GETUTCDATE()
                        -- Purged after 90 days by daily retention job
+
+dbo.member_avatars     member_id INT PK FK→members (CASCADE DELETE),
+                       image_data VARBINARY(MAX) NOT NULL,
+                       content_type NVARCHAR(50) NOT NULL DEFAULT 'image/jpeg',
+                       updated_at DATETIME2 NOT NULL DEFAULT SYSDATETIME()
+                       -- Row is absent when no avatar has been uploaded
+                       -- Image is stored as 256×256 JPEG compressed server-side by sharp
 ```
 
 **When adding columns:** update **both** `database/setup.sql` (in the CREATE TABLE block) **and** create a new `database/migrations/0NN_description.sql` (idempotent — check `IF NOT EXISTS` / `IF EXISTS`).
@@ -218,11 +267,16 @@ logEvent({
 
 One SSE connection per logged-in user, keyed `"user:<memberId>"` in the broadcaster.
 
-**Server push events** (both sent via `broadcast("user:<memberId>", payload)`):
+**Server push events** (sent via `broadcastToUser(memberId, payload)`):
 
-```json
-{ "event": "notification", "data": { ...ApiNotification } }
-{ "event": "chat_message", "data": { "channelId": 1, "message": { ...ApiMessage } } }
+```ts
+{ event: "notification",     data: ApiNotification }
+{ event: "chat_message",     data: { channelId: number; message: ApiMessage } }
+{ event: "message_edited",   data: { channelId: number; message: ApiMessage } }
+{ event: "message_deleted",  data: { channelId: number; message: ApiMessage } }
+{ event: "typing",           data: { channelId: number; memberId: number; name: string } }
+{ event: "roles_changed",    data?: unknown }  // forces JWT refresh on frontend
+{ event: "schedule_updated", data: { type: "night_confirmed" | "drafts_published" | "review_submitted" } }
 ```
 
 **Frontend subscription:**
@@ -250,9 +304,98 @@ All API calls go through the `api<T>()` helper — uses `credentials: "include"`
 
 Key exported types: `AuthUser`, `ApiClubNight`, `ApiChannel`, `ApiMessage`, `ApiMember`,
 `ApiScheduleReview`, `ApiChannelMember`, `ApiNotification`, `ApiEmailPrefs`,
-`ApiVagterPageData`, `AuditLogRow`, `AuditLogFilters`.
+`ApiPublicMember`, `ApiVagterPageData`, `AuditLogRow`, `AuditLogFilters`.
+
+Notable type fields added for avatars:
+
+- `ApiClubNight.vagt_member_has_avatar: boolean` — whether the assigned vagt has a photo
+- `ApiPublicMember.has_avatar: boolean` — used on the About page
+- `ApiChannelMember.has_avatar?: boolean` — used in chat @mention dropdown
+- `ApiMember.has_avatar: boolean` — used in admin / assignment modals
+
+Avatar API helpers:
+
+```ts
+await uploadAvatar(blob); // POST /api/members/me/avatar — multipart, no JSON wrapper
+await deleteAvatar(); // DELETE /api/members/me/avatar
+// Serving is public: GET /api/members/:id/avatar — long-lived Cache-Control, ETag
+```
 
 **Always update `api.ts`** when adding new backend endpoints.
+
+---
+
+## Member Avatars
+
+Members with a role in `AVATAR_UPLOAD_ROLES` (currently `["Vagt", "Administrator"]`) can upload a profile photo. This replaces the letter-initial circle everywhere in the UI.
+
+### Storage
+
+- Table: `dbo.member_avatars` — one row per member, absence = no avatar
+- Images are stored as **256×256 JPEG** (~15–30 KB) compressed server-side by `sharp`
+- Upload accepts any image up to 10 MB; `sharp` crops to square + resizes
+
+### Backend route (`backend/src/routes/avatar.ts`)
+
+| Method   | Path                      | Auth                     | Notes                                                               |
+| -------- | ------------------------- | ------------------------ | ------------------------------------------------------------------- |
+| `POST`   | `/api/members/me/avatar`  | requireAuth + role check | `multipart/form-data`, field name `image`; uses `multer` + `sharp`  |
+| `DELETE` | `/api/members/me/avatar`  | requireAuth              | Removes the row                                                     |
+| `GET`    | `/api/members/:id/avatar` | Public                   | Streams bytes; `Cache-Control: public, max-age=31536000, immutable` |
+
+### Role gate
+
+`AVATAR_UPLOAD_ROLES` in **`src/lib/config.ts`** — add `"Medlem"` (or other roles) here to open uploads to more users. The backend route mirrors this check independently.
+
+### `has_avatar` propagation
+
+- Every query that returns member data LEFT JOINs `dbo.member_avatars` and exposes `has_avatar: boolean`
+- `GET /api/auth/me` returns `has_avatar` — the `User` type in `auth-context.tsx` carries it
+- After upload/delete, call `updateUser({ has_avatar: true/false })` to update the auth context in place without a full re-fetch
+
+### Cache-busting after upload
+
+`MemberAvatar` accepts an optional `avatarVersion` prop (a timestamp number). Pass `Date.now()` after a successful upload to force a fresh fetch while keeping the long-lived cache for all other visitors.
+
+### UI components
+
+- **`AvatarCropModal`** — drag-to-position + zoom crop modal using `react-easy-crop`; emits a JPEG `Blob` via `onConfirm(blob)`
+- **`MemberAvatar`** — drops in as a replacement for any initials circle; pass `memberId` + `hasAvatar` to show the photo
+- **`MemberHero`** — automatically shows the photo when `user.has_avatar` is true
+- **Nav** — `NavAvatar` helper component handles both desktop and mobile nav buttons
+
+### Push notifications (OneSignal)
+
+`backend/src/push.ts` — `sendPushToMembers(memberIds, title, body, url?)` targets users by their OneSignal External User ID (= `String(memberId)`, set by the frontend via `OneSignal.login()` after login).
+
+- `PUSH_ENABLED_TYPES` in `push.ts` lists which `NotificationType` values also trigger a Web Push
+- Remove a type from that array to silence push for it without touching notification creation
+- Requires `ONESIGNAL_APP_ID` and `ONESIGNAL_REST_API_KEY` env vars; silently skips if absent
+- Frontend provider: `<OneSignalProvider>` in `src/components/OneSignalProvider.tsx`
+
+### iCal feed
+
+`GET /api/club-nights/ical` — public subscription URL. Also `GET /api/club-nights/ical/me?token=<ical_token>` — personal feed filtered to the member's own confirmed shifts. The `ical_token` is a random 64-char secret stored on `dbo.users`; members can generate/revoke it from the vagter page.
+
+### Virtual members
+
+Members with `is_virtual = 1` have no login account — they can be assigned to shifts but cannot log in. Created via `POST /api/members` (admin only). They appear in shift assignment dropdowns but not on the About page.
+
+### Draft nights
+
+Club nights have `status: 'draft' | 'published'`. Drafts are only visible to Administrators. Vagter only see published nights. Bulk-publish via `POST /api/club-nights/publish`.
+
+---
+
+## Notification Types
+
+All valid values for `NotificationType` (defined in `backend/src/notifications.ts`):
+
+`swap_requested`, `swap_accepted`, `swap_cancelled`,
+`shift_assigned`, `shift_unassigned`, `shift_deleted`, `shift_cancelled`,
+`nights_added`, `nights_published`,
+`mentioned`,
+`night_changed`, `night_deleted`, `night_cancelled`
 
 ---
 
@@ -364,6 +507,9 @@ cd backend && npx tsc --noEmit
 | `SMTP_HOST/PORT/USER/PASS`    | ✅       | Nodemailer config                        |
 | `SMTP_FROM`                   |          | Sender address                           |
 | `SCHEDULE_EMAIL_DEBOUNCE_MS`  |          | Default 30 min (1 800 000 ms)            |
+| `ONESIGNAL_APP_ID`            |          | Web Push — skipped if absent             |
+| `ONESIGNAL_REST_API_KEY`      |          | Web Push REST API key                    |
+| `DANISH_ADDRESS_API_TOKEN`    |          | Address autocomplete proxy               |
 
 ---
 
@@ -371,250 +517,6 @@ cd backend && npx tsc --noEmit
 
 Migrations live in `database/migrations/` and are **idempotent** (safe to re-run).
 They must be run manually against the SQL Server container after deploying schema changes.
-Latest migration: **015_boardgames.sql**
+Latest migration: **024_member_avatars.sql**
 
 > **Agents must not run migrations.** Write the SQL file and inform the user — they will apply it themselves.
-
----
-
-## Stack
-
-| Layer           | Technology                                                   |
-| --------------- | ------------------------------------------------------------ |
-| Frontend        | Next.js 14 (App Router), TypeScript, Tailwind CSS            |
-| Backend         | Express + TypeScript, runs on port 3001                      |
-| Database        | Microsoft SQL Server (MSSQL) via `mssql` npm package         |
-| Auth            | JWT (7-day expiry), stored in `localStorage` as `auth_token` |
-| Email           | Nodemailer (`backend/src/email.ts`)                          |
-| Real-time       | SSE via `backend/src/broadcaster.ts`                         |
-| Package manager | pnpm (workspace)                                             |
-
----
-
-## Repository Layout
-
-```
-/                          Next.js frontend root
-  src/
-    app/(site)/            All user-facing pages (layout wraps with Nav+Footer)
-      page.tsx             Home (server component)
-      events/page.tsx      Public events listing
-      calendar/page.tsx
-      login/page.tsx
-      member/
-        profile/page.tsx   Main authenticated page: chat, shifts, profile edit
-        schedule/page.tsx  Admin/Vagt schedule management
-        admin/page.tsx     Admin member management
-    components/
-      Nav.tsx              Top nav — includes NotificationBell, useNotifications
-      NotificationBell.tsx Notification dropdown
-      MemberHero.tsx       Profile hero card (accepts `action` prop)
-      UserSSEWrapper.tsx   Client wrapper that provides UserSSEContext
-    lib/
-      api.ts               ALL frontend API calls — single source of truth
-      auth-context.tsx     useAuth() — user, logout, updateUser, pendingShiftCount
-      UserSSEContext.tsx   Single SSE connection per user; useUserSSE(handler)
-      useNotifications.ts  Subscribes to UserSSEContext for notification events
-      useChannelSSE.ts     Subscribes to UserSSEContext for chat_message events
-      useRequireAuth.ts    Redirect guard for protected pages
-      renderMentions.tsx   Parses @[Name](id) syntax → React chips (inline styles only)
-      auto-assign.ts       Auto-assign logic for schedule
-
-backend/src/
-  server.ts                Express app bootstrap, route mounting
-  auth.ts                  JWT sign/verify, requireAuth middleware, touchPresence()
-  broadcaster.ts           SSE client registry: broadcast(), broadcastToUser(), initSseResponse()
-  notifications.ts         createNotification(), createNotificationForMany()
-  scheduleEmails.ts        queueNewNightEmail(), sendShiftAssignedEmail(), sendMentionEmail()
-  presence.ts              isRecentlyActive() — suppresses emails if user active < 5 min
-  email.ts                 HTML email templates
-  db/index.ts              mssql pool singleton — getPool(), sql tag
-  routes/
-    auth.ts                /api/auth/* — login, register, me, password, email-prefs, oauth
-    members.ts             /api/members/*
-    channels.ts            /api/channels/* — messages, SSE stream (legacy), members
-    club-nights.ts         /api/club-nights/*
-    schedule-reviews.ts    /api/schedule-reviews/*
-    notifications.ts       /api/notifications/* — SSE stream, CRUD
-    oauth.ts               OAuth callback handling
-
-database/
-  setup.sql                Full schema (idempotent drop+recreate) — update this when adding columns
-  migrations/              Incremental idempotent SQL scripts (001, 002, 003…)
-```
-
----
-
-## Roles
-
-Three roles are stored in `dbo.roles` and assigned via `dbo.member_roles`:
-
-- **Administrator** — full access to everything
-- **Vagt** — access to schedule, vagter channel, shift swap
-- **Tilskuer** — read-only access to vagter channel
-- _(no role)_ — regular member, public channels only
-
-JWT payload: `{ memberId: number, roles: string[] }`
-
----
-
-## Database Tables (key ones)
-
-```
-dbo.members       id, name, initials(UNIQUE), email, joined_date
-dbo.users         id, member_id FK, password(bcrypt), banned BIT,
-                  oauth_provider, oauth_id,
-                  email_on_mention BIT DEFAULT 1,
-                  email_on_nights  BIT DEFAULT 1,
-                  email_on_shift   BIT DEFAULT 1
-dbo.roles         id, name
-dbo.member_roles  member_id FK, role_id FK
-dbo.club_nights   id, number, name, date, time_from, time_to, location,
-                  vagt_member_id FK nullable, vagt_confirmed BIT, created_at, updated_at
-dbo.club_night_opt_outs  club_night_id FK, member_id FK
-dbo.club_schedule_reviews  member_id FK, reviewed_at
-dbo.channels      id, name, type ('general'|'vagter')
-dbo.channel_members  channel_id FK, member_id FK
-dbo.messages      id, channel_id FK, sender_id FK, body NVARCHAR(MAX),
-                  sent_at, type, shift_night_id, swap_status, taken_by_member_id
-dbo.notifications id, member_id FK, type, body, link, is_read BIT, created_at
-```
-
-When adding columns: update **both** `database/setup.sql` (in the CREATE TABLE) **and** create a new `database/migrations/00N_description.sql` (idempotent).
-
----
-
-## SSE Architecture
-
-One SSE connection per logged-in user, keyed `"user:<memberId>"` in the broadcaster.
-
-**Server push events** (both sent via `broadcast("user:<memberId>", payload)`):
-
-```json
-{ "event": "notification", "data": { ...ApiNotification } }
-{ "event": "chat_message", "data": { "channelId": 1, "message": { ...ApiMessage } } }
-```
-
-**Frontend subscription:**
-
-```ts
-// In any client component:
-useUserSSE((evt) => {
-  if (evt.event === "chat_message") { ... }
-  if (evt.event === "notification") { ... }
-});
-```
-
-`UserSSEProvider` is mounted in `src/app/(site)/layout.tsx` via `UserSSEWrapper`.
-
-To add a new SSE event type:
-
-1. Add it to the `UserSSEEvent` union in `UserSSEContext.tsx`
-2. Broadcast from the backend: `broadcastToUser(memberId, { event: "my_event", data: ... })`
-3. Subscribe on the frontend with `useUserSSE`
-
----
-
-## API Frontend Calls (`src/lib/api.ts`)
-
-All API calls go through the `api<T>()` helper which reads `auth_token` from localStorage and throws on non-2xx.
-
-Key types exported: `ApiClubNight`, `ApiChannel`, `ApiMessage`, `ApiMember`, `ApiScheduleReview`, `ApiChannelMember`, `ApiNotification`, `ApiEmailPrefs`.
-
-Always update `api.ts` when adding new backend endpoints.
-
----
-
-## Mention Syntax
-
-Messages stored in DB use `@[Name](memberId)` syntax.
-
-- **Render:** `renderMessageBody(body, currentUserId)` → React nodes with inline-styled chips
-- **Parse IDs:** `extractMentionIds(body)` → `number[]`
-- **Always use inline styles** in `renderMentions.tsx` — Tailwind dynamic class names get purged
-
----
-
-## Email System
-
-- All templates in `backend/src/email.ts` — pure functions returning HTML strings
-- Sending logic in `backend/src/scheduleEmails.ts`
-- Each send function checks the user's `email_on_*` pref from DB
-- `sendMentionEmail` also checks `isRecentlyActive(memberId)` — skips if user was active in last 5 min
-- New nights use a 30-min debounce (`queueNewNightEmail`); shift+mention emails are immediate
-
----
-
-## Common Patterns
-
-### Date/time filtering
-
-- **Public event lists / home page:** hide when `new Date(date + 'T' + time_from) <= now` (hides at start)
-- **Schedule page:** hide when `new Date(date + 'T' + time_to) <= now` (hides after end)
-
-### Tailwind gotcha
-
-**Never use dynamic Tailwind class strings** (e.g. `` `bg-${color}-100` ``).  
-Tailwind purges them at build time. Use **inline styles** for any runtime-dynamic values.
-
-### Backend auth
-
-```ts
-requireAuth; // middleware — sets res.locals.jwt
-callerId(res); // → number | null
-isAdmin(res); // → boolean
-```
-
-`requireAuth` automatically calls `touchPresence(memberId)` on every authenticated request.
-
-### Creating notifications
-
-```ts
-// Single recipient
-await createNotification(memberId, "shift_assigned", "...", "/member/schedule");
-
-// Multiple recipients
-await createNotificationForMany(
-  [id1, id2],
-  "nights_added",
-  "...",
-  "/member/schedule",
-);
-```
-
-### Broadcasting a new SSE event type (full checklist)
-
-1. Add to `UserSSEEvent` union in `src/lib/UserSSEContext.tsx`
-2. Call `broadcastToUser(memberId, { event: "...", data: ... })` from backend
-3. Subscribe with `useUserSSE` on frontend
-4. If needed, export a new hook in `src/lib/`
-
----
-
-## Dev Commands
-
-```bash
-# Frontend (port 3000)
-pnpm run dev
-
-# Backend (port 3001) — from /backend
-pnpm run dev
-
-# Docker (SQL Server + backend)
-docker-compose up -d --build
-
-# Type check frontend
-npx tsc --noEmit
-
-# Type check backend
-cd backend && npx tsc --noEmit
-```
-
-Environment variables needed:
-
-- `NEXT_PUBLIC_API_URL` — backend base URL (frontend)
-- `JWT_SECRET` — required, no default
-- `DATABASE_URL` or individual `DB_*` vars — MSSQL connection
-- `FRONTEND_URL` — used in email links and CORS
-- `SMTP_*` — nodemailer config
-- `SCHEDULE_EMAIL_DEBOUNCE_MS` — optional, default 30 min
