@@ -208,9 +208,11 @@ CREATE TABLE dbo.messages (
     shift_night_id      INT            NULL,
     swap_status         NVARCHAR(20)   NULL,
     taken_by_member_id  INT            NULL,
+    reply_to_id         INT            NULL,
     CONSTRAINT PK_messages         PRIMARY KEY (id),
     CONSTRAINT FK_messages_channel FOREIGN KEY (channel_id) REFERENCES dbo.channels (id),
-    CONSTRAINT FK_messages_sender  FOREIGN KEY (sender_id)  REFERENCES dbo.members  (id)
+    CONSTRAINT FK_messages_sender  FOREIGN KEY (sender_id)  REFERENCES dbo.members  (id),
+    CONSTRAINT FK_messages_reply_to FOREIGN KEY (reply_to_id) REFERENCES dbo.messages (id)
 );
 GO
 

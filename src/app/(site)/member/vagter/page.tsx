@@ -1150,9 +1150,15 @@ export default function VagterPage() {
 
   // ── Handlers ──────────────────────────────────────────────────────────────
   const handleSendMessage = useCallback(
-    async (body: string) => {
+    async (body: string, replyToId?: number | null) => {
       if (!user || !activeChannelId) return;
-      const msg = await postMessage(activeChannelId, user.id, body);
+      const msg = await postMessage(
+        activeChannelId,
+        user.id,
+        body,
+        undefined,
+        replyToId,
+      );
       scrollOnNextRender.current = true;
       setMessageMap((prev) => upsertIntoMap(prev, msg));
     },

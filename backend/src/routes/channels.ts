@@ -199,13 +199,19 @@ router.get(
       SELECT m.id, m.channel_id, m.sender_id, m.body, m.sent_at,
              m.edited_at, m.is_deleted,
              m.type, m.shift_night_id, m.swap_status, m.taken_by_member_id,
+             m.reply_to_id,
              s.name  AS sender_name,
              s.initials AS sender_initials,
              t.name  AS taken_by_name,
-             t.initials AS taken_by_initials
+             t.initials AS taken_by_initials,
+             CASE WHEN parent.is_deleted = 1 THEN NULL ELSE LEFT(parent.body, 200) END AS reply_to_body,
+             ps.name AS reply_to_sender_name,
+             parent.is_deleted AS reply_to_is_deleted
       FROM dbo.messages m
       LEFT JOIN dbo.members s ON s.id = m.sender_id
       LEFT JOIN dbo.members t ON t.id = m.taken_by_member_id
+      LEFT JOIN dbo.messages parent ON parent.id = m.reply_to_id
+      LEFT JOIN dbo.members ps ON ps.id = parent.sender_id
       WHERE m.channel_id = @channelId
       ORDER BY m.sent_at
     `);
@@ -261,6 +267,31 @@ router.post(
     // Sanitise: trim edges, strip null bytes
     const sanitisedBody = rawBody.trim().replace(/\0/g, "");
 
+    // ── Optional reply_to_id ────────────────────────────────────────────────
+    let replyToId: number | null = null;
+    if (req.body.replyToId != null) {
+      const parsedReplyToId = Number(req.body.replyToId);
+      if (!Number.isInteger(parsedReplyToId) || parsedReplyToId <= 0) {
+        res.status(400).json({ error: "Ugyldigt replyToId" });
+        return;
+      }
+      // Verify the parent exists in the same channel
+      const parentCheck = await pool
+        .request()
+        .input("parentId", sql.Int, parsedReplyToId)
+        .input("channelId", sql.Int, channelId)
+        .query(
+          "SELECT id FROM dbo.messages WHERE id = @parentId AND channel_id = @channelId",
+        );
+      if (parentCheck.recordset.length === 0) {
+        res
+          .status(400)
+          .json({ error: "Svaret refererer til en ugyldig besked" });
+        return;
+      }
+      replyToId = parsedReplyToId;
+    }
+
     const insertResult = await pool
       .request()
       .input("channelId", sql.Int, channelId)
@@ -269,10 +300,11 @@ router.post(
       .input("sentAt", sql.DateTime2, new Date().toISOString())
       .input("type", sql.NVarChar, isSwap ? "shift_swap" : null)
       .input("shiftNightId", sql.Int, isSwap ? req.body.shift_night_id : null)
-      .input("swapStatus", sql.NVarChar, isSwap ? "pending" : null).query(`
-      INSERT INTO dbo.messages (channel_id, sender_id, body, sent_at, type, shift_night_id, swap_status, taken_by_member_id)
+      .input("swapStatus", sql.NVarChar, isSwap ? "pending" : null)
+      .input("replyToId", sql.Int, replyToId).query(`
+      INSERT INTO dbo.messages (channel_id, sender_id, body, sent_at, type, shift_night_id, swap_status, taken_by_member_id, reply_to_id)
       OUTPUT INSERTED.id
-      VALUES (@channelId, @senderId, @body, @sentAt, @type, @shiftNightId, @swapStatus, NULL)
+      VALUES (@channelId, @senderId, @body, @sentAt, @type, @shiftNightId, @swapStatus, NULL, @replyToId)
     `);
 
     const newId: number = insertResult.recordset[0].id;
@@ -281,10 +313,16 @@ router.post(
       SELECT m.id, m.channel_id, m.sender_id, m.body, m.sent_at,
              m.edited_at, m.is_deleted,
              m.type, m.shift_night_id, m.swap_status, m.taken_by_member_id,
+             m.reply_to_id,
              s.name AS sender_name, s.initials AS sender_initials,
-             NULL AS taken_by_name, NULL AS taken_by_initials
+             NULL AS taken_by_name, NULL AS taken_by_initials,
+             CASE WHEN parent.is_deleted = 1 THEN NULL ELSE LEFT(parent.body, 200) END AS reply_to_body,
+             ps.name AS reply_to_sender_name,
+             parent.is_deleted AS reply_to_is_deleted
       FROM dbo.messages m
       LEFT JOIN dbo.members s ON s.id = m.sender_id
+      LEFT JOIN dbo.messages parent ON parent.id = m.reply_to_id
+      LEFT JOIN dbo.members ps ON ps.id = parent.sender_id
       WHERE m.id = @id
     `);
 

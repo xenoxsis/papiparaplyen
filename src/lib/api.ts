@@ -122,6 +122,11 @@ export type ApiMessage = {
   taken_by_member_id?: number | null;
   taken_by_name?: string | null;
   taken_by_initials?: string | null;
+  // Threaded reply fields
+  reply_to_id?: number | null;
+  reply_to_body?: string | null;
+  reply_to_sender_name?: string | null;
+  reply_to_is_deleted?: boolean | null;
 };
 
 export type AuthUser = {
@@ -236,11 +241,13 @@ export const postMessage = (
   sender_id: number,
   body: string,
   extra?: Partial<Pick<ApiMessage, "type" | "shift_night_id">>,
+  replyToId?: number | null,
 ) =>
   apiPost<ApiMessage>(`/api/channels/${channelId}/messages`, {
     sender_id,
     body,
     ...extra,
+    ...(replyToId != null ? { replyToId } : {}),
   });
 export const patchMessage = (
   channelId: number,

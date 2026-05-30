@@ -2,7 +2,15 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ChevronDown, MessagesSquare, Search, Send, Users } from "lucide-react";
+import {
+  ChevronDown,
+  MessagesSquare,
+  Reply,
+  Search,
+  Send,
+  Users,
+  X,
+} from "lucide-react";
 import { GroupChatItem } from "./GroupChatItem";
 import { MessageGroup } from "./MessageGroup";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -32,7 +40,7 @@ interface ChatPanelProps {
   swapConfirmMsg: ApiMessage | null;
   setSwapConfirmMsg: (msg: ApiMessage | null) => void;
   channelMembers: ApiChannelMember[];
-  onSend: (body: string) => Promise<void>;
+  onSend: (body: string, replyToId?: number | null) => Promise<void>;
   onEdit: (msg: ApiMessage, newBody: string) => Promise<void>;
   onDelete: (msg: ApiMessage) => Promise<void>;
   messagesContainerRef: React.RefObject<HTMLDivElement | null>;
@@ -72,6 +80,7 @@ export function ChatPanel({
 
   // Message compose
   const [msgBody, setMsgBody] = useState("");
+  const [replyingTo, setReplyingTo] = useState<ApiMessage | null>(null);
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
   const [mentionIndex, setMentionIndex] = useState(0);
   const [mentionDropsDown, setMentionDropsDown] = useState(false);
@@ -215,9 +224,25 @@ export function ChatPanel({
 
   async function sendMessage() {
     if (!msgBody.trim()) return;
-    await onSend(msgBody.trim());
+    await onSend(msgBody.trim(), replyingTo?.id ?? null);
     setMsgBody("");
     setMentionQuery(null);
+    setReplyingTo(null);
+  }
+
+  function handleReply(msg: ApiMessage) {
+    setReplyingTo(msg);
+    setTimeout(() => inputRef.current?.focus(), 0);
+  }
+
+  function handleScrollToMessage(messageId: number) {
+    const el = messagesContainerRef.current?.querySelector(
+      `[data-msg-id="${messageId}"]`,
+    );
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    setHighlightMessageId(messageId);
+    setTimeout(() => setHighlightMessageId(null), 1500);
   }
 
   const accentColor =
@@ -569,6 +594,8 @@ export function ChatPanel({
                       onSwapConfirm={setSwapConfirmMsg}
                       onEdit={onEdit}
                       onDelete={onDelete}
+                      onReply={handleReply}
+                      onScrollToMessage={handleScrollToMessage}
                     />
                   ))}
               {/* Typing indicator */}
@@ -593,145 +620,168 @@ export function ChatPanel({
           </div>
 
           {/* Input bar */}
-          <div className="border-t border-neutral-200 flex p-3 items-center gap-2 shrink-0">
-            <div className="flex-1 relative" ref={mentionContainerRef}>
-              {mentionQuery !== null &&
-                mentionResults.length > 0 &&
-                dropdownRect &&
-                createPortal(
-                  <div
-                    style={{
-                      position: "fixed",
-                      left: dropdownRect.left,
-                      width: dropdownRect.width,
-                      ...(mentionDropsDown
-                        ? { top: dropdownRect.bottom + 4 }
-                        : {
-                            bottom: window.innerHeight - dropdownRect.top + 4,
-                          }),
-                      zIndex: 9999,
-                      background: "white",
-                      border: "1px solid #e5e7eb",
-                      borderRadius: 12,
-                      boxShadow: "0 4px 24px rgba(0,0,0,0.10)",
-                      overflow: "hidden",
-                    }}
-                  >
-                    {mentionResults.map((member, i) => (
-                      <button
-                        key={member.id}
-                        onMouseDown={(e) => {
-                          e.preventDefault();
-                          selectMention(member);
-                        }}
-                        className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left transition-colors border-none bg-transparent cursor-pointer ${
-                          i === mentionIndex
-                            ? "bg-neutral-100"
-                            : "hover:bg-neutral-50"
-                        }`}
-                      >
-                        {member.id < 0 ? (
-                          <div
-                            className="w-6 h-6 rounded-full text-white flex items-center justify-center shrink-0"
-                            style={{
-                              background:
-                                member.name === "vagter"
-                                  ? "#166534"
-                                  : "#9d174d",
-                              fontSize: "0.5rem",
-                              fontWeight: 700,
-                            }}
-                          >
-                            {member.name === "vagter" ? "VAG" : "ALL"}
-                          </div>
-                        ) : (
-                          <div className="w-6 h-6 rounded-full bg-brand-red text-white flex items-center justify-center text-[0.55rem] font-bold shrink-0 overflow-hidden">
-                            {member.has_avatar ? (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img
-                                src={`/api/members/${member.id}/avatar`}
-                                alt={member.initials}
-                                width={24}
-                                height={24}
-                                className="w-full h-full object-cover"
-                              />
-                            ) : (
-                              member.initials
-                            )}
-                          </div>
-                        )}
-                        <span className="font-medium text-neutral-900">
-                          @{member.name}
-                        </span>
-                        {member.id < 0 && (
-                          <span className="text-neutral-400 text-xs ml-auto">
-                            {member.name === "vagter"
-                              ? "Alle vagter"
-                              : "Alle medlemmer"}
+          <div className="border-t border-neutral-200 flex flex-col shrink-0">
+            {/* Reply preview bar */}
+            {replyingTo && (
+              <div className="flex items-center gap-2 px-3 pt-2 pb-1">
+                <Reply className="size-3.5 text-brand-blue shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <span className="text-[0.65rem] font-semibold text-neutral-500">
+                    Svar til {replyingTo.sender_name ?? "Ukendt"}
+                  </span>
+                  <p className="text-[0.7rem] text-neutral-400 truncate">
+                    {replyingTo.body}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setReplyingTo(null)}
+                  aria-label="Annuller svar"
+                  className="w-5 h-5 flex items-center justify-center rounded text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 transition-colors cursor-pointer shrink-0"
+                >
+                  <X className="size-3" />
+                </button>
+              </div>
+            )}
+            <div className="flex p-3 items-center gap-2">
+              <div className="flex-1 relative" ref={mentionContainerRef}>
+                {mentionQuery !== null &&
+                  mentionResults.length > 0 &&
+                  dropdownRect &&
+                  createPortal(
+                    <div
+                      style={{
+                        position: "fixed",
+                        left: dropdownRect.left,
+                        width: dropdownRect.width,
+                        ...(mentionDropsDown
+                          ? { top: dropdownRect.bottom + 4 }
+                          : {
+                              bottom: window.innerHeight - dropdownRect.top + 4,
+                            }),
+                        zIndex: 9999,
+                        background: "white",
+                        border: "1px solid #e5e7eb",
+                        borderRadius: 12,
+                        boxShadow: "0 4px 24px rgba(0,0,0,0.10)",
+                        overflow: "hidden",
+                      }}
+                    >
+                      {mentionResults.map((member, i) => (
+                        <button
+                          key={member.id}
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            selectMention(member);
+                          }}
+                          className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left transition-colors border-none bg-transparent cursor-pointer ${
+                            i === mentionIndex
+                              ? "bg-neutral-100"
+                              : "hover:bg-neutral-50"
+                          }`}
+                        >
+                          {member.id < 0 ? (
+                            <div
+                              className="w-6 h-6 rounded-full text-white flex items-center justify-center shrink-0"
+                              style={{
+                                background:
+                                  member.name === "vagter"
+                                    ? "#166534"
+                                    : "#9d174d",
+                                fontSize: "0.5rem",
+                                fontWeight: 700,
+                              }}
+                            >
+                              {member.name === "vagter" ? "VAG" : "ALL"}
+                            </div>
+                          ) : (
+                            <div className="w-6 h-6 rounded-full bg-brand-red text-white flex items-center justify-center text-[0.55rem] font-bold shrink-0 overflow-hidden">
+                              {member.has_avatar ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img
+                                  src={`/api/members/${member.id}/avatar`}
+                                  alt={member.initials}
+                                  width={24}
+                                  height={24}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                member.initials
+                              )}
+                            </div>
+                          )}
+                          <span className="font-medium text-neutral-900">
+                            @{member.name}
                           </span>
-                        )}
-                        {member.id >= 0 && (
-                          <span className="text-neutral-400 text-xs ml-auto">
-                            {member.initials}
-                          </span>
-                        )}
-                      </button>
-                    ))}
-                  </div>,
-                  document.body,
-                )}
-              <input
-                ref={inputRef}
-                aria-label={`Skriv til ${activeChannel?.name?.toLowerCase() ?? "gruppen"}`}
-                className="w-full h-10 border border-neutral-200 rounded-lg px-3 text-sm outline-none font-[inherit] bg-transparent placeholder:text-neutral-400 focus:border-neutral-900"
-                placeholder={`Skriv til ${activeChannel?.name?.toLowerCase() ?? "gruppen"}…`}
-                value={msgBody}
-                onChange={handleInputChange}
-                onKeyDown={(e) => {
-                  if (mentionQuery !== null && mentionResults.length > 0) {
-                    if (e.key === "ArrowDown") {
+                          {member.id < 0 && (
+                            <span className="text-neutral-400 text-xs ml-auto">
+                              {member.name === "vagter"
+                                ? "Alle vagter"
+                                : "Alle medlemmer"}
+                            </span>
+                          )}
+                          {member.id >= 0 && (
+                            <span className="text-neutral-400 text-xs ml-auto">
+                              {member.initials}
+                            </span>
+                          )}
+                        </button>
+                      ))}
+                    </div>,
+                    document.body,
+                  )}
+                <input
+                  ref={inputRef}
+                  aria-label={`Skriv til ${activeChannel?.name?.toLowerCase() ?? "gruppen"}`}
+                  className="w-full h-10 border border-neutral-200 rounded-lg px-3 text-sm outline-none font-[inherit] bg-transparent placeholder:text-neutral-400 focus:border-neutral-900"
+                  placeholder={`Skriv til ${activeChannel?.name?.toLowerCase() ?? "gruppen"}…`}
+                  value={msgBody}
+                  onChange={handleInputChange}
+                  onKeyDown={(e) => {
+                    if (mentionQuery !== null && mentionResults.length > 0) {
+                      if (e.key === "ArrowDown") {
+                        e.preventDefault();
+                        setMentionIndex((i) => (i + 1) % mentionResults.length);
+                        return;
+                      }
+                      if (e.key === "ArrowUp") {
+                        e.preventDefault();
+                        setMentionIndex(
+                          (i) =>
+                            (i - 1 + mentionResults.length) %
+                            mentionResults.length,
+                        );
+                        return;
+                      }
+                      if (e.key === "Enter" || e.key === "Tab") {
+                        e.preventDefault();
+                        selectMention(mentionResults[mentionIndex]);
+                        return;
+                      }
+                      if (e.key === "Escape") {
+                        setMentionQuery(null);
+                        return;
+                      }
+                    }
+                    if (e.key === "Enter" && !e.shiftKey) {
                       e.preventDefault();
-                      setMentionIndex((i) => (i + 1) % mentionResults.length);
-                      return;
+                      sendMessage();
                     }
-                    if (e.key === "ArrowUp") {
-                      e.preventDefault();
-                      setMentionIndex(
-                        (i) =>
-                          (i - 1 + mentionResults.length) %
-                          mentionResults.length,
-                      );
-                      return;
-                    }
-                    if (e.key === "Enter" || e.key === "Tab") {
-                      e.preventDefault();
-                      selectMention(mentionResults[mentionIndex]);
-                      return;
-                    }
-                    if (e.key === "Escape") {
-                      setMentionQuery(null);
-                      return;
-                    }
-                  }
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    sendMessage();
-                  }
-                }}
-                onBlur={() => setTimeout(() => setMentionQuery(null), 150)}
-              />
+                  }}
+                  onBlur={() => setTimeout(() => setMentionQuery(null), 150)}
+                />
+              </div>
+              <button
+                onClick={sendMessage}
+                aria-label="Send besked"
+                className={`inline-flex items-center justify-center w-10 h-10 rounded-lg text-white transition-colors border-none cursor-pointer shrink-0 ${
+                  activeChannel?.type === "all_members"
+                    ? "bg-brand-red hover:bg-red-600"
+                    : "bg-brand-teal hover:bg-teal-600"
+                }`}
+              >
+                <Send className="size-4" />
+              </button>
             </div>
-            <button
-              onClick={sendMessage}
-              aria-label="Send besked"
-              className={`inline-flex items-center justify-center w-10 h-10 rounded-lg text-white transition-colors border-none cursor-pointer shrink-0 ${
-                activeChannel?.type === "all_members"
-                  ? "bg-brand-red hover:bg-red-600"
-                  : "bg-brand-teal hover:bg-teal-600"
-              }`}
-            >
-              <Send className="size-4" />
-            </button>
           </div>
         </div>
       </div>

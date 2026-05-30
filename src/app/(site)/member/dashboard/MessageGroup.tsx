@@ -1,7 +1,7 @@
 "use client";
 
 import { memo, useState, useRef } from "react";
-import { Pencil, RefreshCcw, Trash2 } from "lucide-react";
+import { Pencil, RefreshCcw, Trash2, Reply } from "lucide-react";
 import { renderMessageBody } from "@/lib/renderMentions";
 import { Modal } from "@/components/Modal";
 import type { ApiClubNight, ApiMessage } from "@/lib/api";
@@ -22,6 +22,8 @@ interface MessageGroupProps {
   onSwapConfirm: (msg: ApiMessage) => void;
   onEdit: (msg: ApiMessage, newBody: string) => Promise<void>;
   onDelete: (msg: ApiMessage) => Promise<void>;
+  onReply: (msg: ApiMessage) => void;
+  onScrollToMessage: (messageId: number) => void;
 }
 
 export const MessageGroup = memo(function MessageGroup({
@@ -34,6 +36,8 @@ export const MessageGroup = memo(function MessageGroup({
   onSwapConfirm,
   onEdit,
   onDelete,
+  onReply,
+  onScrollToMessage,
 }: MessageGroupProps) {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editBody, setEditBody] = useState("");
@@ -123,6 +127,26 @@ export const MessageGroup = memo(function MessageGroup({
           const isEditing = editingId === msg.id;
           const canEditDelete =
             outgoing && !msg.is_deleted && msg.type !== "shift_swap";
+          const canReply = !msg.is_deleted && msg.type !== "shift_swap";
+
+          // ── Reply quote helper ───────────────────────────────────────────
+          const replyQuote = msg.reply_to_id ? (
+            <button
+              onClick={() => onScrollToMessage(msg.reply_to_id!)}
+              className={`flex flex-col text-left rounded-lg px-3 py-1.5 mb-1 max-w-full border-l-2 bg-neutral-50 hover:bg-neutral-100 transition-colors cursor-pointer border-none ${
+                outgoing ? "border-white/60" : "border-brand-blue"
+              }`}
+            >
+              <span className="text-[0.6rem] font-semibold text-neutral-500 mb-0.5">
+                ↩ {msg.reply_to_sender_name ?? "Ukendt"}
+              </span>
+              <span className="text-[0.7rem] text-neutral-500 truncate max-w-[20rem]">
+                {msg.reply_to_is_deleted
+                  ? "Besked slettet"
+                  : (msg.reply_to_body ?? "")}
+              </span>
+            </button>
+          ) : null;
 
           // ── Soft-deleted ─────────────────────────────────────────────────
           if (msg.is_deleted) {
@@ -243,25 +267,43 @@ export const MessageGroup = memo(function MessageGroup({
                   highlightMessageId === msg.id ? "bg-yellow-50" : ""
                 }`}
               >
-                {canEditDelete && !isEditing && (
+                {!isEditing && (
                   <div className="flex items-center gap-1 mr-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button
-                      onClick={() => startEdit(msg)}
-                      aria-label="Rediger besked"
-                      className="w-6 h-6 flex items-center justify-center rounded-md text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 transition-colors cursor-pointer"
-                    >
-                      <Pencil className="size-3" />
-                    </button>
-                    <button
-                      onClick={() => setDeletingMsg(msg)}
-                      aria-label="Slet besked"
-                      className="w-6 h-6 flex items-center justify-center rounded-md text-neutral-400 hover:text-red-500 hover:bg-red-50 transition-colors cursor-pointer"
-                    >
-                      <Trash2 className="size-3" />
-                    </button>
+                    {canReply && (
+                      <button
+                        onClick={() => onReply(msg)}
+                        aria-label="Svar på besked"
+                        className="w-6 h-6 flex items-center justify-center rounded-md text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 transition-colors cursor-pointer"
+                      >
+                        <Reply className="size-3" />
+                      </button>
+                    )}
+                    {canEditDelete && (
+                      <>
+                        <button
+                          onClick={() => startEdit(msg)}
+                          aria-label="Rediger besked"
+                          className="w-6 h-6 flex items-center justify-center rounded-md text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 transition-colors cursor-pointer"
+                        >
+                          <Pencil className="size-3" />
+                        </button>
+                        <button
+                          onClick={() => setDeletingMsg(msg)}
+                          aria-label="Slet besked"
+                          className="w-6 h-6 flex items-center justify-center rounded-md text-neutral-400 hover:text-red-500 hover:bg-red-50 transition-colors cursor-pointer"
+                        >
+                          <Trash2 className="size-3" />
+                        </button>
+                      </>
+                    )}
                   </div>
                 )}
                 <div className="flex flex-col items-end gap-1 max-w-md">
+                  {replyQuote && (
+                    <div className="flex flex-col items-end w-full">
+                      {replyQuote}
+                    </div>
+                  )}
                   {isEditing ? (
                     <div className="flex flex-col gap-1 w-full">
                       <textarea
@@ -321,7 +363,7 @@ export const MessageGroup = memo(function MessageGroup({
             <div
               key={msg.id}
               data-msg-id={msg.id}
-              className={`flex flex-col gap-0.5 rounded-xl px-1 transition-colors duration-700 ${
+              className={`group flex flex-col gap-0.5 rounded-xl px-1 transition-colors duration-700 ${
                 highlightMessageId === msg.id ? "bg-yellow-50" : ""
               }`}
             >
@@ -335,10 +377,20 @@ export const MessageGroup = memo(function MessageGroup({
                   <span className="text-[0.65rem] font-semibold text-neutral-600 pl-1">
                     {msg.sender_name}
                   </span>
+                  {replyQuote}
                   <div className="px-4 py-2 text-sm bg-white border border-neutral-200 rounded-[1rem_1rem_1rem_0.25rem]">
                     {user ? renderMessageBody(msg.body, user.id) : msg.body}
                   </div>
                 </div>
+                {canReply && (
+                  <button
+                    onClick={() => onReply(msg)}
+                    aria-label="Svar på besked"
+                    className="mb-0.5 w-6 h-6 flex items-center justify-center rounded-md text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 transition-colors cursor-pointer opacity-0 group-hover:opacity-100"
+                  >
+                    <Reply className="size-3" />
+                  </button>
+                )}
               </div>
               <div className="flex items-center gap-1 pl-9">
                 {msg.edited_at && (
