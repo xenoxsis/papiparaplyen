@@ -69,18 +69,31 @@ export function useVagtDraft(
   const effectiveVagt = useCallback(
     (
       night: ApiClubNight,
-    ): { id: number; name: string; initials: string } | null => {
+    ): {
+      id: number;
+      name: string;
+      initials: string;
+      has_avatar: boolean;
+    } | null => {
       if (night.id in pendingChanges) {
         const id = pendingChanges[night.id];
         if (id === null) return null;
         const m = vagter.find((v) => v.id === id);
-        return m ? { id: m.id, name: m.name, initials: m.initials } : null;
+        return m
+          ? {
+              id: m.id,
+              name: m.name,
+              initials: m.initials,
+              has_avatar: m.has_avatar ?? false,
+            }
+          : null;
       }
       if (night.vagt_member_id === null) return null;
       return {
         id: night.vagt_member_id,
         name: night.assigned_member_name ?? "",
         initials: night.assigned_member_initials ?? "",
+        has_avatar: night.vagt_member_has_avatar ?? false,
       };
     },
     [pendingChanges, vagter],

@@ -22,8 +22,7 @@ function mapMember(row: Record<string, unknown>) {
     show_on_about_page:
       row.show_on_about_page === true || row.show_on_about_page === 1,
     rule_allow_two_in_a_row:
-      row.rule_allow_two_in_a_row === true ||
-      row.rule_allow_two_in_a_row === 1,
+      row.rule_allow_two_in_a_row === true || row.rule_allow_two_in_a_row === 1,
     rule_allow_weekday_after_sunday:
       row.rule_allow_weekday_after_sunday === true ||
       row.rule_allow_weekday_after_sunday === 1,
@@ -35,6 +34,7 @@ function mapMember(row: Record<string, unknown>) {
     is_superuser:
       typeof row.email === "string" &&
       row.email.toLowerCase() === SUPERUSER_EMAIL,
+    has_avatar: row.has_avatar === 1 || row.has_avatar === true,
   };
 }
 
@@ -45,18 +45,20 @@ const MEMBER_SELECT = `
          m.rule_allow_two_in_a_row, m.rule_allow_weekday_after_sunday,
          m.rule_no_weekends,
          ISNULL(u.banned, 0) AS banned,
-         STRING_AGG(r.name, ',') AS roles_agg
+         STRING_AGG(r.name, ',') AS roles_agg,
+         CASE WHEN ma.member_id IS NOT NULL THEN 1 ELSE 0 END AS has_avatar
   FROM dbo.members m
   LEFT JOIN dbo.users u ON u.member_id = m.id
   LEFT JOIN dbo.member_roles mr ON mr.member_id = m.id
   LEFT JOIN dbo.roles r ON r.id = mr.role_id
+  LEFT JOIN dbo.member_avatars ma ON ma.member_id = m.id
 `;
 
 const MEMBER_GROUP_BY = `
   GROUP BY m.id, m.name, m.initials, m.email, m.joined_date,
            m.is_virtual, m.show_on_about_page,
            m.rule_allow_two_in_a_row, m.rule_allow_weekday_after_sunday,
-           m.rule_no_weekends, u.banned
+           m.rule_no_weekends, u.banned, ma.member_id
 `;
 
 const router = Router();
@@ -66,13 +68,15 @@ router.get("/public", async (_req, res) => {
   const pool = await getPool();
   const result = await pool.request().query(`
     SELECT m.id, m.name, m.initials, m.show_on_about_page,
-           STRING_AGG(r.name, ',') AS roles_agg
+           STRING_AGG(r.name, ',') AS roles_agg,
+           CASE WHEN ma.member_id IS NOT NULL THEN 1 ELSE 0 END AS has_avatar
     FROM dbo.members m
     LEFT JOIN dbo.users u ON u.member_id = m.id
     LEFT JOIN dbo.member_roles mr ON mr.member_id = m.id
     LEFT JOIN dbo.roles r ON r.id = mr.role_id
+    LEFT JOIN dbo.member_avatars ma ON ma.member_id = m.id
     WHERE ISNULL(u.banned, 0) = 0 AND m.is_virtual = 0
-    GROUP BY m.id, m.name, m.initials, m.show_on_about_page
+    GROUP BY m.id, m.name, m.initials, m.show_on_about_page, ma.member_id
     ORDER BY m.id
   `);
   res.json(
@@ -83,6 +87,7 @@ router.get("/public", async (_req, res) => {
       show_on_about_page:
         row.show_on_about_page === true || row.show_on_about_page === 1,
       roles: row.roles_agg ? (row.roles_agg as string).split(",") : [],
+      has_avatar: row.has_avatar === 1 || row.has_avatar === true,
     })),
   );
 });
@@ -472,9 +477,11 @@ router.get("/:id/shifts", async (req, res) => {
              n.location, n.vagt_member_id, n.vagt_confirmed,
              n.created_at, n.updated_at,
              m.name AS assigned_member_name,
-             m.initials AS assigned_member_initials
+             m.initials AS assigned_member_initials,
+             CASE WHEN ma.member_id IS NOT NULL THEN 1 ELSE 0 END AS vagt_member_has_avatar
       FROM dbo.club_nights n
       LEFT JOIN dbo.members m ON m.id = n.vagt_member_id
+      LEFT JOIN dbo.member_avatars ma ON ma.member_id = n.vagt_member_id
       WHERE n.vagt_member_id = @memberId
         AND n.vagt_confirmed = 1
         AND n.date >= @today

@@ -141,16 +141,30 @@ router.get(
 
     const result = await pool.request().input("channelId", sql.Int, channelId)
       .query(`
-      SELECT m.id, m.name, m.initials
+      SELECT m.id, m.name, m.initials,
+             CASE WHEN ma.member_id IS NOT NULL THEN 1 ELSE 0 END AS has_avatar
       FROM dbo.members m
       JOIN dbo.channel_members cm ON cm.member_id = m.id
       LEFT JOIN dbo.users u ON u.member_id = m.id
+      LEFT JOIN dbo.member_avatars ma ON ma.member_id = m.id
       WHERE cm.channel_id = @channelId
         AND ISNULL(u.banned, 0) = 0
       ORDER BY m.name
     `);
 
-    res.json(result.recordset);
+    res.json(
+      result.recordset.map(
+        (r: {
+          id: number;
+          name: string;
+          initials: string;
+          has_avatar: number | boolean;
+        }) => ({
+          ...r,
+          has_avatar: r.has_avatar === 1 || r.has_avatar === true,
+        }),
+      ),
+    );
   }),
 );
 

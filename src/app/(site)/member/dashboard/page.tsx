@@ -740,9 +740,20 @@ export default function ProfilePage() {
                       </span>
                     ) : hasOtherVagt ? (
                       <div className="flex items-center gap-1.5 shrink-0">
-                        <span className="w-6 h-6 rounded-full bg-brand-orange text-white text-[0.6rem] font-bold flex items-center justify-center shrink-0">
-                          {evt.assigned_member_initials}
-                        </span>
+                        {evt.vagt_member_has_avatar && evt.vagt_member_id ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={`/api/members/${evt.vagt_member_id}/avatar`}
+                            alt={evt.assigned_member_initials ?? ""}
+                            width={24}
+                            height={24}
+                            className="w-6 h-6 rounded-full object-cover shrink-0"
+                          />
+                        ) : (
+                          <span className="w-6 h-6 rounded-full bg-brand-orange text-white text-[0.6rem] font-bold flex items-center justify-center shrink-0">
+                            {evt.assigned_member_initials}
+                          </span>
+                        )}
                         <span className="text-xs font-medium text-neutral-600 whitespace-nowrap">
                           {evt.assigned_member_name}
                         </span>

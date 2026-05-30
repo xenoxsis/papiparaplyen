@@ -47,6 +47,7 @@ type NightRow = {
   updated_at: string;
   assigned_member_name: string | null;
   assigned_member_initials: string | null;
+  vagt_member_has_avatar: boolean | number;
   status: string;
 };
 
@@ -64,10 +65,12 @@ async function fetchNightWithOptOuts(
              n.created_at, n.updated_at,
              vm.name AS assigned_member_name,
              vm.initials AS assigned_member_initials,
+             CASE WHEN ma.member_id IS NOT NULL THEN 1 ELSE 0 END AS vagt_member_has_avatar,
              n.[status]
       FROM dbo.club_nights n
       LEFT JOIN dbo.members vm ON vm.id = n.vagt_member_id
       LEFT JOIN dbo.locations l ON l.id = n.location_id
+      LEFT JOIN dbo.member_avatars ma ON ma.member_id = n.vagt_member_id
       WHERE n.id = @id
     `);
 
@@ -84,6 +87,8 @@ async function fetchNightWithOptOuts(
     ...row,
     vagt_confirmed: row.vagt_confirmed === true || row.vagt_confirmed === 1,
     cancelled: row.cancelled === true || row.cancelled === 1,
+    vagt_member_has_avatar:
+      row.vagt_member_has_avatar === true || row.vagt_member_has_avatar === 1,
     opted_out_members: optOutsResult.recordset,
   };
 }
@@ -116,10 +121,12 @@ router.get("/", async (req, res) => {
            n.created_at, n.updated_at,
            vm.name AS assigned_member_name,
            vm.initials AS assigned_member_initials,
+           CASE WHEN ma.member_id IS NOT NULL THEN 1 ELSE 0 END AS vagt_member_has_avatar,
            n.[status]
     FROM dbo.club_nights n
     LEFT JOIN dbo.members vm ON vm.id = n.vagt_member_id
     LEFT JOIN dbo.locations l ON l.id = n.location_id
+    LEFT JOIN dbo.member_avatars ma ON ma.member_id = n.vagt_member_id
     ${whereClause}
     ORDER BY n.date
   `);
@@ -136,6 +143,9 @@ router.get("/", async (req, res) => {
     vagt_confirmed:
       n.vagt_confirmed === true || (n.vagt_confirmed as unknown) === 1,
     cancelled: n.cancelled === true || (n.cancelled as unknown) === 1,
+    vagt_member_has_avatar:
+      n.vagt_member_has_avatar === true ||
+      (n.vagt_member_has_avatar as unknown) === 1,
     opted_out_members: optOutsResult.recordset
       .filter((o: { club_night_id: number }) => o.club_night_id === n.id)
       .map(

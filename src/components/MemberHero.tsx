@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { ReactNode } from "react";
 import { useAuth } from "@/lib/auth-context";
 
@@ -29,12 +30,26 @@ export function MemberHero({
 
   const roleLabel = isAdmin ? "Administrator" : isVagt ? "Vagt" : "Medlem";
 
+  const avatarElement =
+    user?.has_avatar && user.id ? (
+      <Image
+        src={`/api/members/${user.id}/avatar`}
+        alt={initials}
+        width={64}
+        height={64}
+        unoptimized
+        className="w-16 h-16 rounded-full object-cover border-2 border-brand-red shrink-0"
+      />
+    ) : (
+      <div className="w-16 h-16 rounded-full border-2 border-brand-red bg-brand-red text-white flex items-center justify-center text-lg font-bold tracking-wider select-none shrink-0">
+        {initials}
+      </div>
+    );
+
   return (
     <div className="bg-neutral-900 rounded-2xl text-white p-6 flex flex-col sm:flex-row justify-between items-center gap-4 sm:gap-6">
       <div className="flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left">
-        <div className="w-16 h-16 rounded-full border-2 border-brand-red bg-brand-red text-white flex items-center justify-center text-lg font-bold tracking-wider select-none shrink-0">
-          {initials}
-        </div>
+        {avatarElement}
         <div className="flex flex-col gap-1">
           <span className="uppercase text-white/60 text-xs tracking-wider">
             Velkommen tilbage

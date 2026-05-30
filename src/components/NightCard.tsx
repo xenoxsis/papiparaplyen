@@ -29,16 +29,29 @@ export function NightCard({
 
   const locationDisplay = night.location_name
     ? publicFacing
-      ? `${night.location_name}, ${night.location_address ?? ""}`.trim().replace(/,\s*$/, "")
+      ? `${night.location_name}, ${night.location_address ?? ""}`
+          .trim()
+          .replace(/,\s*$/, "")
       : night.location_name
     : night.location;
 
   const VagtBadge = () =>
     hasVagt ? (
       <div className="flex items-center gap-1.5">
-        <span className="w-6 h-6 rounded-full bg-brand-teal text-white text-[0.6rem] font-bold flex items-center justify-center shrink-0">
-          {night.assigned_member_initials}
-        </span>
+        {night.vagt_member_has_avatar && night.vagt_member_id ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={`/api/members/${night.vagt_member_id}/avatar`}
+            alt={night.assigned_member_initials ?? ""}
+            width={24}
+            height={24}
+            className="w-6 h-6 rounded-full object-cover shrink-0"
+          />
+        ) : (
+          <span className="w-6 h-6 rounded-full bg-brand-teal text-white text-[0.6rem] font-bold flex items-center justify-center shrink-0">
+            {night.assigned_member_initials}
+          </span>
+        )}
         <span className="text-sm text-neutral-700 hidden sm:block">
           {night.assigned_member_name}
         </span>

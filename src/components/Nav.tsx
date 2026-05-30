@@ -24,6 +24,39 @@ import { useAuth } from "@/lib/auth-context";
 import { useNotifications } from "@/lib/useNotifications";
 import NotificationBell from "@/components/NotificationBell";
 
+// Small avatar circle — shows photo if available, otherwise initials
+function NavAvatar({
+  id,
+  initials,
+  hasAvatar,
+  className,
+}: {
+  id: number;
+  initials: string;
+  hasAvatar?: boolean;
+  className?: string;
+}) {
+  if (hasAvatar) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={`/api/members/${id}/avatar`}
+        alt={initials}
+        width={36}
+        height={36}
+        className={`w-9 h-9 rounded-full object-cover shrink-0 ${className ?? ""}`}
+      />
+    );
+  }
+  return (
+    <span
+      className={`flex w-9 h-9 rounded-full bg-brand-red text-white items-center justify-center text-[0.65rem] font-bold select-none ${className ?? ""}`}
+    >
+      {initials}
+    </span>
+  );
+}
+
 const navLinks = [
   { href: "/", label: "Hjem", icon: Home },
   { href: "/about", label: "Om os", icon: Info },
@@ -119,17 +152,25 @@ export default function Nav() {
             {/* Desktop: button with dropdown */}
             <button
               onClick={() => setOpen((v) => !v)}
-              className="hidden sm:flex w-9 h-9 rounded-full bg-brand-red text-white items-center justify-center text-[0.65rem] font-bold select-none cursor-pointer hover:ring-2 hover:ring-brand-red/40 transition-all"
+              className="hidden sm:flex overflow-hidden cursor-pointer hover:ring-2 hover:ring-brand-red/40 transition-all rounded-full border-none p-0 bg-transparent"
             >
-              {user.initials}
+              <NavAvatar
+                id={user.id}
+                initials={user.initials}
+                hasAvatar={user.has_avatar}
+              />
             </button>
             {/* Mobile: avatar button that toggles the dropdown menu */}
             <button
               onClick={() => setMenuOpen((v) => !v)}
-              className={`sm:hidden w-9 h-9 rounded-full bg-brand-red text-white flex items-center justify-center text-[0.65rem] font-bold select-none cursor-pointer transition-all ${menuOpen ? "ring-2 ring-brand-red/40" : ""}`}
+              className={`sm:hidden overflow-hidden cursor-pointer transition-all rounded-full border-none p-0 bg-transparent ${menuOpen ? "ring-2 ring-brand-red/40" : ""}`}
               aria-label="Toggle menu"
             >
-              {user.initials}
+              <NavAvatar
+                id={user.id}
+                initials={user.initials}
+                hasAvatar={user.has_avatar}
+              />
             </button>
 
             {open && (

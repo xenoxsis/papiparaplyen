@@ -134,9 +134,20 @@ function TonightBanner({
       </div>
       {next.assigned_member_name ? (
         <div className="flex items-center gap-2 shrink-0">
-          <div className="w-7 h-7 rounded-full bg-brand-red text-white text-[0.6rem] font-bold flex items-center justify-center">
-            {next.assigned_member_initials}
-          </div>
+          {next.vagt_member_has_avatar && next.vagt_member_id ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={`/api/members/${next.vagt_member_id}/avatar`}
+              alt={next.assigned_member_initials ?? ""}
+              width={28}
+              height={28}
+              className="w-7 h-7 rounded-full object-cover"
+            />
+          ) : (
+            <div className="w-7 h-7 rounded-full bg-brand-red text-white text-[0.6rem] font-bold flex items-center justify-center">
+              {next.assigned_member_initials}
+            </div>
+          )}
           <span className="text-sm font-medium text-neutral-700">
             {next.assigned_member_name}
           </span>

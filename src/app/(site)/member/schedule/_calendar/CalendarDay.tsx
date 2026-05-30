@@ -5,13 +5,20 @@ import { AlertTriangle } from "lucide-react";
 import type { ApiClubNight } from "@/lib/api";
 import { isoWeek } from "./calendarGrid";
 
-type VagtInfo = { id: number; name: string; initials: string } | null;
+type VagtInfo = {
+  id: number;
+  name: string;
+  initials: string;
+  has_avatar?: boolean;
+} | null;
 
 const REASSIGN_MIME = "application/x-vagt-reassign";
 const DAY_INITIALS = ["M", "T", "O", "T", "F", "L", "S"];
 
-export interface CalendarDayProps
-  extends Omit<React.HTMLAttributes<HTMLDivElement>, "onDragStart" | "onDrop"> {
+export interface CalendarDayProps extends Omit<
+  React.HTMLAttributes<HTMLDivElement>,
+  "onDragStart" | "onDrop"
+> {
   date: string;
   /** Mon-first day of week (0 = Mon … 6 = Sun). */
   dow: number;
@@ -68,9 +75,14 @@ export const CalendarDay = forwardRef<HTMLDivElement, CalendarDayProps>(
     const weekend = dow >= 5;
     const hasNight = night !== null;
     const cancelled = !!night?.cancelled;
-    const isPast = hasNight && night ? new Date(`${night.date}T${night.time_to || "23:59:59"}`) < new Date() : false;
-    const alreadyAssigned = draggingMemberId !== null && vagt?.id === draggingMemberId;
-    const isDroppable = isAdmin && hasNight && !cancelled && !isPast && !alreadyAssigned;
+    const isPast =
+      hasNight && night
+        ? new Date(`${night.date}T${night.time_to || "23:59:59"}`) < new Date()
+        : false;
+    const alreadyAssigned =
+      draggingMemberId !== null && vagt?.id === draggingMemberId;
+    const isDroppable =
+      isAdmin && hasNight && !cancelled && !isPast && !alreadyAssigned;
 
     function handleDragOver(e: React.DragEvent) {
       if (!isDroppable || !night) return;
@@ -144,7 +156,9 @@ export const CalendarDay = forwardRef<HTMLDivElement, CalendarDayProps>(
         title={violationMessage ?? undefined}
         {...rest}
         className={`relative flex items-center gap-1.5 px-2 h-7 border-l-2 border-b-2 ${
-          isCurrentWeek && dow === 6 ? "border-b-blue-300" : "border-b-neutral-200"
+          isCurrentWeek && dow === 6
+            ? "border-b-blue-300"
+            : "border-b-neutral-200"
         } ${rowBorder} ${rowBg} ${
           isCurrentWeek ? "border-r-2 border-r-blue-300" : ""
         } ${isCurrentWeek && isMonday ? "border-t-2 border-t-blue-300" : ""} ${
@@ -203,13 +217,26 @@ export const CalendarDay = forwardRef<HTMLDivElement, CalendarDayProps>(
                 title={vagt.name}
               >
                 <div
-                  className={`w-4 h-4 rounded-full text-white flex items-center justify-center text-[0.5rem] font-bold select-none shrink-0 ${
+                  className={`w-4 h-4 rounded-full text-white flex items-center justify-center text-[0.5rem] font-bold select-none shrink-0 overflow-hidden ${
                     cancelled ? "bg-neutral-400" : "bg-brand-red"
                   }`}
                 >
-                  {vagt.initials}
+                  {vagt.has_avatar ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={`/api/members/${vagt.id}/avatar`}
+                      alt={vagt.initials}
+                      width={16}
+                      height={16}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    vagt.initials
+                  )}
                 </div>
-                <span className={`text-[10px] leading-4 font-medium ml-0.5 ${cancelled ? "text-neutral-400" : "text-neutral-700"}`}>
+                <span
+                  className={`text-[10px] leading-4 font-medium ml-0.5 ${cancelled ? "text-neutral-400" : "text-neutral-700"}`}
+                >
                   {vagt.name.split(" ")[0]}
                 </span>
               </div>

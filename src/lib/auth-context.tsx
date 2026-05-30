@@ -17,6 +17,7 @@ export type User = {
   initials: string;
   roles: string[];
   is_superuser?: boolean;
+  has_avatar?: boolean;
 };
 
 type AuthContextType = {

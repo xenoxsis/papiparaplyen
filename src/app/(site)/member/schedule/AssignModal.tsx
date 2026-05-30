@@ -104,8 +104,19 @@ export function AssignModal({
                   isCurrent ? "bg-brand-teal/10" : "hover:bg-neutral-50"
                 }`}
               >
-                <div className="w-10 h-10 rounded-full bg-brand-red text-white flex items-center justify-center text-xs font-bold shrink-0">
-                  {m.initials}
+                <div className="w-10 h-10 rounded-full bg-brand-red text-white flex items-center justify-center text-xs font-bold shrink-0 overflow-hidden">
+                  {m.has_avatar ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={`/api/members/${m.id}/avatar`}
+                      alt={m.initials}
+                      width={40}
+                      height={40}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    m.initials
+                  )}
                 </div>
                 <div className="flex flex-col flex-1 min-w-0">
                   <span className="text-sm font-medium text-neutral-900 truncate">

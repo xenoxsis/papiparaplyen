@@ -111,6 +111,7 @@ router.post("/login", async (req, res) => {
     initials: row.initials,
     roles,
     is_superuser: normalizedLoginEmail === SUPERUSER_EMAIL,
+    has_avatar: false, // refreshed immediately by /api/auth/me on page load
   });
 });
 
@@ -245,7 +246,11 @@ router.get("/me", requireAuth, async (_req, res) => {
     .request()
     .input("memberId", sql.Int, memberId)
     .query(
-      "SELECT m.name, m.initials, m.email FROM dbo.members m WHERE m.id = @memberId",
+      `SELECT m.name, m.initials, m.email,
+              CASE WHEN ma.member_id IS NOT NULL THEN 1 ELSE 0 END AS has_avatar
+       FROM dbo.members m
+       LEFT JOIN dbo.member_avatars ma ON ma.member_id = m.id
+       WHERE m.id = @memberId`,
     );
   if (result.recordset.length === 0)
     return res.status(404).json({ error: "Not found" });
@@ -257,6 +262,7 @@ router.get("/me", requireAuth, async (_req, res) => {
     initials: row.initials as string,
     roles,
     is_superuser: !!SUPERUSER_EMAIL && email === SUPERUSER_EMAIL,
+    has_avatar: row.has_avatar === 1 || row.has_avatar === true,
   });
 });
 

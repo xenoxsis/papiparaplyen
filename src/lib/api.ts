@@ -54,6 +54,7 @@ export type ApiMember = {
   rule_allow_two_in_a_row: boolean;
   rule_allow_weekday_after_sunday: boolean;
   rule_no_weekends: boolean;
+  has_avatar: boolean;
 };
 
 export type ApiLocation = {
@@ -79,6 +80,7 @@ export type ApiClubNight = {
   vagt_member_id: number | null;
   assigned_member_name: string | null;
   assigned_member_initials: string | null;
+  vagt_member_has_avatar: boolean;
   opted_out_members: { id: number; name: string; initials: string }[];
   vagt_confirmed: boolean;
   cancelled: boolean;
@@ -140,6 +142,7 @@ export type ApiPublicMember = {
   initials: string;
   show_on_about_page: boolean;
   roles: string[];
+  has_avatar: boolean;
 };
 
 export const getPublicMembers = () =>
@@ -406,6 +409,7 @@ export type ApiChannelMember = {
   id: number;
   name: string;
   initials: string;
+  has_avatar?: boolean;
 };
 
 export const getChannelMembers = (channelId: number) =>
@@ -523,3 +527,31 @@ export const getBggPrefs = () => api<ApiBggPrefs>("/api/auth/bgg-prefs");
 
 export const patchBggPrefs = (prefs: Partial<ApiBggPrefs>) =>
   apiPatch<{ ok: boolean }>("/api/auth/bgg-prefs", prefs);
+
+// ── Avatar ───────────────────────────────────────────────────────────────────
+
+/**
+ * Upload a cropped avatar image. Sends as multipart/form-data so we bypass
+ * the JSON Content-Type header set by the default `api()` wrapper.
+ */
+export async function uploadAvatar(
+  blob: Blob,
+): Promise<{ ok: boolean; size: number }> {
+  const form = new FormData();
+  form.append("image", blob, "avatar.jpg");
+  const res = await fetch(`${BASE}/api/members/me/avatar`, {
+    method: "POST",
+    credentials: "include",
+    body: form,
+  });
+  if (!res.ok) {
+    if (res.status === 401)
+      window.dispatchEvent(new Event("auth:unauthorized"));
+    const body = await res.json().catch(() => ({}));
+    throw new Error((body as { error?: string }).error ?? `HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
+export const deleteAvatar = () =>
+  apiDelete<{ ok: boolean }>("/api/members/me/avatar");

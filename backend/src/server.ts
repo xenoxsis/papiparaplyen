@@ -26,6 +26,7 @@ import auditLogRouter from "./routes/audit-log";
 import boardgamesRouter from "./routes/boardgames";
 import locationsRouter from "./routes/locations";
 import addressAutocompleteRouter from "./routes/address-autocomplete";
+import avatarRouter from "./routes/avatar";
 import { getPool } from "./db";
 
 const app = express();
@@ -99,6 +100,7 @@ app.use("/api/audit-log", auditLogRouter);
 app.use("/api/boardgames", boardgamesRouter);
 app.use("/api/locations", locationsRouter);
 app.use("/api/address-autocomplete", addressAutocompleteRouter);
+app.use("/api/members", avatarRouter);
 
 app.get("/health", (_, res) => res.json({ ok: true }));
 

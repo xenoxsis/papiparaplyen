@@ -53,15 +53,15 @@ Status: 🔴 TODO · 🟡 IN PROGRESS · ✅ DONE
 
 ## Verification Checklist
 
-- [ ] `GET /api/members` without `Authorization` cookie → `401 Unauthorized`
-- [ ] `DELETE /api/auth/me` → member row anonymised, email NULLed, user row deleted, messages body NULLed
-- [ ] `GET /api/auth/me/export` → JSON containing all personal data for calling member
-- [ ] New registration → `email_on_mention`, `email_on_nights`, `email_on_shift` all `0`; `email_consent_at` set to `NULL` (explicit opt-in required separately)
-- [ ] `/privacy` page renders and is linked from footer
-- [ ] DB connection uses `encrypt: true` in production
-- [ ] Banned user's subsequent requests → `403` on next API call (banned check in `requireAuth`)
-- [ ] `password_reset_tokens` with `used = 1` older than 30 days purged by scheduler
-- [ ] Notifications older than 90 days purged by scheduler
-- [ ] Deleted message has `body = NULL` in DB, not just `is_deleted = 1`
-- [ ] Server error logs do not print email addresses
-- [ ] Minimum password length enforced at 10 characters
+- [x] `GET /api/members` without `Authorization` cookie → `401 Unauthorized`
+- [x] `DELETE /api/auth/me` → member row anonymised, email NULLed, user row deleted, messages body NULLed
+- [x] `GET /api/auth/me/export` → JSON containing all personal data for calling member
+- [x] New registration → `email_on_mention`, `email_on_nights`, `email_on_shift` all `0`; `email_consent_at` set to `NULL` (explicit opt-in required separately)
+- [x] `/privacy` page renders and is linked from footer
+- [x] DB connection uses `encrypt: true` in production
+- [x] Banned user's subsequent requests → `403` on next API call (banned check in `requireAuth`)
+- [x] `password_reset_tokens` with `used = 1` older than 30 days purged by scheduler
+- [x] Notifications older than 90 days purged by scheduler
+- [x] Deleted message has `body = NULL` in DB, not just `is_deleted = 1`
+- [x] Server error logs do not print email addresses
+- [x] Minimum password length enforced at 10 characters

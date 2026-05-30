@@ -645,8 +645,19 @@ export function ChatPanel({
                             {member.name === "vagter" ? "VAG" : "ALL"}
                           </div>
                         ) : (
-                          <div className="w-6 h-6 rounded-full bg-brand-red text-white flex items-center justify-center text-[0.55rem] font-bold shrink-0">
-                            {member.initials}
+                          <div className="w-6 h-6 rounded-full bg-brand-red text-white flex items-center justify-center text-[0.55rem] font-bold shrink-0 overflow-hidden">
+                            {member.has_avatar ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={`/api/members/${member.id}/avatar`}
+                                alt={member.initials}
+                                width={24}
+                                height={24}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              member.initials
+                            )}
                           </div>
                         )}
                         <span className="font-medium text-neutral-900">

@@ -18,7 +18,12 @@ import {
 } from "lucide-react";
 import type { ApiClubNight, ApiMessage } from "@/lib/api";
 
-type VagtInfo = { id: number; name: string; initials: string } | null;
+type VagtInfo = {
+  id: number;
+  name: string;
+  initials: string;
+  has_avatar?: boolean;
+} | null;
 
 interface ScheduleNightCardProps {
   night: ApiClubNight;
@@ -173,8 +178,19 @@ export function ScheduleNightCard({
                       : "bg-white border-neutral-200"
                   } ${isAdmin ? "cursor-pointer hover:border-neutral-400" : ""}`}
                 >
-                  <div className="w-6 h-6 rounded-full bg-brand-red text-white flex items-center justify-center text-[0.55rem] font-bold select-none shrink-0">
-                    {vagt.initials}
+                  <div className="w-6 h-6 rounded-full bg-brand-red text-white flex items-center justify-center text-[0.55rem] font-bold select-none shrink-0 overflow-hidden">
+                    {vagt.has_avatar ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={`/api/members/${vagt.id}/avatar`}
+                        alt={vagt.initials}
+                        width={24}
+                        height={24}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      vagt.initials
+                    )}
                   </div>
                   <span className="text-xs leading-4">{vagt.name}</span>
                   {isAdmin && !isPast && (

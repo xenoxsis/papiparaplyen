@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Users, Heart, Gamepad2, BookOpen, Shield } from "lucide-react";
 import Image from "next/image";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getPublicMembers, type ApiPublicMember } from "@/lib/api";
 
 export default function AboutPage() {
@@ -161,6 +161,12 @@ export default function AboutPage() {
                   className="bg-neutral-50 rounded-xl border border-neutral-200 p-6 flex flex-col items-center gap-3"
                 >
                   <Avatar className="size-20">
+                    {m.has_avatar && (
+                      <AvatarImage
+                        src={`/api/members/${m.id}/avatar`}
+                        alt={m.name}
+                      />
+                    )}
                     <AvatarFallback className="bg-brand-red text-white text-lg font-bold">
                       {m.initials}
                     </AvatarFallback>

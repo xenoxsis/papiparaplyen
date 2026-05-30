@@ -17,7 +17,12 @@ import {
 } from "@/components/ui/popover";
 import type { ApiClubNight } from "@/lib/api";
 
-type VagtInfo = { id: number; name: string; initials: string } | null;
+type VagtInfo = {
+  id: number;
+  name: string;
+  initials: string;
+  has_avatar?: boolean;
+} | null;
 
 export interface DayDetailPopoverProps {
   night: ApiClubNight;
@@ -49,7 +54,8 @@ export function DayDetailPopover({
   onCancel,
   children,
 }: DayDetailPopoverProps) {
-  const isPast = new Date(`${night.date}T${night.time_to || "23:59:59"}`) < new Date();
+  const isPast =
+    new Date(`${night.date}T${night.time_to || "23:59:59"}`) < new Date();
   const dateLabel = new Date(night.date).toLocaleDateString("da-DK", {
     weekday: "long",
     day: "numeric",
@@ -101,8 +107,19 @@ export function DayDetailPopover({
         <div className="px-4 pb-3 flex flex-col gap-2 border-t border-neutral-100 pt-3">
           {vagt ? (
             <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-full bg-brand-red text-white flex items-center justify-center text-[0.55rem] font-bold shrink-0">
-                {vagt.initials}
+              <div className="w-7 h-7 rounded-full bg-brand-red text-white flex items-center justify-center text-[0.55rem] font-bold shrink-0 overflow-hidden">
+                {vagt.has_avatar ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={`/api/members/${vagt.id}/avatar`}
+                    alt={vagt.initials}
+                    width={28}
+                    height={28}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  vagt.initials
+                )}
               </div>
               <div className="flex flex-col flex-1 min-w-0">
                 <span className="text-sm font-medium text-neutral-900 truncate">
@@ -153,7 +170,9 @@ export function DayDetailPopover({
                     <div className="w-4 h-4 rounded-full bg-neutral-400 text-white flex items-center justify-center text-[0.45rem] font-bold shrink-0">
                       {o.initials}
                     </div>
-                    <span className="text-[10px] text-neutral-500">{o.name}</span>
+                    <span className="text-[10px] text-neutral-500">
+                      {o.name}
+                    </span>
                   </div>
                 ))}
               </div>

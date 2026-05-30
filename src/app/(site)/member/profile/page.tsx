@@ -2,30 +2,36 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
+  Camera,
   Check,
   Download,
   KeyRound,
   Loader2,
   Mail,
-  User,
-  Upload,
-  X,
   Trash2,
+  Upload,
+  User,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth-context";
 import { useRequireAuth } from "@/lib/useRequireAuth";
 import {
+  deleteAvatar,
+  getEmailPrefs,
+  getBggPrefs,
   patchMe,
   changePassword,
-  getEmailPrefs,
   patchEmailPrefs,
-  getBggPrefs,
   patchBggPrefs,
+  uploadAvatar,
   uploadBggCollection,
   type ApiEmailPrefs,
   type ApiBggPrefs,
 } from "@/lib/api";
+import { AVATAR_UPLOAD_ROLES } from "@/lib/config";
+import { AvatarCropModal } from "@/components/AvatarCropModal";
+import { MemberAvatar } from "@/components/MemberAvatar";
 import { DeleteAccountModal } from "@/app/(site)/member/dashboard/DeleteAccountModal";
 
 // ── Toggle ────────────────────────────────────────────────────────────────────
@@ -124,6 +130,51 @@ const idleSteps: UploadSteps = {
 export default function ProfileSettingsPage() {
   useRequireAuth();
   const { user, updateUser } = useAuth();
+
+  // Avatar
+  const [avatarVersion, setAvatarVersion] = useState(0);
+  const [cropSrc, setCropSrc] = useState<string | null>(null);
+  const [deletingAvatar, setDeletingAvatar] = useState(false);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+  const canUploadAvatar =
+    user?.roles?.some((r) => AVATAR_UPLOAD_ROLES.includes(r)) ?? false;
+
+  function handleAvatarFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    setCropSrc(url);
+    // Reset so same file can be re-selected
+    e.target.value = "";
+  }
+
+  async function handleCropConfirm(blob: Blob) {
+    await uploadAvatar(blob);
+    const v = Date.now();
+    setAvatarVersion(v);
+    updateUser({ has_avatar: true });
+    setCropSrc(null);
+    toast.success("Profilbillede opdateret");
+  }
+
+  function handleCropClose() {
+    if (cropSrc) URL.revokeObjectURL(cropSrc);
+    setCropSrc(null);
+  }
+
+  async function handleDeleteAvatar() {
+    setDeletingAvatar(true);
+    try {
+      await deleteAvatar();
+      updateUser({ has_avatar: false });
+      setAvatarVersion(0);
+      toast.success("Profilbillede slettet");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Noget gik galt");
+    } finally {
+      setDeletingAvatar(false);
+    }
+  }
 
   // Name
   const [name, setName] = useState(user?.name ?? "");
@@ -306,6 +357,63 @@ export default function ProfileSettingsPage() {
           Administrer dit navn, adgangskode og notifikationspræferencer.
         </p>
       </div>
+
+      {/* ── Profilbillede ── */}
+      {canUploadAvatar && (
+        <Section icon={<Camera className="size-4" />} title="Profilbillede">
+          <div className="flex items-center gap-5">
+            <MemberAvatar
+              initials={user?.initials ?? "?"}
+              size="lg"
+              memberId={user?.id}
+              hasAvatar={user?.has_avatar}
+              avatarVersion={avatarVersion || undefined}
+            />
+            <div className="flex flex-col gap-2">
+              <input
+                ref={avatarInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleAvatarFileChange}
+              />
+              <button
+                onClick={() => avatarInputRef.current?.click()}
+                className="flex items-center gap-2 h-9 px-4 rounded-lg border border-neutral-300 text-sm font-medium text-neutral-700 hover:bg-neutral-50 transition-colors cursor-pointer bg-white"
+              >
+                <Upload className="size-4" />
+                {user?.has_avatar ? "Skift billede" : "Upload billede"}
+              </button>
+              {user?.has_avatar && (
+                <button
+                  onClick={handleDeleteAvatar}
+                  disabled={deletingAvatar}
+                  className="flex items-center gap-2 h-9 px-4 rounded-lg border border-red-200 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors cursor-pointer bg-white disabled:opacity-50"
+                >
+                  {deletingAvatar ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <Trash2 className="size-4" />
+                  )}
+                  Slet billede
+                </button>
+              )}
+            </div>
+          </div>
+          <p className="text-xs text-neutral-400 mt-1">
+            Billedet vises som et cirkulært profilbillede. Maks. 10 MB. JPEG,
+            PNG eller WebP.
+          </p>
+        </Section>
+      )}
+
+      {cropSrc && (
+        <AvatarCropModal
+          imageSrc={cropSrc}
+          onConfirm={handleCropConfirm}
+          onClose={handleCropClose}
+        />
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
         {/* ── Navn ── */}

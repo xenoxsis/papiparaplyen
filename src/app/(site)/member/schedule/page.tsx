@@ -984,9 +984,20 @@ export default function SchedulePage() {
                         className="flex items-center gap-2 rounded-md px-2 py-2 border border-neutral-100 bg-white"
                       >
                         <div
-                          className={`w-7 h-7 rounded-full text-white flex items-center justify-center text-[0.55rem] font-bold select-none shrink-0 ${m.is_virtual ? "bg-brand-teal/40 border border-dashed border-brand-teal" : "bg-brand-red"}`}
+                          className={`w-7 h-7 rounded-full text-white flex items-center justify-center text-[0.55rem] font-bold select-none shrink-0 overflow-hidden ${m.is_virtual ? "bg-brand-teal/40 border border-dashed border-brand-teal" : "bg-brand-red"}`}
                         >
-                          {m.initials}
+                          {m.has_avatar ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={`/api/members/${m.id}/avatar`}
+                              alt={m.initials}
+                              width={28}
+                              height={28}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            m.initials
+                          )}
                         </div>
                         <span className="text-xs font-medium text-neutral-800 flex-1 truncate">
                           {m.name}
