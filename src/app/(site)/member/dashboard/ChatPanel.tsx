@@ -282,7 +282,7 @@ export function ChatPanel({
   }, [messages]);
 
   return (
-    <div className="bg-white rounded-xl border border-neutral-200 p-6 flex flex-col gap-4 shadow-sm">
+    <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 p-6 flex flex-col gap-4 shadow-sm">
       <div className="flex justify-between items-center">
         <div className="flex items-center gap-2">
           <MessagesSquare className="size-5 text-neutral-900 shrink-0" />
@@ -299,8 +299,8 @@ export function ChatPanel({
             }}
             className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-sm transition-colors cursor-pointer border-none font-[inherit] ${
               showChannelSearch
-                ? "bg-neutral-100 text-neutral-900"
-                : "bg-transparent text-neutral-500 hover:bg-neutral-100"
+                ? "bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100"
+                : "bg-transparent text-neutral-500 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800"
             }`}
           >
             <Search className="size-4" />
@@ -327,14 +327,14 @@ export function ChatPanel({
         {/* Channel sidebar */}
         {!hideChannelSelector && (
           <div
-            className={`flex flex-col overflow-hidden border border-neutral-200 rounded-lg md:flex ${
+            className={`flex flex-col overflow-hidden border border-neutral-200 dark:border-neutral-700 rounded-lg md:flex ${
               showChannelDrawer
-                ? "absolute inset-y-0 left-0 z-20 w-72 bg-white shadow-xl"
+                ? "absolute inset-y-0 left-0 z-20 w-72 bg-white dark:bg-neutral-900 shadow-xl"
                 : "hidden md:flex"
             }`}
           >
             {showChannelSearch && (
-              <div className="p-2 border-b border-neutral-100">
+              <div className="p-2 border-b border-neutral-100 dark:border-neutral-800">
                 <div className="relative">
                   <Search className="size-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
                   <input
@@ -390,8 +390,8 @@ export function ChatPanel({
                           }
                         }
                       }}
-                      className={`text-left flex flex-col gap-0.5 px-3 py-2 border-b border-neutral-100 hover:bg-neutral-50 transition-colors ${
-                        isActive ? "bg-neutral-50" : ""
+                      className={`text-left flex flex-col gap-0.5 px-3 py-2 border-b border-neutral-100 dark:border-neutral-800 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors ${
+                        isActive ? "bg-neutral-50 dark:bg-neutral-800" : ""
                       }`}
                     >
                       <div className="flex items-center gap-1.5">
@@ -500,14 +500,14 @@ export function ChatPanel({
         )}
 
         {/* Chat window */}
-        <div className="border border-neutral-200 rounded-lg flex flex-col overflow-hidden">
+        <div className="border border-neutral-200 dark:border-neutral-700 rounded-lg flex flex-col overflow-hidden">
           {/* Window header */}
-          <div className="border-b border-neutral-200 flex p-3 justify-between items-center shrink-0">
+          <div className="border-b border-neutral-200 dark:border-neutral-700 flex p-3 justify-between items-center shrink-0">
             <div className="flex items-center gap-3">
               {!hideChannelSelector && (
                 <button
                   onClick={() => setShowChannelDrawer(true)}
-                  className="md:hidden flex items-center gap-1.5 px-2.5 h-8 rounded-md border border-neutral-200 bg-white text-neutral-600 text-xs font-medium hover:bg-neutral-50 transition-colors cursor-pointer shrink-0"
+                  className="md:hidden flex items-center gap-1.5 px-2.5 h-8 rounded-md border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 text-xs font-medium hover:bg-neutral-50 dark:hover:bg-neutral-700 transition-colors cursor-pointer shrink-0"
                   aria-label="Åbn samtaler"
                 >
                   <MessagesSquare className="size-3.5" />
@@ -524,7 +524,7 @@ export function ChatPanel({
                 <Users className="size-[1.1rem]" />
               </div>
               <div className="flex flex-col">
-                <span className="font-semibold text-sm text-neutral-900">
+                <span className="font-semibold text-sm text-neutral-900 dark:text-neutral-100">
                   {activeChannel?.name}
                 </span>
                 <span
@@ -551,7 +551,7 @@ export function ChatPanel({
                   if (el) el.scrollTop = el.scrollHeight;
                 }}
                 aria-label="Scroll til bunden"
-                className="absolute bottom-4 right-4 z-10 flex items-center justify-center w-8 h-8 rounded-full bg-white border border-neutral-200 shadow-md text-neutral-600 hover:bg-neutral-50 transition-colors cursor-pointer"
+                className="absolute bottom-4 right-4 z-10 flex items-center justify-center w-8 h-8 rounded-full bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 shadow-md text-neutral-600 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-700 transition-colors cursor-pointer"
               >
                 <ChevronDown className="size-4" />
               </button>
@@ -568,7 +568,7 @@ export function ChatPanel({
               role="log"
               aria-live="polite"
               aria-label="Beskeder"
-              className="bg-neutral-50/40 flex p-4 flex-col flex-1 gap-3 overflow-y-auto"
+              className="bg-neutral-50/40 dark:bg-neutral-800/30 flex p-4 flex-col flex-1 gap-3 overflow-y-auto"
             >
               {loading
                 ? Array.from({ length: 5 }).map((_, i) => (
@@ -620,7 +620,7 @@ export function ChatPanel({
           </div>
 
           {/* Input bar */}
-          <div className="border-t border-neutral-200 flex flex-col shrink-0">
+          <div className="border-t border-neutral-200 dark:border-neutral-700 flex flex-col shrink-0">
             {/* Reply preview bar */}
             {replyingTo && (
               <div className="flex items-center gap-2 px-3 pt-2 pb-1">
@@ -636,7 +636,7 @@ export function ChatPanel({
                 <button
                   onClick={() => setReplyingTo(null)}
                   aria-label="Annuller svar"
-                  className="w-5 h-5 flex items-center justify-center rounded text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 transition-colors cursor-pointer shrink-0"
+                  className="w-5 h-5 flex items-center justify-center rounded text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors cursor-pointer shrink-0"
                 >
                   <X className="size-3" />
                 </button>
@@ -659,10 +659,11 @@ export function ChatPanel({
                               bottom: window.innerHeight - dropdownRect.top + 4,
                             }),
                         zIndex: 9999,
-                        background: "white",
-                        border: "1px solid #e5e7eb",
+                        background: "var(--popover)",
+                        color: "var(--popover-foreground)",
+                        border: "1px solid var(--border)",
                         borderRadius: 12,
-                        boxShadow: "0 4px 24px rgba(0,0,0,0.10)",
+                        boxShadow: "0 4px 24px rgba(0,0,0,0.15)",
                         overflow: "hidden",
                       }}
                     >
@@ -675,8 +676,8 @@ export function ChatPanel({
                           }}
                           className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left transition-colors border-none bg-transparent cursor-pointer ${
                             i === mentionIndex
-                              ? "bg-neutral-100"
-                              : "hover:bg-neutral-50"
+                              ? "bg-neutral-100 dark:bg-neutral-800"
+                              : "hover:bg-neutral-50 dark:hover:bg-neutral-800"
                           }`}
                         >
                           {member.id < 0 ? (
@@ -732,7 +733,7 @@ export function ChatPanel({
                 <input
                   ref={inputRef}
                   aria-label={`Skriv til ${activeChannel?.name?.toLowerCase() ?? "gruppen"}`}
-                  className="w-full h-10 border border-neutral-200 rounded-lg px-3 text-sm outline-none font-[inherit] bg-transparent placeholder:text-neutral-400 focus:border-neutral-900"
+                  className="w-full h-10 border border-neutral-200 dark:border-neutral-700 rounded-lg px-3 text-sm outline-none font-[inherit] bg-transparent placeholder:text-neutral-400 dark:placeholder:text-neutral-500 focus:border-neutral-900 dark:focus:border-neutral-400 dark:text-neutral-100"
                   placeholder={`Skriv til ${activeChannel?.name?.toLowerCase() ?? "gruppen"}…`}
                   value={msgBody}
                   onChange={handleInputChange}

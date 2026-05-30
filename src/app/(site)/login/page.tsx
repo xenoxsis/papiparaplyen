@@ -104,8 +104,8 @@ export default function LoginPage() {
   }
 
   return (
-    <section className="bg-white w-full min-h-[calc(100vh-3.5rem)] flex items-center justify-center px-4 py-12">
-      <div className="max-w-md w-full bg-white border border-neutral-200 rounded-2xl p-8 flex flex-col gap-6 shadow-xl">
+    <section className="bg-white dark:bg-neutral-950 w-full min-h-[calc(100vh-3.5rem)] flex items-center justify-center px-4 py-12">
+      <div className="max-w-md w-full bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-2xl p-8 flex flex-col gap-6 shadow-xl">
         {/* Header */}
         <div className="flex flex-col items-center gap-4">
           <div className="w-28 h-28 flex items-center justify-center">
@@ -114,14 +114,15 @@ export default function LoginPage() {
               alt="Esbjerg Brætspil logo"
               width={112}
               height={112}
+              priority
               className="object-contain w-full h-full"
             />
           </div>
           <div className="text-center flex flex-col items-center gap-2">
-            <h1 className="font-bold text-neutral-900 text-2xl">
+            <h1 className="font-bold text-neutral-900 dark:text-neutral-100 text-2xl">
               {tab === "login" ? "Medlemslogin" : "Bliv medlem"}
             </h1>
-            <p className="text-neutral-500 text-sm">
+            <p className="text-neutral-500 dark:text-neutral-400 text-sm">
               {tab === "login"
                 ? "Log ind for at snakke med os alle."
                 : "Opret din profil og kom med i klubben."}
@@ -131,16 +132,16 @@ export default function LoginPage() {
 
         {/* Tabs */}
         {!showForgot && (
-          <div className="flex rounded-lg border border-neutral-200 overflow-hidden">
+          <div className="flex rounded-lg border border-neutral-200 dark:border-neutral-700 overflow-hidden">
             <button
               onClick={() => setTab("login")}
-              className={`flex-1 py-2 text-sm font-medium transition-colors cursor-pointer ${tab === "login" ? "bg-neutral-900 text-white" : "bg-white text-neutral-500 hover:bg-neutral-50"}`}
+              className={`flex-1 py-2 text-sm font-medium transition-colors cursor-pointer ${tab === "login" ? "bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-900" : "bg-white dark:bg-neutral-800 text-neutral-500 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-700"}`}
             >
               Log ind
             </button>
             <button
               onClick={() => setTab("register")}
-              className={`flex-1 py-2 text-sm font-medium transition-colors cursor-pointer ${tab === "register" ? "bg-neutral-900 text-white" : "bg-white text-neutral-500 hover:bg-neutral-50"}`}
+              className={`flex-1 py-2 text-sm font-medium transition-colors cursor-pointer ${tab === "register" ? "bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-900" : "bg-white dark:bg-neutral-800 text-neutral-500 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-700"}`}
             >
               Bliv medlem
             </button>
@@ -151,7 +152,7 @@ export default function LoginPage() {
           <form className="flex flex-col gap-4" onSubmit={handleLogin}>
             <div className="flex flex-col gap-2">
               <label
-                className="font-medium text-sm text-neutral-900"
+                className="font-medium text-sm text-neutral-900 dark:text-neutral-100"
                 htmlFor="email"
               >
                 E-mail
@@ -171,7 +172,7 @@ export default function LoginPage() {
             </div>
             <div className="flex flex-col gap-2">
               <label
-                className="font-medium text-sm text-neutral-900"
+                className="font-medium text-sm text-neutral-900 dark:text-neutral-100"
                 htmlFor="password"
               >
                 Adgangskode
@@ -229,7 +230,7 @@ export default function LoginPage() {
           <form className="flex flex-col gap-4" onSubmit={handleRegister}>
             <div className="flex flex-col gap-2">
               <label
-                className="font-medium text-sm text-neutral-900"
+                className="font-medium text-sm text-neutral-900 dark:text-neutral-100"
                 htmlFor="reg-name"
               >
                 Fulde navn
@@ -250,7 +251,7 @@ export default function LoginPage() {
             </div>
             <div className="flex flex-col gap-2">
               <label
-                className="font-medium text-sm text-neutral-900"
+                className="font-medium text-sm text-neutral-900 dark:text-neutral-100"
                 htmlFor="reg-email"
               >
                 E-mail
@@ -271,7 +272,7 @@ export default function LoginPage() {
             </div>
             <div className="flex flex-col gap-2">
               <label
-                className="font-medium text-sm text-neutral-900"
+                className="font-medium text-sm text-neutral-900 dark:text-neutral-100"
                 htmlFor="reg-password"
               >
                 Adgangskode
@@ -306,7 +307,7 @@ export default function LoginPage() {
             </div>
             <div className="flex flex-col gap-2">
               <label
-                className="font-medium text-sm text-neutral-900"
+                className="font-medium text-sm text-neutral-900 dark:text-neutral-100"
                 htmlFor="reg-password2"
               >
                 Gentag adgangskode
@@ -359,7 +360,7 @@ export default function LoginPage() {
             <form className="flex flex-col gap-4" onSubmit={handleForgot}>
               <div className="flex flex-col gap-2">
                 <label
-                  className="font-medium text-sm text-neutral-900"
+                  className="font-medium text-sm text-neutral-900 dark:text-neutral-100"
                   htmlFor="forgot-email"
                 >
                   E-mail
@@ -407,7 +408,7 @@ export default function LoginPage() {
           <div className="flex gap-3">
             <a
               href="/api/auth/google"
-              className="flex-1 flex items-center justify-center gap-2 border border-neutral-200 rounded-lg py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 transition-colors"
+              className="flex-1 flex items-center justify-center gap-2 border border-neutral-200 dark:border-neutral-700 rounded-lg py-2 text-sm font-medium text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
             >
               <svg
                 className="size-4"

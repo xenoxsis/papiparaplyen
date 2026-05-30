@@ -42,7 +42,7 @@ export function ShiftsPanel({
     return (
       <div className="flex flex-col gap-4">
         {/* Skeleton next shift card */}
-        <div className="bg-white rounded-xl border border-neutral-200 p-6 flex flex-col gap-4 shadow-sm">
+        <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 p-6 flex flex-col gap-4 shadow-sm">
           <div className="flex items-center gap-2">
             <Skeleton className="h-5 w-5 rounded" />
             <Skeleton className="h-4 w-32 rounded" />
@@ -60,7 +60,7 @@ export function ShiftsPanel({
         {[1, 2].map((i) => (
           <div
             key={i}
-            className="bg-white rounded-xl border border-neutral-200 p-4 flex items-center gap-3 shadow-sm"
+            className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 p-4 flex items-center gap-3 shadow-sm"
           >
             <Skeleton className="w-10 h-12 rounded-lg shrink-0" />
             <div className="flex flex-col gap-2 flex-1">
@@ -77,7 +77,7 @@ export function ShiftsPanel({
     <div className="flex flex-col gap-4">
       {/* Pending confirmation panel */}
       {pendingShiftsForMe.length > 0 && (
-        <div className="bg-white rounded-xl border-l-4 border-brand-orange p-6 flex flex-col gap-4 shadow-sm w-full min-w-0">
+        <div className="bg-white dark:bg-neutral-900 rounded-xl border-l-4 border-brand-orange p-6 flex flex-col gap-4 shadow-sm w-full min-w-0">
           <div className="flex items-center gap-2">
             <AlarmClock className="size-5 text-brand-orange shrink-0" />
             <h2 className="font-semibold text-base text-neutral-900">
@@ -104,7 +104,7 @@ export function ShiftsPanel({
             {pendingShiftsForMe.map((shift) => (
               <div
                 key={shift.id}
-                className="rounded-lg border border-neutral-200 bg-neutral-50 p-3 flex flex-col gap-2"
+                className="rounded-lg border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 p-3 flex flex-col gap-2"
               >
                 <div className="flex items-center gap-3">
                   <DateBadge date={shift.date} colorClass="bg-brand-orange" />
@@ -133,7 +133,7 @@ export function ShiftsPanel({
                   </button>
                   <button
                     onClick={() => onOptOut(shift.id)}
-                    className="flex-1 h-8 rounded-lg bg-white border border-brand-red/40 text-brand-red text-xs font-semibold hover:bg-brand-red/5 transition-colors cursor-pointer"
+                    className="flex-1 h-8 rounded-lg bg-white dark:bg-transparent border border-brand-red/40 text-brand-red text-xs font-semibold hover:bg-brand-red/5 transition-colors cursor-pointer"
                   >
                     Meld fra
                   </button>
@@ -145,7 +145,7 @@ export function ShiftsPanel({
       )}
 
       {/* Next / All shifts panel */}
-      <div className="bg-white rounded-xl border-l-4 border-brand-red p-6 flex flex-col gap-4 shadow-sm w-full min-w-0">
+      <div className="bg-white dark:bg-neutral-900 rounded-xl border-l-4 border-brand-red p-6 flex flex-col gap-4 shadow-sm w-full min-w-0">
         <div className="flex flex-col gap-2">
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-2">
@@ -166,7 +166,7 @@ export function ShiftsPanel({
           <>
             {nextShift ? (
               <div className="flex flex-col gap-3">
-                <div className="bg-neutral-100 rounded-lg flex p-3 items-center gap-3">
+                <div className="bg-neutral-100 dark:bg-neutral-800 rounded-lg flex p-3 items-center gap-3">
                   <DateBadge date={nextShift.date} colorClass="bg-brand-teal" />
                   <div className="flex flex-col gap-1">
                     <span className="font-semibold text-sm text-neutral-900">
@@ -244,7 +244,7 @@ export function ShiftsPanel({
               {shifts.map((s) => (
                 <div
                   key={s.id}
-                  className="rounded-lg flex flex-col gap-2 p-3 border bg-white border-neutral-200"
+                  className="rounded-lg flex flex-col gap-2 p-3 border bg-white dark:bg-neutral-900 border-neutral-200 dark:border-neutral-700"
                 >
                   <div className="flex items-center gap-3">
                     <DateBadge date={s.date} colorClass="bg-brand-teal" />
@@ -277,7 +277,7 @@ export function ShiftsPanel({
                       disabled={
                         pendingSwap !== null && pendingSwap.shiftId !== s.id
                       }
-                      className="w-full h-8 rounded-lg border border-neutral-200 bg-neutral-50 text-neutral-600 text-xs font-medium hover:bg-neutral-100 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
+                      className="w-full h-8 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 text-xs font-medium hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
                     >
                       <RefreshCcw className="size-3" />
                       Byt vagt

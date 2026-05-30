@@ -171,7 +171,7 @@ export default function BoardgamesPage() {
   const colProps = { currentKey: sortKey, dir: sortDir, onSort: handleSort };
 
   return (
-    <main className="bg-neutral-100 min-h-[calc(100vh-3.5rem)] p-4 sm:p-8 flex flex-col gap-6">
+    <main className="bg-neutral-100 dark:bg-neutral-950 min-h-[calc(100vh-3.5rem)] p-4 sm:p-8 flex flex-col gap-6">
       {/* Header */}
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl font-bold text-neutral-900">Brætspil</h1>
@@ -189,7 +189,7 @@ export default function BoardgamesPage() {
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-xl border border-neutral-200 p-4 shadow-sm flex flex-wrap gap-3 items-end">
+      <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 p-4 shadow-sm flex flex-wrap gap-3 items-end">
         <div className="flex flex-col gap-1 flex-1 min-w-40">
           <label className="text-xs font-medium text-neutral-600">
             Søg efter spil
@@ -257,7 +257,7 @@ export default function BoardgamesPage() {
               setWeightMin("");
               setWeightMax("");
             }}
-            className="h-9 px-4 rounded-lg border border-neutral-200 text-sm text-neutral-600 hover:bg-neutral-50 cursor-pointer bg-white"
+            className="h-9 px-4 rounded-lg border border-neutral-200 dark:border-neutral-700 text-sm text-neutral-600 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800 cursor-pointer bg-white dark:bg-neutral-900"
           >
             Ryd filtre
           </button>
@@ -265,7 +265,7 @@ export default function BoardgamesPage() {
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-xl border border-neutral-200 shadow-sm overflow-x-auto">
+      <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 shadow-sm overflow-x-auto">
         {loading ? (
           <div className="p-8 text-center text-sm text-neutral-500">
             Henter spil…
@@ -318,7 +318,7 @@ export default function BoardgamesPage() {
                 return (
                   <tr
                     key={game.bgg_id}
-                    className="hover:bg-neutral-50 transition-colors"
+                    className="hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
                   >
                     <td className="px-4 py-3 font-medium text-neutral-900">
                       {game.name}

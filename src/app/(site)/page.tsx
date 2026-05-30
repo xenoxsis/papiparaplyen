@@ -38,6 +38,7 @@ export default async function Home() {
               alt="Esbjerg Brætspil logo"
               width={144}
               height={144}
+              priority
               className="object-contain w-full h-full"
             />
           </div>
@@ -78,23 +79,25 @@ export default async function Home() {
       </section>
 
       {/* About */}
-      <section className="w-full bg-white">
+      <section className="w-full bg-white dark:bg-neutral-950">
         <div className="max-w-285 mx-auto px-4 sm:px-8 py-10 sm:py-12 grid grid-cols-1 md:grid-cols-2 gap-8 sm:gap-12">
           <div className="flex flex-col justify-center gap-4">
             <span className="font-semibold uppercase text-red-500 text-sm tracking-wider">
               Om os
             </span>
-            <h2 className="font-bold text-neutral-900 text-3xl">Hvem er vi?</h2>
-            <p className="leading-relaxed text-neutral-500">
+            <h2 className="font-bold text-neutral-900 dark:text-neutral-100 text-3xl">
+              Hvem er vi?
+            </h2>
+            <p className="leading-relaxed text-neutral-500 dark:text-neutral-400">
               Esbjerg Brætspil er en hyggelig brætspilsklub, hvor vi mødes
               regelmæssigt for at spille alt fra klassiske familiespil til
               komplekse strategispil.
             </p>
-            <p className="leading-relaxed text-neutral-500">
+            <p className="leading-relaxed text-neutral-500 dark:text-neutral-400">
               Hos os er alle velkomne - uanset om du er erfaren veteran eller
               helt ny i brætspilsverdenen.
             </p>
-            <p className="leading-relaxed text-neutral-500">
+            <p className="leading-relaxed text-neutral-500 dark:text-neutral-400">
               Klubben råder over et stort spilbibliotek med over 200 titler, så
               der er altid noget nyt at prøve.
             </p>
@@ -129,7 +132,7 @@ export default async function Home() {
               sizes="(max-width: 640px) 100vw, 800px"
               className="object-cover"
             />
-            <div className="absolute left-4 right-4 bottom-4 bg-white/90 rounded-lg p-4 flex items-center gap-2 font-medium text-sm text-neutral-900">
+            <div className="absolute left-4 right-4 bottom-4 bg-white/90 dark:bg-neutral-900/90 rounded-lg p-4 flex items-center gap-2 font-medium text-sm text-neutral-900 dark:text-neutral-100">
               <Users className="size-5 text-red-500 shrink-0" />
               <span>Hver torsdag aften - helt gratis</span>
             </div>
@@ -138,14 +141,14 @@ export default async function Home() {
       </section>
 
       {/* Events */}
-      <section className="w-full bg-neutral-100">
+      <section className="w-full bg-neutral-100 dark:bg-neutral-900">
         <div className="max-w-285 mx-auto px-4 sm:px-8 py-10 sm:py-12 flex flex-col gap-8">
           <div className="flex justify-between items-end">
             <div className="flex flex-col gap-2">
               <span className="font-semibold uppercase text-red-500 text-sm tracking-wider">
                 Klubaftener
               </span>
-              <h2 className="font-bold text-neutral-900 text-3xl">
+              <h2 className="font-bold text-neutral-900 dark:text-neutral-100 text-3xl">
                 Næste klubaftener
               </h2>
             </div>

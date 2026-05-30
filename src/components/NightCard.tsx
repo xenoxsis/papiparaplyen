@@ -52,7 +52,7 @@ export function NightCard({
             {night.assigned_member_initials}
           </span>
         )}
-        <span className="text-sm text-neutral-700 hidden sm:block">
+        <span className="text-sm text-neutral-700 dark:text-neutral-300 hidden sm:block">
           {night.assigned_member_name}
         </span>
       </div>
@@ -84,7 +84,7 @@ export function NightCard({
 
     return (
       <div
-        className={`relative overflow-hidden flex items-center gap-4 bg-white border rounded-xl px-4 py-3 ${isNext ? "border-l-4 border-l-brand-red" : ""}`}
+        className={`relative overflow-hidden flex items-center gap-4 bg-white dark:bg-neutral-900 border dark:border-neutral-700 rounded-xl px-4 py-3 ${isNext ? "border-l-4 border-l-brand-red" : ""}`}
       >
         <AflystOverlay />
 
@@ -106,7 +106,7 @@ export function NightCard({
                 Næste
               </span>
             )}
-            <span className="font-semibold text-sm text-neutral-900 truncate">
+            <span className="font-semibold text-sm text-neutral-900 dark:text-neutral-100 truncate">
               {night.name}
             </span>
           </div>
@@ -116,13 +116,13 @@ export function NightCard({
         </div>
 
         {/* Time */}
-        <div className="hidden sm:flex items-center gap-1.5 text-xs text-neutral-500 shrink-0">
+        <div className="hidden sm:flex items-center gap-1.5 text-xs text-neutral-500 dark:text-neutral-400 shrink-0">
           <Clock className="size-3.5" />
           {night.time_from} - {night.time_to}
         </div>
 
         {/* Location */}
-        <div className="hidden md:flex items-center gap-1.5 text-xs text-neutral-500 shrink-0">
+        <div className="hidden md:flex items-center gap-1.5 text-xs text-neutral-500 dark:text-neutral-400 shrink-0">
           <MapPin className="size-3.5" />
           {locationDisplay}
         </div>
@@ -137,7 +137,7 @@ export function NightCard({
           <button
             onClick={() => onFollowToggle(!isFollowing)}
             title={isFollowing ? "Stop med at følge" : "Følg denne aften"}
-            className={`shrink-0 p-1.5 rounded-lg border transition-colors ${isFollowing ? "border-blue-300 bg-blue-50 text-blue-600 hover:bg-blue-100" : "border-neutral-200 bg-white text-neutral-400 hover:text-neutral-700 hover:border-neutral-400"}`}
+            className={`shrink-0 p-1.5 rounded-lg border transition-colors ${isFollowing ? "border-blue-300 bg-blue-50 text-blue-600 hover:bg-blue-100" : "border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-400 dark:text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300 hover:border-neutral-400 dark:hover:border-neutral-500"}`}
           >
             {isFollowing ? (
               <BellOff className="size-3.5" />
@@ -169,18 +169,18 @@ export function NightCard({
           <Calendar className="size-3" />
           {isNext ? "Næste aften" : `Klubaften #${night.number}`}
         </span>
-        <h3 className="font-bold text-xl text-neutral-900 capitalize">
+        <h3 className="font-bold text-xl text-neutral-900 dark:text-neutral-100 capitalize">
           {dateLabel}
         </h3>
         <p className="text-neutral-500 text-sm">{night.name}</p>
       </CardHeader>
       <CardContent className="flex flex-col gap-2 pt-0 pb-6">
-        <div className="flex items-center gap-2 text-sm text-neutral-900">
-          <Clock className="size-4 text-neutral-500 shrink-0" />
+        <div className="flex items-center gap-2 text-sm text-neutral-900 dark:text-neutral-100">
+          <Clock className="size-4 text-neutral-500 dark:text-neutral-400 shrink-0" />
           {night.time_from} - {night.time_to}
         </div>
-        <div className="flex items-center gap-2 text-sm text-neutral-900">
-          <MapPin className="size-4 text-neutral-500 shrink-0" />
+        <div className="flex items-center gap-2 text-sm text-neutral-900 dark:text-neutral-100">
+          <MapPin className="size-4 text-neutral-500 dark:text-neutral-400 shrink-0" />
           {locationDisplay}
         </div>
         <div className="mt-1 flex items-center justify-between gap-2">
@@ -190,7 +190,7 @@ export function NightCard({
             <button
               onClick={() => onFollowToggle(!isFollowing)}
               title={isFollowing ? "Stop med at følge" : "Følg denne aften"}
-              className={`shrink-0 flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-lg border transition-colors ${isFollowing ? "border-blue-300 bg-blue-50 text-blue-600 hover:bg-blue-100" : "border-neutral-200 bg-white text-neutral-500 hover:border-neutral-400 hover:text-neutral-800"}`}
+              className={`shrink-0 flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-lg border transition-colors ${isFollowing ? "border-blue-300 bg-blue-50 text-blue-600 hover:bg-blue-100" : "border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-500 dark:text-neutral-400 hover:border-neutral-400 dark:hover:border-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200"}`}
             >
               {isFollowing ? (
                 <BellOff className="size-3" />

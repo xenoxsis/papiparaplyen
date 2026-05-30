@@ -92,13 +92,13 @@ export default function Nav() {
   }
 
   return (
-    <nav className="bg-white border-b border-neutral-200 w-full relative z-40">
+    <nav className="bg-white dark:bg-neutral-900 border-b border-neutral-200 dark:border-neutral-700 w-full relative z-40">
       <div className="max-w-285 mx-auto px-4 sm:px-8 py-4 flex flex-row items-center gap-6">
         <Link href="/" className="flex items-center gap-2 mr-4 shrink-0">
-          <div className="w-8 h-8 rounded-full bg-neutral-900 flex items-center justify-center p-1">
-            <Dices className="size-5 text-white" />
+          <div className="w-8 h-8 rounded-full bg-neutral-900 dark:bg-neutral-100 flex items-center justify-center p-1">
+            <Dices className="size-5 text-white dark:text-neutral-900" />
           </div>
-          <span className="font-bold text-sm tracking-wide text-neutral-900 hidden sm:block">
+          <span className="font-bold text-sm tracking-wide text-neutral-900 dark:text-neutral-100 hidden sm:block">
             ESBJERG BRÆTSPIL
           </span>
         </Link>
@@ -112,8 +112,8 @@ export default function Nav() {
               href={href}
               className={`hidden sm:flex items-center gap-1.5 font-medium text-sm pb-0.5 border-b-2 transition-colors ${
                 isActive
-                  ? "text-neutral-900 border-neutral-900"
-                  : "text-neutral-500 border-transparent hover:text-neutral-900"
+                  ? "text-neutral-900 dark:text-neutral-100 border-neutral-900 dark:border-neutral-100"
+                  : "text-neutral-500 dark:text-neutral-400 border-transparent hover:text-neutral-900 dark:hover:text-neutral-100"
               }`}
             >
               <Icon className="size-4" />
@@ -128,7 +128,7 @@ export default function Nav() {
         {/* Mobile hamburger button — only shown when logged out */}
         {!user && (
           <button
-            className="sm:hidden flex items-center justify-center p-2 rounded-lg text-neutral-700 hover:bg-neutral-100 transition-colors"
+            className="sm:hidden flex items-center justify-center p-2 rounded-lg text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
             onClick={() => setMenuOpen((v) => !v)}
             aria-label="Toggle menu"
           >
@@ -174,9 +174,9 @@ export default function Nav() {
             </button>
 
             {open && (
-              <div className="hidden sm:block absolute right-0 top-full mt-2 w-52 bg-white border border-neutral-200 rounded-xl shadow-lg overflow-hidden z-50">
-                <div className="px-4 py-3 border-b border-neutral-100">
-                  <p className="font-semibold text-sm text-neutral-900">
+              <div className="hidden sm:block absolute right-0 top-full mt-2 w-52 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-xl shadow-lg overflow-hidden z-50">
+                <div className="px-4 py-3 border-b border-neutral-100 dark:border-neutral-700">
+                  <p className="font-semibold text-sm text-neutral-900 dark:text-neutral-100">
                     {user.name}
                   </p>
                 </div>
@@ -184,18 +184,18 @@ export default function Nav() {
                   <Link
                     href="/member/profile"
                     onClick={() => setOpen(false)}
-                    className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-neutral-700 hover:bg-neutral-100 transition-colors"
+                    className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
                   >
-                    <SlidersHorizontal className="size-4 text-neutral-500" />
+                    <SlidersHorizontal className="size-4 text-neutral-500 dark:text-neutral-400" />
                     Profil
                   </Link>
                   <Link
                     href="/member/dashboard"
                     onClick={() => setOpen(false)}
-                    className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-neutral-700 hover:bg-neutral-100 transition-colors"
+                    className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
                   >
                     <div className="relative">
-                      <User className="size-4 text-neutral-500" />
+                      <User className="size-4 text-neutral-500 dark:text-neutral-400" />
                       {pendingShiftCount > 0 && (
                         <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-brand-red" />
                       )}
@@ -207,34 +207,34 @@ export default function Nav() {
                       <Link
                         href="/member/schedule"
                         onClick={() => setOpen(false)}
-                        className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-neutral-700 hover:bg-neutral-100 transition-colors"
+                        className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
                       >
-                        <ShieldCheck className="size-4 text-neutral-500" />
+                        <ShieldCheck className="size-4 text-neutral-500 dark:text-neutral-400" />
                         Vagtplan
                       </Link>
                       <Link
                         href="/member/vagter"
                         onClick={() => setOpen(false)}
-                        className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-neutral-700 hover:bg-neutral-100 transition-colors"
+                        className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
                       >
-                        <Shield className="size-4 text-neutral-500" />
+                        <Shield className="size-4 text-neutral-500 dark:text-neutral-400" />
                         Vagt Info
                       </Link>
                       <Link
                         href="/member/admin"
                         onClick={() => setOpen(false)}
-                        className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-neutral-700 hover:bg-neutral-100 transition-colors"
+                        className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
                       >
-                        <Settings className="size-4 text-neutral-500" />
+                        <Settings className="size-4 text-neutral-500 dark:text-neutral-400" />
                         Brugeradmin
                       </Link>
                       {user.is_superuser && (
                         <Link
                           href="/member/admin/logs"
                           onClick={() => setOpen(false)}
-                          className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-neutral-700 hover:bg-neutral-100 transition-colors"
+                          className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
                         >
-                          <ScrollText className="size-4 text-neutral-500" />
+                          <ScrollText className="size-4 text-neutral-500 dark:text-neutral-400" />
                           Logbog
                         </Link>
                       )}
@@ -246,9 +246,9 @@ export default function Nav() {
                       <Link
                         href="/member/schedule"
                         onClick={() => setOpen(false)}
-                        className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-neutral-700 hover:bg-neutral-100 transition-colors"
+                        className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
                       >
-                        <ShieldCheck className="size-4 text-neutral-500" />
+                        <ShieldCheck className="size-4 text-neutral-500 dark:text-neutral-400" />
                         Vagtplan
                       </Link>
                     )}
@@ -257,14 +257,14 @@ export default function Nav() {
                       <Link
                         href="/member/vagter"
                         onClick={() => setOpen(false)}
-                        className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-neutral-700 hover:bg-neutral-100 transition-colors"
+                        className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
                       >
-                        <Shield className="size-4 text-neutral-500" />
+                        <Shield className="size-4 text-neutral-500 dark:text-neutral-400" />
                         Vagt Info
                       </Link>
                     )}
                 </div>
-                <div className="p-1 border-t border-neutral-100">
+                <div className="p-1 border-t border-neutral-100 dark:border-neutral-700">
                   <button
                     onClick={handleLogout}
                     className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-brand-red hover:bg-brand-red/5 transition-colors"
@@ -290,7 +290,7 @@ export default function Nav() {
 
       {/* Mobile dropdown menu */}
       {menuOpen && (
-        <div className="sm:hidden border-t border-neutral-200 bg-white px-4 py-3 flex flex-col gap-1">
+        <div className="sm:hidden border-t border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-4 py-3 flex flex-col gap-1">
           {navLinks.map(({ href, label, icon: Icon }) => {
             const isActive = pathname === href;
             return (
@@ -300,8 +300,8 @@ export default function Nav() {
                 onClick={() => setMenuOpen(false)}
                 className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                   isActive
-                    ? "bg-neutral-100 text-neutral-900"
-                    : "text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900"
+                    ? "bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100"
+                    : "text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800 hover:text-neutral-900 dark:hover:text-neutral-100"
                 }`}
               >
                 <Icon className="size-4" />
@@ -320,21 +320,21 @@ export default function Nav() {
             </Link>
           )}
           {user && (
-            <div className="flex flex-col gap-1 mt-1 border-t border-neutral-100 pt-2">
+            <div className="flex flex-col gap-1 mt-1 border-t border-neutral-100 dark:border-neutral-700 pt-2">
               <Link
                 href="/member/profile"
                 onClick={() => setMenuOpen(false)}
-                className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm text-neutral-700 hover:bg-neutral-100 transition-colors"
+                className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
               >
-                <SlidersHorizontal className="size-4 text-neutral-500" />
+                <SlidersHorizontal className="size-4 text-neutral-500 dark:text-neutral-400" />
                 Profil
               </Link>
               <Link
                 href="/member/dashboard"
                 onClick={() => setMenuOpen(false)}
-                className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm text-neutral-700 hover:bg-neutral-100 transition-colors"
+                className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
               >
-                <User className="size-4 text-neutral-500" />
+                <User className="size-4 text-neutral-500 dark:text-neutral-400" />
                 Medlemsområde
               </Link>
               {(user.roles.includes("Administrator") ||
@@ -343,9 +343,9 @@ export default function Nav() {
                 <Link
                   href="/member/schedule"
                   onClick={() => setMenuOpen(false)}
-                  className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm text-neutral-700 hover:bg-neutral-100 transition-colors"
+                  className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
                 >
-                  <ShieldCheck className="size-4 text-neutral-500" />
+                  <ShieldCheck className="size-4 text-neutral-500 dark:text-neutral-400" />
                   Vagtplan
                 </Link>
               )}
@@ -354,9 +354,9 @@ export default function Nav() {
                 <Link
                   href="/member/vagter"
                   onClick={() => setMenuOpen(false)}
-                  className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm text-neutral-700 hover:bg-neutral-100 transition-colors"
+                  className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
                 >
-                  <Shield className="size-4 text-neutral-500" />
+                  <Shield className="size-4 text-neutral-500 dark:text-neutral-400" />
                   Vagt Info
                 </Link>
               )}
@@ -364,9 +364,9 @@ export default function Nav() {
                 <Link
                   href="/member/admin"
                   onClick={() => setMenuOpen(false)}
-                  className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm text-neutral-700 hover:bg-neutral-100 transition-colors"
+                  className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
                 >
-                  <Settings className="size-4 text-neutral-500" />
+                  <Settings className="size-4 text-neutral-500 dark:text-neutral-400" />
                   Brugeradmin
                 </Link>
               )}
@@ -374,9 +374,9 @@ export default function Nav() {
                 <Link
                   href="/member/admin/logs"
                   onClick={() => setMenuOpen(false)}
-                  className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm text-neutral-700 hover:bg-neutral-100 transition-colors"
+                  className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
                 >
-                  <ScrollText className="size-4 text-neutral-500" />
+                  <ScrollText className="size-4 text-neutral-500 dark:text-neutral-400" />
                   Logbog
                 </Link>
               )}

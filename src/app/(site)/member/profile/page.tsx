@@ -8,6 +8,9 @@ import {
   KeyRound,
   Loader2,
   Mail,
+  Monitor,
+  Moon,
+  Sun,
   Trash2,
   Upload,
   User,
@@ -30,6 +33,7 @@ import {
   type ApiBggPrefs,
 } from "@/lib/api";
 import { AVATAR_UPLOAD_ROLES } from "@/lib/config";
+import { useTheme, type Theme } from "@/lib/theme-context";
 import { AvatarCropModal } from "@/components/AvatarCropModal";
 import { MemberAvatar } from "@/components/MemberAvatar";
 import { DeleteAccountModal } from "@/app/(site)/member/dashboard/DeleteAccountModal";
@@ -50,9 +54,13 @@ function Toggle({
   return (
     <div className="flex items-start justify-between gap-4">
       <div className="flex flex-col gap-0.5">
-        <span className="text-sm font-medium text-neutral-900">{label}</span>
+        <span className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
+          {label}
+        </span>
         {description && (
-          <span className="text-xs text-neutral-500">{description}</span>
+          <span className="text-xs text-neutral-500 dark:text-neutral-400">
+            {description}
+          </span>
         )}
       </div>
       <button
@@ -60,29 +68,12 @@ function Toggle({
         aria-checked={enabled}
         aria-label={label}
         onClick={onToggle}
-        className="shrink-0 mt-0.5 cursor-pointer border-none"
-        style={{
-          position: "relative",
-          width: 40,
-          height: 24,
-          borderRadius: 9999,
-          backgroundColor: enabled ? "#171717" : "#e5e5e5",
-          transition: "background-color 150ms",
-        }}
+        className={`shrink-0 mt-0.5 cursor-pointer border-none relative transition-colors duration-150 ${enabled ? "bg-neutral-900 dark:bg-neutral-100" : "bg-neutral-200 dark:bg-neutral-700"}`}
+        style={{ width: 40, height: 24, borderRadius: 9999 }}
       >
         <span
-          style={{
-            position: "absolute",
-            top: "50%",
-            left: enabled ? 20 : 4,
-            transform: "translateY(-50%)",
-            width: 16,
-            height: 16,
-            borderRadius: 9999,
-            backgroundColor: "white",
-            boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
-            transition: "left 150ms",
-          }}
+          className="absolute top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-white dark:bg-neutral-900 shadow-sm transition-all duration-150"
+          style={{ left: enabled ? 20 : 4 }}
         />
       </button>
     </div>
@@ -101,10 +92,12 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <div className="bg-white rounded-2xl border border-neutral-200 overflow-hidden">
-      <div className="flex items-center gap-3 px-5 py-4 border-b border-neutral-100">
-        <span className="text-neutral-500">{icon}</span>
-        <h2 className="font-semibold text-neutral-900 text-sm">{title}</h2>
+    <div className="bg-white dark:bg-neutral-900 rounded-2xl border border-neutral-200 dark:border-neutral-700 overflow-hidden">
+      <div className="flex items-center gap-3 px-5 py-4 border-b border-neutral-100 dark:border-neutral-700">
+        <span className="text-neutral-500 dark:text-neutral-400">{icon}</span>
+        <h2 className="font-semibold text-neutral-900 dark:text-neutral-100 text-sm">
+          {title}
+        </h2>
       </div>
       <div className="p-5">{children}</div>
     </div>
@@ -130,6 +123,7 @@ const idleSteps: UploadSteps = {
 export default function ProfileSettingsPage() {
   useRequireAuth();
   const { user, updateUser } = useAuth();
+  const { theme, setTheme } = useTheme();
 
   // Avatar
   const [avatarVersion, setAvatarVersion] = useState(0);
@@ -344,16 +338,19 @@ export default function ProfileSettingsPage() {
   }
 
   const inputCls =
-    "h-9 rounded-lg border border-neutral-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900 w-full";
-  const labelCls = "text-xs font-medium text-neutral-600 mb-1";
+    "h-9 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900 dark:focus:ring-neutral-100 w-full";
+  const labelCls =
+    "text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1";
   const saveBtnCls =
-    "h-9 px-4 rounded-lg bg-neutral-900 text-white text-sm font-medium hover:bg-neutral-700 transition-colors cursor-pointer border-none disabled:opacity-50";
+    "h-9 px-4 rounded-lg bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-900 text-sm font-medium hover:bg-neutral-700 dark:hover:bg-neutral-300 transition-colors cursor-pointer border-none disabled:opacity-50";
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8 flex flex-col gap-6">
       <div>
-        <h1 className="text-xl font-bold text-neutral-900">Indstillinger</h1>
-        <p className="text-sm text-neutral-500 mt-1">
+        <h1 className="text-xl font-bold text-neutral-900 dark:text-neutral-100">
+          Indstillinger
+        </h1>
+        <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1">
           Administrer dit navn, adgangskode og notifikationspræferencer.
         </p>
       </div>
@@ -379,7 +376,7 @@ export default function ProfileSettingsPage() {
               />
               <button
                 onClick={() => avatarInputRef.current?.click()}
-                className="flex items-center gap-2 h-9 px-4 rounded-lg border border-neutral-300 text-sm font-medium text-neutral-700 hover:bg-neutral-50 transition-colors cursor-pointer bg-white"
+                className="flex items-center gap-2 h-9 px-4 rounded-lg border border-neutral-300 dark:border-neutral-600 text-sm font-medium text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors cursor-pointer bg-white dark:bg-transparent"
               >
                 <Upload className="size-4" />
                 {user?.has_avatar ? "Skift billede" : "Upload billede"}
@@ -388,7 +385,7 @@ export default function ProfileSettingsPage() {
                 <button
                   onClick={handleDeleteAvatar}
                   disabled={deletingAvatar}
-                  className="flex items-center gap-2 h-9 px-4 rounded-lg border border-red-200 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors cursor-pointer bg-white disabled:opacity-50"
+                  className="flex items-center gap-2 h-9 px-4 rounded-lg border border-red-200 dark:border-red-800 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950 transition-colors cursor-pointer bg-white dark:bg-transparent disabled:opacity-50"
                 >
                   {deletingAvatar ? (
                     <Loader2 className="size-4 animate-spin" />
@@ -505,14 +502,14 @@ export default function ProfileSettingsPage() {
                   description="Modtag en e-mail når du @omtales i chatten"
                   onToggle={() => toggleEmailPref("email_on_mention")}
                 />
-                <div className="border-t border-neutral-100" />
+                <div className="border-t border-neutral-100 dark:border-neutral-700" />
                 <Toggle
                   enabled={emailPrefs.email_on_nights}
                   label="Nye klubaftener"
                   description="Modtag en e-mail når der tilføjes nye aftener til programmet"
                   onToggle={() => toggleEmailPref("email_on_nights")}
                 />
-                <div className="border-t border-neutral-100" />
+                <div className="border-t border-neutral-100 dark:border-neutral-700" />
                 <Toggle
                   enabled={emailPrefs.email_on_shift}
                   label="Vagtplan"
@@ -563,14 +560,14 @@ export default function ProfileSettingsPage() {
             <button
               onClick={() => fileInputRef.current?.click()}
               disabled={isUploading}
-              className="flex items-center justify-center gap-2 h-9 rounded-lg border border-neutral-300 text-sm font-medium text-neutral-700 hover:bg-neutral-50 transition-colors cursor-pointer disabled:opacity-50 bg-white"
+              className="flex items-center justify-center gap-2 h-9 rounded-lg border border-neutral-300 dark:border-neutral-600 text-sm font-medium text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors cursor-pointer disabled:opacity-50 bg-white dark:bg-transparent"
             >
               <Upload className="size-4" />
               {isUploading ? "Uploader…" : "Vælg samlings-CSV"}
             </button>
 
             {uploadSteps.reading !== "idle" && (
-              <div className="flex flex-col gap-2 rounded-lg border border-neutral-200 bg-neutral-50 px-4 py-3">
+              <div className="flex flex-col gap-2 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 px-4 py-3">
                 {(
                   [
                     { key: "reading", label: "Læser fil" },
@@ -615,14 +612,14 @@ export default function ProfileSettingsPage() {
             )}
 
             {bggPrefs !== null && (
-              <div className="flex flex-col gap-4 pt-2 border-t border-neutral-100">
+              <div className="flex flex-col gap-4 pt-2 border-t border-neutral-100 dark:border-neutral-700">
                 <Toggle
                   enabled={bggPrefs.bgg_share_collection}
                   label="Del min samling"
                   description="Inkluder mine spil på den offentlige brætspilsliste"
                   onToggle={() => toggleBggPref("bgg_share_collection")}
                 />
-                <div className="border-t border-neutral-100" />
+                <div className="border-t border-neutral-100 dark:border-neutral-700" />
                 <Toggle
                   enabled={bggPrefs.bgg_share_name}
                   label="Vis mit navn som ejer"
@@ -635,20 +632,51 @@ export default function ProfileSettingsPage() {
         </Section>
       </div>
 
+      {/* ── Udseende ── */}
+      <Section icon={<Monitor className="size-4" />} title="Udseende">
+        <div className="flex flex-col gap-3">
+          <p className="text-xs text-neutral-500 dark:text-neutral-400">
+            Vælg om siden vises i lyst, mørkt eller systemets foretrukne tema.
+          </p>
+          <div className="flex gap-2">
+            {(
+              [
+                { value: "light" as Theme, label: "Lyst", icon: Sun },
+                { value: "dark" as Theme, label: "Mørkt", icon: Moon },
+                { value: "system" as Theme, label: "System", icon: Monitor },
+              ] as { value: Theme; label: string; icon: React.ElementType }[]
+            ).map(({ value, label, icon: Icon }) => (
+              <button
+                key={value}
+                onClick={() => setTheme(value)}
+                className={`flex flex-1 flex-col items-center gap-1.5 py-3 rounded-xl border text-xs font-medium transition-colors ${
+                  theme === value
+                    ? "border-neutral-900 dark:border-neutral-100 bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-900"
+                    : "border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-800"
+                }`}
+              >
+                <Icon className="size-4" />
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </Section>
+
       {/* ── Data eksport ── */}
-      <div className="rounded-2xl border border-neutral-200 bg-white p-5 flex flex-col gap-3">
+      <div className="rounded-2xl border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 p-5 flex flex-col gap-3">
         <div>
-          <h2 className="font-semibold text-neutral-900 text-sm">
+          <h2 className="font-semibold text-neutral-900 dark:text-neutral-100 text-sm">
             Eksportér mine data
           </h2>
-          <p className="text-xs text-neutral-500 mt-0.5">
+          <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">
             Download alle dine personoplysninger som en JSON-fil.
           </p>
         </div>
         <button
           onClick={handleExport}
           disabled={exporting}
-          className="flex items-center gap-2 h-9 px-4 rounded-lg border border-neutral-300 text-neutral-700 text-sm font-medium hover:bg-neutral-50 transition-colors cursor-pointer bg-transparent w-fit disabled:opacity-50"
+          className="flex items-center gap-2 h-9 px-4 rounded-lg border border-neutral-300 dark:border-neutral-600 text-neutral-700 dark:text-neutral-300 text-sm font-medium hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors cursor-pointer bg-transparent w-fit disabled:opacity-50"
         >
           <Download className="size-4" />
           {exporting ? "Eksporterer…" : "Download mine data"}
@@ -656,10 +684,12 @@ export default function ProfileSettingsPage() {
       </div>
 
       {/* ── Danger zone ── */}
-      <div className="rounded-2xl border border-red-200 bg-red-50 p-5 flex flex-col gap-3">
+      <div className="rounded-2xl border border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950/30 p-5 flex flex-col gap-3">
         <div>
-          <h2 className="font-semibold text-red-700 text-sm">Slet konto</h2>
-          <p className="text-xs text-red-500 mt-0.5">
+          <h2 className="font-semibold text-red-700 dark:text-red-400 text-sm">
+            Slet konto
+          </h2>
+          <p className="text-xs text-red-500 dark:text-red-400 mt-0.5">
             Disse handlinger kan ikke fortrydes.
           </p>
         </div>

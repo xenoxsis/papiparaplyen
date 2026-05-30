@@ -9,6 +9,9 @@ Quick-reference for AI agents making changes to this repository.
 > **Never run database migrations or project builds.**
 > The user runs both manually. Do not execute `pnpm build`, `tsc`, `docker-compose build/up`, or any SQL migration script — even to verify changes — unless the user explicitly asks for it for debugging purposes.
 
+> **Keep AGENT.MD up to date.**
+> After implementing any feature, update this file to reflect: new/changed DB columns, new migrations, new components, new SSE event types, new API endpoints, new env vars, or new patterns. AGENT.MD is the single source of truth for future agents.
+
 ---
 
 ## Stack
@@ -67,6 +70,8 @@ Quick-reference for AI agents making changes to this repository.
       useRequireAuth.ts    Redirect guard for protected pages
       renderMentions.tsx   Parses @[Name](id) syntax → React chips (inline styles only)
       auto-assign.ts       Auto-assign logic for schedule
+      theme-context.tsx   useTheme() — theme: 'light' | 'dark' | 'system'; setTheme(); resolvedTheme
+                           ThemeProvider wraps the app; persists to localStorage key 'theme'
 
 backend/src/
   server.ts                Express app bootstrap, route mounting
@@ -174,7 +179,9 @@ dbo.channels           id, name, type ('general'|'vagter')
 dbo.channel_members    channel_id FK, member_id FK
 dbo.messages           id, channel_id FK, sender_id FK, body NVARCHAR(MAX),
                        sent_at, type, shift_night_id, swap_status,
-                       taken_by_member_id, is_deleted BIT
+                       taken_by_member_id, is_deleted BIT,
+                       reply_to_id INT NULL FK→dbo.messages
+                       -- reply_to_id: populated for threaded replies; NULL = top-level message
 
 dbo.notifications      id, member_id FK, type, content, link, read_at DATETIME2 NULL, created_at
 
@@ -387,6 +394,57 @@ Club nights have `status: 'draft' | 'published'`. Drafts are only visible to Adm
 
 ---
 
+## Dark Mode
+
+The site supports light / dark / system themes via a `.dark` class on `<html>`.
+
+### How it works
+
+- CSS custom properties (in `globals.css` and `globals.scss`) have a `.dark { ... }` block overriding all semantic tokens (`--background`, `--card`, `--border`, etc.)
+- Tailwind variant: `@custom-variant dark (&:is(.dark *))` — use `dark:` prefixes freely in TSX
+- Theme preference persisted in `localStorage` key **`theme`** — values: `'light' | 'dark' | 'system'`; default `'system'`
+- An inline `<script>` in `layout.tsx` applies the class synchronously before first paint (no FOUC)
+
+### Theme context
+
+`src/lib/theme-context.tsx` — exports `ThemeProvider` and `useTheme()`:
+
+```ts
+const { theme, setTheme, resolvedTheme } = useTheme();
+// theme: 'light' | 'dark' | 'system'
+// resolvedTheme: 'light' | 'dark' (never 'system')
+```
+
+`ThemeProvider` wraps `<AuthProvider>` in `layout.tsx`. It listens to `prefers-color-scheme` changes when `theme === 'system'`.
+
+### User toggle
+
+Exposed as an "Udseende" section in **`src/app/(site)/member/profile/page.tsx`** — a 3-way Light / Dark / System selector.
+
+### Adding dark variants
+
+When building new components, always add `dark:` counterparts for any hardcoded light-mode classes:
+
+```tsx
+className =
+  "bg-white dark:bg-neutral-900 border-neutral-200 dark:border-neutral-700 text-neutral-900 dark:text-neutral-100";
+```
+
+---
+
+## Threaded Replies (Chat)
+
+Messages support quote-replies via `reply_to_id INT NULL FK→dbo.messages`.
+
+- `reply_to_id` is NULL for top-level messages; set to the parent message's id for replies
+- The API returns a `reply_preview` object on the message: `{ id, sender_name, body }` (populated server-side)
+- Frontend: `replyingTo` state in `ChatPanel.tsx` drives a reply preview bar above the input
+- Send: `reply_to_id` is included in the POST body when sending a reply
+- Display: `MessageGroup.tsx` renders the quoted reply context above the message bubble when `reply_to_id` is set
+- Clicking a reply preview scrolls to the original message (`onScrollToMessage` prop)
+
+---
+
 ## Notification Types
 
 All valid values for `NotificationType` (defined in `backend/src/notifications.ts`):
@@ -517,6 +575,6 @@ cd backend && npx tsc --noEmit
 
 Migrations live in `database/migrations/` and are **idempotent** (safe to re-run).
 They must be run manually against the SQL Server container after deploying schema changes.
-Latest migration: **024_member_avatars.sql**
+Latest migration: **025_threaded_replies.sql**
 
 > **Agents must not run migrations.** Write the SQL file and inform the user — they will apply it themselves.

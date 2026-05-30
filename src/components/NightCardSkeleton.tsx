@@ -10,7 +10,7 @@ export function NightCardSkeleton({
 }: NightCardSkeletonProps) {
   if (variant === "row") {
     return (
-      <div className="flex items-center gap-4 bg-white border rounded-xl px-4 py-3">
+      <div className="flex items-center gap-4 bg-white dark:bg-neutral-900 border dark:border-neutral-700 rounded-xl px-4 py-3">
         {/* Date badge */}
         <Skeleton className="w-12 h-14 rounded-lg shrink-0" />
         {/* Title + meta */}

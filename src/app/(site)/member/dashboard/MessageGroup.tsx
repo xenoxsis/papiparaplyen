@@ -97,7 +97,7 @@ export const MessageGroup = memo(function MessageGroup({
         <div className="flex justify-end gap-2">
           <button
             onClick={() => setDeletingMsg(null)}
-            className="px-3 py-1.5 rounded-lg border border-neutral-200 text-sm text-neutral-600 hover:bg-neutral-50 transition-colors cursor-pointer"
+            className="px-3 py-1.5 rounded-lg border border-neutral-200 dark:border-neutral-700 text-sm text-neutral-600 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors cursor-pointer"
           >
             Annuller
           </button>
@@ -113,7 +113,7 @@ export const MessageGroup = memo(function MessageGroup({
       <div className="flex flex-col gap-3">
         {/* Day separator */}
         <div className="flex justify-center">
-          <span className="bg-white border border-neutral-200 rounded-full px-2 py-0.5 text-[0.625rem] text-neutral-500">
+          <span className="bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-full px-2 py-0.5 text-[0.625rem] text-neutral-500 dark:text-neutral-400">
             {group.label}
           </span>
         </div>
@@ -133,7 +133,7 @@ export const MessageGroup = memo(function MessageGroup({
           const replyQuote = msg.reply_to_id ? (
             <button
               onClick={() => onScrollToMessage(msg.reply_to_id!)}
-              className={`flex flex-col text-left rounded-lg px-3 py-1.5 mb-1 max-w-full border-l-2 bg-neutral-50 hover:bg-neutral-100 transition-colors cursor-pointer border-none ${
+              className={`flex flex-col text-left rounded-lg px-3 py-1.5 mb-1 max-w-full border-l-2 bg-neutral-50 dark:bg-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors cursor-pointer border-none ${
                 outgoing ? "border-white/60" : "border-brand-blue"
               }`}
             >
@@ -185,7 +185,7 @@ export const MessageGroup = memo(function MessageGroup({
                   highlightMessageId === msg.id ? "bg-yellow-50" : ""
                 }`}
               >
-                <div className="border border-neutral-200 bg-white rounded-xl p-3 flex flex-col gap-2 max-w-xs w-full shadow-sm">
+                <div className="border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 rounded-xl p-3 flex flex-col gap-2 max-w-xs w-full shadow-sm">
                   <div className="flex items-center gap-2">
                     <RefreshCcw className="size-3.5 text-brand-teal shrink-0" />
                     <span className="text-[0.65rem] font-semibold text-neutral-500 uppercase tracking-wide">
@@ -378,7 +378,7 @@ export const MessageGroup = memo(function MessageGroup({
                     {msg.sender_name}
                   </span>
                   {replyQuote}
-                  <div className="px-4 py-2 text-sm bg-white border border-neutral-200 rounded-[1rem_1rem_1rem_0.25rem]">
+                  <div className="px-4 py-2 text-sm bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-[1rem_1rem_1rem_0.25rem]">
                     {user ? renderMessageBody(msg.body, user.id) : msg.body}
                   </div>
                 </div>

@@ -55,6 +55,7 @@ function ResetPasswordForm() {
             <Image
               src="/papiparaplyen-logo.png"
               alt="Esbjerg Brætspil logo"
+              priority
               width={112}
               height={112}
               className="object-contain w-full h-full"

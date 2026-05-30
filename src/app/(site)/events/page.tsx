@@ -78,14 +78,14 @@ export default function EventsPage() {
     : feedUrl.replace(/^https?/, "webcal");
 
   return (
-    <section className="bg-neutral-100 w-full min-h-[60vh]">
+    <section className="bg-neutral-100 dark:bg-neutral-950 w-full min-h-[60vh]">
       <div className="max-w-285 mx-auto px-4 sm:px-8 py-10 sm:py-12 flex flex-col gap-8">
         <div className="flex items-end justify-between gap-4">
           <div className="flex flex-col gap-2">
             <span className="font-semibold uppercase text-blue-500 text-sm tracking-wider">
               Klubaftener
             </span>
-            <h1 className="font-bold text-neutral-900 text-3xl">
+            <h1 className="font-bold text-neutral-900 dark:text-neutral-100 text-3xl">
               Alle kommende aftener
             </h1>
           </div>
@@ -94,23 +94,23 @@ export default function EventsPage() {
               <a
                 href={webcalUrl}
                 title="Abonnér på klubaftener i din kalender (opdateres automatisk)"
-                className="hidden sm:inline-flex items-center gap-1.5 text-xs font-medium rounded-lg px-3 py-1.5 border border-neutral-200 bg-white text-neutral-600 hover:border-neutral-400 hover:text-neutral-900 transition-colors"
+                className="hidden sm:inline-flex items-center gap-1.5 text-xs font-medium rounded-lg px-3 py-1.5 border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-600 dark:text-neutral-400 hover:border-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 transition-colors"
               >
                 <CalendarPlus className="size-3.5" />
                 Abonnér på kalender
               </a>
             )}
-            <div className="flex items-center gap-1 border border-neutral-200 rounded-lg p-1 bg-white">
+            <div className="flex items-center gap-1 border border-neutral-200 dark:border-neutral-700 rounded-lg p-1 bg-white dark:bg-neutral-900">
               <button
                 onClick={() => setView("grid")}
-                className={`p-1.5 rounded-md transition-colors ${view === "grid" ? "bg-neutral-900 text-white" : "text-neutral-500 hover:text-neutral-700"}`}
+                className={`p-1.5 rounded-md transition-colors ${view === "grid" ? "bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-900" : "text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200"}`}
                 aria-label="Kortvisning"
               >
                 <LayoutGrid className="size-4" />
               </button>
               <button
                 onClick={() => setView("list")}
-                className={`p-1.5 rounded-md transition-colors ${view === "list" ? "bg-neutral-900 text-white" : "text-neutral-500 hover:text-neutral-700"}`}
+                className={`p-1.5 rounded-md transition-colors ${view === "list" ? "bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-900" : "text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200"}`}
                 aria-label="Listevisning"
               >
                 <LayoutList className="size-4" />

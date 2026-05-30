@@ -681,7 +681,7 @@ export default function ProfilePage() {
             - Min height: ~5.5 items (494px scroll area + ~110px card chrome ≈ 604px)
             - Max height: matches left column height (when Vagt/Admin and measured) */}
         <div
-          className="bg-white rounded-xl border border-neutral-200 p-6 flex flex-col gap-4 shadow-sm"
+          className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 p-6 flex flex-col gap-4 shadow-sm"
           style={
             isVagtOrAdmin
               ? leftColHeight

@@ -285,7 +285,7 @@ export function EditProfileModal({
       <div
         role="dialog"
         aria-modal="true"
-        className="bg-white rounded-2xl shadow-xl w-full max-w-sm flex flex-col overflow-hidden"
+        className="bg-white dark:bg-neutral-900 rounded-2xl shadow-xl w-full max-w-sm flex flex-col overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}

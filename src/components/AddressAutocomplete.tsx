@@ -107,7 +107,7 @@ export function AddressAutocomplete({
           onFocus={() => results.length > 0 && setOpen(true)}
           placeholder={placeholder}
           disabled={disabled}
-          className="h-10 w-full rounded-md border border-neutral-200 bg-white px-3 pr-8 text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:ring-offset-0 disabled:opacity-50"
+          className="h-10 w-full rounded-md border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 px-3 pr-8 text-sm text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 dark:placeholder:text-neutral-500 focus:outline-none focus:ring-2 focus:ring-neutral-900 dark:focus:ring-neutral-100 focus:ring-offset-0 disabled:opacity-50"
         />
         {loading && (
           <Loader2 className="absolute right-2.5 top-1/2 -translate-y-1/2 size-4 text-neutral-400 animate-spin" />
@@ -115,7 +115,7 @@ export function AddressAutocomplete({
       </div>
 
       {open && results.length > 0 && (
-        <ul className="absolute z-50 mt-1 w-full rounded-md border border-neutral-200 bg-white shadow-md max-h-56 overflow-y-auto">
+        <ul className="absolute z-50 mt-1 w-full rounded-md border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 shadow-md max-h-56 overflow-y-auto">
           {results.map((r, i) => (
             <li
               key={r.tekst}
@@ -126,8 +126,8 @@ export function AddressAutocomplete({
               }}
               className={`px-3 py-2 text-sm cursor-pointer ${
                 i === activeIndex
-                  ? "bg-neutral-100 text-neutral-900"
-                  : "text-neutral-700 hover:bg-neutral-50"
+                  ? "bg-neutral-100 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100"
+                  : "text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800"
               }`}
             >
               {r.tekst}

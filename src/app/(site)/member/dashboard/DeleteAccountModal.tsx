@@ -51,7 +51,7 @@ export function DeleteAccountModal({ open, onClose }: Props) {
 
   return createPortal(
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-6 bg-black/50 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md flex flex-col">
+      <div className="bg-white dark:bg-neutral-900 rounded-2xl shadow-xl w-full max-w-md flex flex-col">
         {/* Header */}
         <div className="flex items-start justify-between p-6 border-b border-neutral-100">
           <div className="flex items-center gap-3">
@@ -120,7 +120,7 @@ export function DeleteAccountModal({ open, onClose }: Props) {
           <button
             onClick={onClose}
             disabled={deleting}
-            className="flex-1 px-4 py-2.5 rounded-lg border border-neutral-200 text-sm font-medium text-neutral-700 hover:bg-neutral-50 transition-colors disabled:opacity-50"
+            className="flex-1 px-4 py-2.5 rounded-lg border border-neutral-200 dark:border-neutral-700 text-sm font-medium text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors disabled:opacity-50"
           >
             Annuller
           </button>

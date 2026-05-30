@@ -83,7 +83,7 @@ export default function NotificationBell({
             return next;
           })
         }
-        className="relative flex items-center justify-center w-9 h-9 rounded-full text-neutral-600 hover:bg-neutral-100 transition-colors"
+        className="relative flex items-center justify-center w-9 h-9 rounded-full text-neutral-600 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
         aria-label="Notifikationer"
       >
         <Bell className="size-5" />
@@ -95,10 +95,10 @@ export default function NotificationBell({
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-2 w-80 bg-white border border-neutral-200 rounded-xl shadow-lg overflow-hidden z-50">
+        <div className="absolute right-0 top-full mt-2 w-80 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-xl shadow-lg overflow-hidden z-50">
           {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-100">
-            <span className="font-semibold text-sm text-neutral-900">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-100 dark:border-neutral-700">
+            <span className="font-semibold text-sm text-neutral-900 dark:text-neutral-100">
               Notifikationer
               {unreadCount > 0 && (
                 <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-brand-red/10 text-brand-red text-xs font-bold">
@@ -111,7 +111,7 @@ export default function NotificationBell({
                 onClick={() => {
                   onMarkAllRead();
                 }}
-                className="text-xs text-neutral-500 hover:text-neutral-900 transition-colors"
+                className="text-xs text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 transition-colors"
               >
                 Marker alle som læst
               </button>
@@ -119,9 +119,9 @@ export default function NotificationBell({
           </div>
 
           {/* List */}
-          <div className="max-h-96 overflow-y-auto divide-y divide-neutral-50">
+          <div className="max-h-96 overflow-y-auto divide-y divide-neutral-50 dark:divide-neutral-800">
             {notifications.length === 0 ? (
-              <p className="px-4 py-6 text-center text-sm text-neutral-400">
+              <p className="px-4 py-6 text-center text-sm text-neutral-400 dark:text-neutral-500">
                 Ingen notifikationer
               </p>
             ) : (
@@ -129,8 +129,8 @@ export default function NotificationBell({
                 <button
                   key={n.id}
                   onClick={() => handleNotificationClick(n)}
-                  className={`w-full flex items-start gap-3 px-4 py-3 text-left hover:bg-neutral-50 transition-colors ${
-                    !n.is_read ? "bg-blue-50/50" : ""
+                  className={`w-full flex items-start gap-3 px-4 py-3 text-left hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors ${
+                    !n.is_read ? "bg-blue-50/50 dark:bg-blue-950/30" : ""
                   }`}
                 >
                   <div className="mt-0.5">
@@ -142,13 +142,13 @@ export default function NotificationBell({
                     <p
                       className={`text-sm leading-snug ${
                         !n.is_read
-                          ? "text-neutral-900 font-medium"
-                          : "text-neutral-600"
+                          ? "text-neutral-900 dark:text-neutral-100 font-medium"
+                          : "text-neutral-600 dark:text-neutral-400"
                       }`}
                     >
                       {n.body}
                     </p>
-                    <p className="text-xs text-neutral-400 mt-0.5">
+                    <p className="text-xs text-neutral-400 dark:text-neutral-500 mt-0.5">
                       {relativeTime(n.created_at)}
                     </p>
                   </div>

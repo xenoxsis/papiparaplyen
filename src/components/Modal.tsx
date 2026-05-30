@@ -97,7 +97,7 @@ export function Modal({
         ref={panelRef}
         role="dialog"
         aria-modal="true"
-        className={`bg-white rounded-xl shadow-xl w-full mx-auto ${maxWidth} ${panelClassName}`}
+        className={`bg-white dark:bg-neutral-900 rounded-xl shadow-xl w-full mx-auto ${maxWidth} ${panelClassName}`}
         onClick={(e) => e.stopPropagation()}
       >
         {children}

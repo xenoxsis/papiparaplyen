@@ -9,14 +9,17 @@ const nextConfig: NextConfig = {
     remotePatterns: [{ protocol: "https", hostname: "images.unsplash.com" }],
   },
 
-  // In the Docker container the browser uses relative URLs (/api/…) and
-  // Next.js proxies them to the Express backend running on port 3001.
-  // On Vercel this rewrite is a no-op (no backend on localhost:3001).
+  // Proxy /api/* to the backend.
+  // BACKEND_URL overrides everything (used for local dev against production).
+  // Otherwise falls back to localhost:BACKEND_PORT (default 3001).
   async rewrites() {
+    const destination = process.env.BACKEND_URL
+      ? `${process.env.BACKEND_URL}/api/:path*`
+      : `http://localhost:${process.env.BACKEND_PORT ?? 3001}/api/:path*`;
     return [
       {
         source: "/api/:path*",
-        destination: `http://localhost:${process.env.BACKEND_PORT ?? 3001}/api/:path*`,
+        destination,
       },
     ];
   },

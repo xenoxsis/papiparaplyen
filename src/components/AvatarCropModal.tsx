@@ -101,12 +101,12 @@ export function AvatarCropModal({
         role="dialog"
         aria-modal="true"
         aria-label="Beskær profilbillede"
-        className="bg-white rounded-2xl shadow-xl w-full max-w-sm flex flex-col overflow-hidden"
+        className="bg-white dark:bg-neutral-900 rounded-2xl shadow-xl w-full max-w-sm flex flex-col overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-100">
-          <h2 className="font-semibold text-neutral-900">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-100 dark:border-neutral-700">
+          <h2 className="font-semibold text-neutral-900 dark:text-neutral-100">
             Beskær profilbillede
           </h2>
           <button
@@ -138,7 +138,7 @@ export function AvatarCropModal({
         </div>
 
         {/* Zoom slider */}
-        <div className="flex items-center gap-3 px-5 py-3 border-t border-neutral-100 bg-neutral-50">
+        <div className="flex items-center gap-3 px-5 py-3 border-t border-neutral-100 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800">
           <button
             onClick={() => setZoom((z) => Math.max(1, z - 0.1))}
             aria-label="Zoom ud"
@@ -166,18 +166,18 @@ export function AvatarCropModal({
         </div>
 
         {/* Actions */}
-        <div className="flex gap-2 px-5 py-4 border-t border-neutral-100">
+        <div className="flex gap-2 px-5 py-4 border-t border-neutral-100 dark:border-neutral-700">
           <button
             onClick={onClose}
             disabled={saving}
-            className="flex-1 h-9 rounded-lg border border-neutral-200 text-sm font-medium text-neutral-700 hover:bg-neutral-50 transition-colors cursor-pointer bg-white disabled:opacity-50"
+            className="flex-1 h-9 rounded-lg border border-neutral-200 dark:border-neutral-700 text-sm font-medium text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors cursor-pointer bg-white dark:bg-transparent disabled:opacity-50"
           >
             Annuller
           </button>
           <button
             onClick={handleConfirm}
             disabled={saving}
-            className="flex-1 h-9 rounded-lg bg-neutral-900 text-white text-sm font-medium hover:bg-neutral-700 transition-colors cursor-pointer border-none disabled:opacity-50 flex items-center justify-center gap-2"
+            className="flex-1 h-9 rounded-lg bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-900 text-sm font-medium hover:bg-neutral-700 dark:hover:bg-neutral-300 transition-colors cursor-pointer border-none disabled:opacity-50 flex items-center justify-center gap-2"
           >
             {saving ? (
               <>
