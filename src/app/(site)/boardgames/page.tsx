@@ -3,7 +3,12 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { ExternalLink, Search } from "lucide-react";
-import { getBoardgames, type ApiBoardgame } from "@/lib/api";
+import {
+  getBoardgames,
+  getClubBoardgames,
+  type ApiBoardgame,
+  type ApiClubBoardgame,
+} from "@/lib/api";
 import { useAuth } from "@/lib/auth-context";
 
 // ── Weight bar ────────────────────────────────────────────────────────────────
@@ -61,11 +66,15 @@ type SortKey =
   | "playing_time";
 type SortDir = "asc" | "desc";
 
-function sortGames(
-  games: ApiBoardgame[],
+// Club games omit `owners`; member games include it. Filtering/sorting only
+// touch the shared fields, so we operate on the common (club) shape.
+type BaseGame = ApiClubBoardgame;
+
+function sortGames<T extends BaseGame>(
+  games: T[],
   key: SortKey,
   dir: SortDir,
-): ApiBoardgame[] {
+): T[] {
   return [...games].sort((a, b) => {
     const av = a[key] ?? (dir === "asc" ? Infinity : -Infinity);
     const bv = b[key] ?? (dir === "asc" ? Infinity : -Infinity);
@@ -111,9 +120,13 @@ function ColHeader({
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
+type Tab = "club" | "members";
+
 export default function BoardgamesPage() {
   const { user } = useAuth();
-  const [games, setGames] = useState<ApiBoardgame[]>([]);
+  const [tab, setTab] = useState<Tab>("club");
+  const [clubGames, setClubGames] = useState<ApiClubBoardgame[]>([]);
+  const [memberGames, setMemberGames] = useState<ApiBoardgame[]>([]);
   const [loading, setLoading] = useState(true);
   const [nameFilter, setNameFilter] = useState("");
   const [playerFilter, setPlayerFilter] = useState("");
@@ -123,8 +136,11 @@ export default function BoardgamesPage() {
   const [sortDir, setSortDir] = useState<SortDir>("asc");
 
   useEffect(() => {
-    getBoardgames()
-      .then(setGames)
+    Promise.all([getClubBoardgames(), getBoardgames()])
+      .then(([club, members]) => {
+        setClubGames(club);
+        setMemberGames(members);
+      })
       .catch(console.error)
       .finally(() => setLoading(false));
   }, []);
@@ -138,8 +154,11 @@ export default function BoardgamesPage() {
     }
   }
 
+  const showOwners = tab === "members";
+  const sourceGames: BaseGame[] = tab === "club" ? clubGames : memberGames;
+
   const filtered = useMemo(() => {
-    let list = games;
+    let list = sourceGames;
 
     if (nameFilter.trim()) {
       const q = nameFilter.trim().toLowerCase();
@@ -166,7 +185,15 @@ export default function BoardgamesPage() {
     }
 
     return sortGames(list, sortKey, sortDir);
-  }, [games, nameFilter, playerFilter, weightMin, weightMax, sortKey, sortDir]);
+  }, [
+    sourceGames,
+    nameFilter,
+    playerFilter,
+    weightMin,
+    weightMax,
+    sortKey,
+    sortDir,
+  ]);
 
   const colProps = { currentKey: sortKey, dir: sortDir, onSort: handleSort };
 
@@ -176,16 +203,47 @@ export default function BoardgamesPage() {
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl font-bold text-neutral-900">Brætspil</h1>
         <p className="text-sm text-neutral-500">
-          Spil ejet af klubbens medlemmer.{" "}
-          {!user && (
-            <span>
-              <Link href="/login" className="underline hover:text-neutral-700">
-                Log ind
-              </Link>{" "}
-              for at se ejerinformation.
-            </span>
+          {tab === "club" ? (
+            "Spil ejet af klubben."
+          ) : (
+            <>
+              Spil ejet af klubbens medlemmer.{" "}
+              {!user && (
+                <span>
+                  <Link
+                    href="/login"
+                    className="underline hover:text-neutral-700"
+                  >
+                    Log ind
+                  </Link>{" "}
+                  for at se ejerinformation.
+                </span>
+              )}
+            </>
           )}
         </p>
+      </div>
+
+      {/* Tabs */}
+      <div className="inline-flex self-start rounded-lg bg-neutral-200 dark:bg-neutral-800 p-1 gap-1">
+        {(
+          [
+            { key: "club", label: "Klubbens spil" },
+            { key: "members", label: "Medlemmernes spil" },
+          ] as { key: Tab; label: string }[]
+        ).map((t) => (
+          <button
+            key={t.key}
+            onClick={() => setTab(t.key)}
+            className={`px-4 h-9 rounded-md text-sm font-medium transition-colors cursor-pointer ${
+              tab === t.key
+                ? "bg-white dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100 shadow-sm"
+                : "text-neutral-600 dark:text-neutral-300 hover:text-neutral-900 dark:hover:text-neutral-100"
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
       </div>
 
       {/* Filters */}
@@ -272,8 +330,10 @@ export default function BoardgamesPage() {
           </div>
         ) : filtered.length === 0 ? (
           <div className="p-8 text-center text-sm text-neutral-500">
-            {games.length === 0
-              ? "Ingen spil registreret endnu."
+            {sourceGames.length === 0
+              ? tab === "club"
+                ? "Klubben har ingen spil registreret endnu."
+                : "Ingen spil registreret endnu."
               : "Ingen spil matcher dine filtre."}
           </div>
         ) : (
@@ -303,17 +363,22 @@ export default function BoardgamesPage() {
                 <th className="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wide">
                   BGG
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wide">
-                  Ejere
-                </th>
+                {showOwners && (
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wide">
+                    Ejere
+                  </th>
+                )}
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-100">
               {filtered.map((game) => {
-                const ownerNames = game.owners
+                const owners = showOwners
+                  ? (game as ApiBoardgame).owners
+                  : [];
+                const ownerNames = owners
                   .map((o) => o.name)
                   .filter(Boolean) as string[];
-                const hasAnonymous = game.owners.some((o) => o.name === null);
+                const hasAnonymous = owners.some((o) => o.name === null);
 
                 return (
                   <tr
@@ -355,25 +420,27 @@ export default function BoardgamesPage() {
                         BGG <ExternalLink className="size-3" />
                       </a>
                     </td>
-                    <td className="px-4 py-3 text-neutral-600 text-xs">
-                      {!user ? (
-                        <span className="text-neutral-400 italic">
-                          Log ind for at se
-                        </span>
-                      ) : ownerNames.length === 0 && !hasAnonymous ? (
-                        <span className="text-neutral-400">—</span>
-                      ) : (
-                        <span>
-                          {ownerNames.join(", ")}
-                          {hasAnonymous && ownerNames.length > 0 && ", "}
-                          {hasAnonymous && (
-                            <span className="text-neutral-400 italic">
-                              Anonym
-                            </span>
-                          )}
-                        </span>
-                      )}
-                    </td>
+                    {showOwners && (
+                      <td className="px-4 py-3 text-neutral-600 text-xs">
+                        {!user ? (
+                          <span className="text-neutral-400 italic">
+                            Log ind for at se
+                          </span>
+                        ) : ownerNames.length === 0 && !hasAnonymous ? (
+                          <span className="text-neutral-400">—</span>
+                        ) : (
+                          <span>
+                            {ownerNames.join(", ")}
+                            {hasAnonymous && ownerNames.length > 0 && ", "}
+                            {hasAnonymous && (
+                              <span className="text-neutral-400 italic">
+                                Anonym
+                              </span>
+                            )}
+                          </span>
+                        )}
+                      </td>
+                    )}
                   </tr>
                 );
               })}
@@ -385,7 +452,7 @@ export default function BoardgamesPage() {
       {/* Footer count */}
       {!loading && filtered.length > 0 && (
         <p className="text-xs text-neutral-400 text-center">
-          Viser {filtered.length} af {games.length} spil
+          Viser {filtered.length} af {sourceGames.length} spil
         </p>
       )}
     </main>

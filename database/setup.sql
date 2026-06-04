@@ -264,6 +264,16 @@ CREATE TABLE dbo.member_boardgames (
 GO
 
 -- ---------------------------------------------------------------
+-- club_boardgames  (games owned by the club itself — no owner)
+-- ---------------------------------------------------------------
+CREATE TABLE dbo.club_boardgames (
+    bgg_id INT NOT NULL,
+    CONSTRAINT PK_club_boardgames     PRIMARY KEY (bgg_id),
+    CONSTRAINT FK_club_boardgames_bgg FOREIGN KEY (bgg_id) REFERENCES dbo.boardgames(bgg_id) ON DELETE CASCADE
+);
+GO
+
+-- ---------------------------------------------------------------
 -- vagt_settings
 -- ---------------------------------------------------------------
 CREATE TABLE dbo.vagt_settings (

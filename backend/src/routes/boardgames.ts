@@ -1,6 +1,7 @@
 import { Router, json as expressJson } from "express";
+import type { ConnectionPool } from "mssql";
 import { getPool, sql } from "../db";
-import { requireAuth } from "../auth";
+import { requireAuth, requireAdmin } from "../auth";
 
 const router = Router();
 
@@ -49,6 +50,80 @@ function parseCsv(text: string): Record<string, string>[] {
   return rows;
 }
 
+type Game = {
+  bgg_id: number;
+  name: string;
+  avg_weight: number | null;
+  min_players: number | null;
+  max_players: number | null;
+  year_published: number | null;
+  playing_time: number | null;
+};
+
+/** Parse a BGG-collection CSV into the owned games (own=1) with metadata. */
+function csvToGames(csvText: string): Game[] {
+  const rows = parseCsv(csvText);
+  const owned = rows.filter((r) => r.own === "1");
+  const games: Game[] = [];
+  for (const row of owned) {
+    const bggId = parseInt(row.objectid, 10);
+    if (!bggId) continue;
+    games.push({
+      bgg_id: bggId,
+      name: (row.objectname ?? "").slice(0, 255),
+      avg_weight: parseFloat(row.avgweight) || null,
+      min_players: parseInt(row.minplayers, 10) || null,
+      max_players: parseInt(row.maxplayers, 10) || null,
+      year_published: parseInt(row.yearpublished, 10) || null,
+      playing_time: parseInt(row.playingtime, 10) || null,
+    });
+  }
+  return games;
+}
+
+/** Bulk-upsert game metadata into dbo.boardgames in one MERGE via OPENJSON. */
+async function upsertBoardgames(
+  pool: ConnectionPool,
+  games: Game[],
+): Promise<void> {
+  await pool
+    .request()
+    .input("games", sql.NVarChar(sql.MAX), JSON.stringify(games)).query(`
+      MERGE dbo.boardgames AS target
+      USING (
+        SELECT
+          CAST(j.bgg_id        AS INT)           AS bgg_id,
+          CAST(j.name          AS NVARCHAR(255))  AS name,
+          CAST(j.avg_weight    AS DECIMAL(4,2))   AS avg_weight,
+          CAST(j.min_players   AS INT)            AS min_players,
+          CAST(j.max_players   AS INT)            AS max_players,
+          CAST(j.year_published AS INT)           AS year_published,
+          CAST(j.playing_time  AS INT)            AS playing_time
+        FROM OPENJSON(@games) WITH (
+          bgg_id        INT            '$.bgg_id',
+          name          NVARCHAR(255)  '$.name',
+          avg_weight    DECIMAL(4,2)   '$.avg_weight',
+          min_players   INT            '$.min_players',
+          max_players   INT            '$.max_players',
+          year_published INT           '$.year_published',
+          playing_time  INT            '$.playing_time'
+        ) AS j
+      ) AS source ON target.bgg_id = source.bgg_id
+      WHEN MATCHED THEN
+        UPDATE SET
+          name           = source.name,
+          avg_weight     = source.avg_weight,
+          min_players    = source.min_players,
+          max_players    = source.max_players,
+          year_published = source.year_published,
+          playing_time   = source.playing_time
+      WHEN NOT MATCHED THEN
+        INSERT (bgg_id, name, avg_weight, min_players, max_players, year_published, playing_time)
+        VALUES (source.bgg_id, source.name, source.avg_weight, source.min_players,
+                source.max_players, source.year_published, source.playing_time);
+    `);
+}
+
 // ── POST /api/boardgames/upload ──────────────────────────────────────────────
 // Accepts JSON body { csv: "<file contents>" }. Parses it, filters to own=1,
 // upserts games into dbo.boardgames, and syncs dbo.member_boardgames for the
@@ -66,47 +141,13 @@ router.post(
       return res.status(400).json({ error: "Empty CSV body" });
     }
 
-    const rows = parseCsv(csvText);
-    // Only import games the member currently owns
-    const owned = rows.filter((r) => r.own === "1");
-
-    if (owned.length === 0) {
-      // Wipe the member's collection (they sold everything or wrong file)
-      const pool = await getPool();
-      const prevResult = await pool
-        .request()
-        .input("memberId", sql.Int, memberId)
-        .query(
-          "SELECT COUNT(*) AS cnt FROM dbo.member_boardgames WHERE member_id = @memberId",
-        );
-      const prevCount: number = prevResult.recordset[0].cnt;
-      await pool
-        .request()
-        .input("memberId", sql.Int, memberId)
-        .query("DELETE FROM dbo.member_boardgames WHERE member_id = @memberId");
-      return res.json({ ok: true, imported: 0, removed: prevCount });
-    }
-
     const pool = await getPool();
 
-    // Parse owned rows into plain objects
-    const games = owned
-      .map((row) => {
-        const bggId = parseInt(row.objectid, 10);
-        if (!bggId) return null;
-        return {
-          bgg_id: bggId,
-          name: (row.objectname ?? "").slice(0, 255),
-          avg_weight: parseFloat(row.avgweight) || null,
-          min_players: parseInt(row.minplayers, 10) || null,
-          max_players: parseInt(row.maxplayers, 10) || null,
-          year_published: parseInt(row.yearpublished, 10) || null,
-          playing_time: parseInt(row.playingtime, 10) || null,
-        };
-      })
-      .filter(Boolean);
+    // Parse owned (own=1) rows into plain game objects
+    const games = csvToGames(csvText);
 
     if (games.length === 0) {
+      // Wipe the member's collection (they sold everything or wrong file)
       const prevResult0 = await pool
         .request()
         .input("memberId", sql.Int, memberId)
@@ -121,46 +162,11 @@ router.post(
       return res.json({ ok: true, imported: 0, removed: prevCount0 });
     }
 
-    // 1. Bulk-upsert all games in one MERGE via OPENJSON
-    await pool
-      .request()
-      .input("games", sql.NVarChar(sql.MAX), JSON.stringify(games)).query(`
-        MERGE dbo.boardgames AS target
-        USING (
-          SELECT
-            CAST(j.bgg_id        AS INT)           AS bgg_id,
-            CAST(j.name          AS NVARCHAR(255))  AS name,
-            CAST(j.avg_weight    AS DECIMAL(4,2))   AS avg_weight,
-            CAST(j.min_players   AS INT)            AS min_players,
-            CAST(j.max_players   AS INT)            AS max_players,
-            CAST(j.year_published AS INT)           AS year_published,
-            CAST(j.playing_time  AS INT)            AS playing_time
-          FROM OPENJSON(@games) WITH (
-            bgg_id        INT            '$.bgg_id',
-            name          NVARCHAR(255)  '$.name',
-            avg_weight    DECIMAL(4,2)   '$.avg_weight',
-            min_players   INT            '$.min_players',
-            max_players   INT            '$.max_players',
-            year_published INT           '$.year_published',
-            playing_time  INT            '$.playing_time'
-          ) AS j
-        ) AS source ON target.bgg_id = source.bgg_id
-        WHEN MATCHED THEN
-          UPDATE SET
-            name           = source.name,
-            avg_weight     = source.avg_weight,
-            min_players    = source.min_players,
-            max_players    = source.max_players,
-            year_published = source.year_published,
-            playing_time   = source.playing_time
-        WHEN NOT MATCHED THEN
-          INSERT (bgg_id, name, avg_weight, min_players, max_players, year_published, playing_time)
-          VALUES (source.bgg_id, source.name, source.avg_weight, source.min_players,
-                  source.max_players, source.year_published, source.playing_time);
-      `);
+    // 1. Bulk-upsert all games' metadata into dbo.boardgames
+    await upsertBoardgames(pool, games);
 
     // 2. Sync member_boardgames: count existing, delete then re-insert as two separate queries
-    const bggIdsJson = JSON.stringify(games.map((g) => g!.bgg_id));
+    const bggIdsJson = JSON.stringify(games.map((g) => g.bgg_id));
     const prevResult2 = await pool
       .request()
       .input("memberId", sql.Int, memberId)
@@ -260,6 +266,78 @@ router.get("/", async (_req, res) => {
   }));
 
   return res.json(result);
+});
+
+// ── POST /api/boardgames/club/upload ─────────────────────────────────────────
+// Admin only. Accepts JSON body { csv: "<file contents>" }. Parses it, filters to
+// own=1, upserts games into dbo.boardgames, and fully resyncs dbo.club_boardgames.
+// The club has no owner, so there is no member attribution.
+
+router.post(
+  "/club/upload",
+  requireAuth,
+  expressJson({ limit: "5mb" }),
+  async (req, res) => {
+    if (!(await requireAdmin(req, res))) return;
+
+    const csvText: string = req.body?.csv ?? "";
+    if (!csvText.trim()) {
+      return res.status(400).json({ error: "Empty CSV body" });
+    }
+
+    const pool = await getPool();
+    const games = csvToGames(csvText);
+
+    // How many games the club currently has (for the removed count)
+    const prevResult = await pool
+      .request()
+      .query("SELECT COUNT(*) AS cnt FROM dbo.club_boardgames");
+    const prevCount: number = prevResult.recordset[0].cnt;
+
+    if (games.length === 0) {
+      // Wipe the club's collection (empty/wrong file)
+      await pool.request().query("DELETE FROM dbo.club_boardgames");
+      return res.json({ ok: true, imported: 0, removed: prevCount });
+    }
+
+    // 1. Bulk-upsert all games' metadata into dbo.boardgames
+    await upsertBoardgames(pool, games);
+
+    // 2. Fully resync club_boardgames: delete then re-insert
+    const bggIdsJson = JSON.stringify(games.map((g) => g.bgg_id));
+    await pool.request().query("DELETE FROM dbo.club_boardgames");
+    await pool
+      .request()
+      .input("bggIds", sql.NVarChar(sql.MAX), bggIdsJson).query(`
+        INSERT INTO dbo.club_boardgames (bgg_id)
+        SELECT CAST([value] AS INT)
+        FROM OPENJSON(@bggIds);
+      `);
+
+    const removed = Math.max(0, prevCount - games.length);
+    return res.json({ ok: true, imported: games.length, removed });
+  },
+);
+
+// ── GET /api/boardgames/club ─────────────────────────────────────────────────
+// Public. Returns the club's own games (no owners).
+
+router.get("/club", async (_req, res) => {
+  const pool = await getPool();
+  const gamesResult = await pool.request().query(`
+    SELECT
+      bg.bgg_id,
+      bg.name,
+      bg.avg_weight,
+      bg.min_players,
+      bg.max_players,
+      bg.year_published,
+      bg.playing_time
+    FROM dbo.boardgames bg
+    JOIN dbo.club_boardgames cb ON cb.bgg_id = bg.bgg_id
+    ORDER BY bg.name
+  `);
+  return res.json(gamesResult.recordset);
 });
 
 export default router;

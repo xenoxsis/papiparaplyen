@@ -514,7 +514,13 @@ export type ApiBggPrefs = {
   game_count: number;
 };
 
+/** Club-owned games have no owner attribution. */
+export type ApiClubBoardgame = Omit<ApiBoardgame, "owners">;
+
 export const getBoardgames = () => api<ApiBoardgame[]>("/api/boardgames");
+
+export const getClubBoardgames = () =>
+  api<ApiClubBoardgame[]>("/api/boardgames/club");
 
 /** Upload a BGG collection CSV file. Accepts the already-read CSV text and sends it as JSON. */
 export function uploadBggCollection(
@@ -522,6 +528,20 @@ export function uploadBggCollection(
 ): Promise<{ ok: boolean; imported: number; removed: number }> {
   return api<{ ok: boolean; imported: number; removed: number }>(
     "/api/boardgames/upload",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ csv: csvText }),
+    },
+  );
+}
+
+/** Upload the club's own BGG collection CSV (admin only). */
+export function uploadClubBoardgames(
+  csvText: string,
+): Promise<{ ok: boolean; imported: number; removed: number }> {
+  return api<{ ok: boolean; imported: number; removed: number }>(
+    "/api/boardgames/club/upload",
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },

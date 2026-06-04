@@ -101,14 +101,15 @@ backend/src/
     oauth.ts               OAuth strategies (Google, Facebook) + findOrCreateUser helper
     vagter.ts              /api/vagter/* — settings, checklist (Vagt/Admin only)
     audit-log.ts           /api/audit-log/* — superuser-only audit log endpoint
-    boardgames.ts          /api/boardgames/* — BGG collection (public list) + CSV upload
+    boardgames.ts          /api/boardgames/* — member BGG collection (public list) + CSV upload;
+                           also /club (public list) + /club/upload (admin-only CSV) for the club's own games
     locations.ts           /api/locations/* — venue locations (admin CRUD, public GET)
     address-autocomplete.ts  /api/address-autocomplete?q=... — proxies api.danskadresseapi.dk
 
 database/
   setup.sql                Full schema (idempotent drop+recreate) — update when adding columns
   migrations/              Incremental idempotent SQL scripts (001…024)
-                           Latest: 024_member_avatars.sql
+                           Latest: 026_club_boardgames.sql
 ```
 
 ---
@@ -194,6 +195,8 @@ dbo.boardgames         id, bgg_id INT UNIQUE, name, avg_weight, min_players, max
                        year_published, playing_time, updated_at
 dbo.member_boardgames  member_id FK, bgg_id INT FK→boardgames
                        -- join table: which member owns which game
+dbo.club_boardgames    bgg_id INT PK FK→boardgames (CASCADE DELETE)
+                       -- games owned by the club itself (no owner attribution)
 
 dbo.locations          id, name, address, disabled BIT DEFAULT 0, created_at, updated_at
                        -- reusable venues for club nights (admin managed)
@@ -575,6 +578,6 @@ cd backend && npx tsc --noEmit
 
 Migrations live in `database/migrations/` and are **idempotent** (safe to re-run).
 They must be run manually against the SQL Server container after deploying schema changes.
-Latest migration: **025_threaded_replies.sql**
+Latest migration: **026_club_boardgames.sql**
 
 > **Agents must not run migrations.** Write the SQL file and inform the user — they will apply it themselves.

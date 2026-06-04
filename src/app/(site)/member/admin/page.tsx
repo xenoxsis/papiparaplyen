@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import {
   AlertTriangle,
   UserX,
@@ -14,6 +15,8 @@ import {
   Mail,
   MapPin,
   Ban,
+  Gamepad2,
+  Upload,
 } from "lucide-react";
 import { MemberHero } from "@/components/MemberHero";
 import { Input } from "@/components/ui/input";
@@ -28,6 +31,8 @@ import {
   getLocations,
   createLocation,
   disableLocation,
+  getClubBoardgames,
+  uploadClubBoardgames,
   type ApiMember,
   type ApiLocation,
 } from "@/lib/api";
@@ -75,6 +80,10 @@ export default function AdminPage() {
   const [newLocationName, setNewLocationName] = useState("");
   const [newLocationAddress, setNewLocationAddress] = useState("");
   const [locationCreating, setLocationCreating] = useState(false);
+  // Club board games CSV upload
+  const [clubGameCount, setClubGameCount] = useState<number | null>(null);
+  const [clubUploading, setClubUploading] = useState(false);
+  const clubFileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setLoading(true);
@@ -87,7 +96,33 @@ export default function AdminPage() {
       .then(setLocations)
       .catch(console.error)
       .finally(() => setLocationsLoading(false));
+    getClubBoardgames()
+      .then((games) => setClubGameCount(games.length))
+      .catch(console.error);
   }, []);
+
+  async function handleClubUpload(file: File) {
+    setClubUploading(true);
+    try {
+      const csvText = await file.text();
+      const result = await uploadClubBoardgames(csvText);
+      const removedPart =
+        result.removed > 0 ? `, ${result.removed} fjernet` : "";
+      toast.success(
+        `Klubbens samling opdateret — ${result.imported} spil importeret${removedPart}`,
+      );
+      getClubBoardgames()
+        .then((games) => setClubGameCount(games.length))
+        .catch(() => {});
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Upload fejlede. Prøv igen.",
+      );
+    } finally {
+      setClubUploading(false);
+      if (clubFileInputRef.current) clubFileInputRef.current.value = "";
+    }
+  }
 
   async function handleCreateVirtual() {
     if (!virtualName.trim() || !virtualInitials.trim()) return;
@@ -782,6 +817,57 @@ export default function AdminPage() {
               )}
             </tbody>
           </table>
+        </div>
+      </div>
+
+      {/* Klubbens brætspil */}
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center gap-2">
+          <Gamepad2 className="size-5 text-neutral-600" />
+          <h2 className="font-semibold text-neutral-900 text-base">
+            Klubbens brætspil
+          </h2>
+        </div>
+
+        <div className="bg-white rounded-xl border p-6 flex flex-col gap-4">
+          <p className="text-sm text-neutral-600">
+            Upload klubbens BoardGameGeek-samling som CSV. Eksportér den fra{" "}
+            <a
+              href="https://boardgamegeek.com/collection"
+              target="_blank"
+              rel="noreferrer"
+              className="text-brand-teal hover:underline"
+            >
+              boardgamegeek.com/collection
+            </a>{" "}
+            (vælg «Export to CSV»). Kun spil markeret som ejet (own=1) importeres,
+            og hver upload erstatter hele klubbens liste.
+          </p>
+
+          {clubGameCount !== null && clubGameCount > 0 && (
+            <p className="text-sm font-medium text-neutral-700">
+              {clubGameCount} spil i klubbens samling
+            </p>
+          )}
+
+          <input
+            ref={clubFileInputRef}
+            type="file"
+            accept=".csv,text/csv"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) handleClubUpload(file);
+            }}
+          />
+          <Button
+            onClick={() => clubFileInputRef.current?.click()}
+            disabled={clubUploading}
+            className="bg-brand-teal hover:bg-teal-600 text-white gap-2 text-sm self-start disabled:opacity-50"
+          >
+            <Upload className="size-4" />
+            {clubUploading ? "Uploader…" : "Vælg samlings-CSV"}
+          </Button>
         </div>
       </div>
 
