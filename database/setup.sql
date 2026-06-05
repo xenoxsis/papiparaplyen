@@ -264,7 +264,8 @@ CREATE TABLE dbo.member_boardgames (
 GO
 
 -- ---------------------------------------------------------------
--- club_boardgames  (games owned by the club itself — no owner)
+-- club_boardgames  (games always available in the club, left by
+-- members — registered without owner attribution)
 -- ---------------------------------------------------------------
 CREATE TABLE dbo.club_boardgames (
     bgg_id INT NOT NULL,

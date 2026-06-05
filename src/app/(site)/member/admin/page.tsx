@@ -109,7 +109,7 @@ export default function AdminPage() {
       const removedPart =
         result.removed > 0 ? `, ${result.removed} fjernet` : "";
       toast.success(
-        `Klubbens samling opdateret — ${result.imported} spil importeret${removedPart}`,
+        `Spil i klubben opdateret — ${result.imported} spil importeret${removedPart}`,
       );
       getClubBoardgames()
         .then((games) => setClubGameCount(games.length))
@@ -820,18 +820,19 @@ export default function AdminPage() {
         </div>
       </div>
 
-      {/* Klubbens brætspil */}
+      {/* Spil i klubben */}
       <div className="flex flex-col gap-4">
         <div className="flex items-center gap-2">
           <Gamepad2 className="size-5 text-neutral-600" />
           <h2 className="font-semibold text-neutral-900 text-base">
-            Klubbens brætspil
+            Spil i klubben
           </h2>
         </div>
 
         <div className="bg-white rounded-xl border p-6 flex flex-col gap-4">
           <p className="text-sm text-neutral-600">
-            Upload klubbens BoardGameGeek-samling som CSV. Eksportér den fra{" "}
+            Registrér de spil der altid er tilgængelige i klubben (efterladt af
+            medlemmer). Upload listen som CSV — eksportér fra{" "}
             <a
               href="https://boardgamegeek.com/collection"
               target="_blank"
@@ -841,12 +842,12 @@ export default function AdminPage() {
               boardgamegeek.com/collection
             </a>{" "}
             (vælg «Export to CSV»). Kun spil markeret som ejet (own=1) importeres,
-            og hver upload erstatter hele klubbens liste.
+            og hver upload erstatter hele listen.
           </p>
 
           {clubGameCount !== null && clubGameCount > 0 && (
             <p className="text-sm font-medium text-neutral-700">
-              {clubGameCount} spil i klubbens samling
+              {clubGameCount} spil tilgængelige i klubben
             </p>
           )}
 

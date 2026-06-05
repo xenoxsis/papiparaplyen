@@ -102,7 +102,7 @@ backend/src/
     vagter.ts              /api/vagter/* — settings, checklist (Vagt/Admin only)
     audit-log.ts           /api/audit-log/* — superuser-only audit log endpoint
     boardgames.ts          /api/boardgames/* — member BGG collection (public list) + CSV upload;
-                           also /club (public list) + /club/upload (admin-only CSV) for the club's own games
+                           also /club (public list) + /club/upload (admin-only CSV) for games always available in the club
     locations.ts           /api/locations/* — venue locations (admin CRUD, public GET)
     address-autocomplete.ts  /api/address-autocomplete?q=... — proxies api.danskadresseapi.dk
 
@@ -196,7 +196,7 @@ dbo.boardgames         id, bgg_id INT UNIQUE, name, avg_weight, min_players, max
 dbo.member_boardgames  member_id FK, bgg_id INT FK→boardgames
                        -- join table: which member owns which game
 dbo.club_boardgames    bgg_id INT PK FK→boardgames (CASCADE DELETE)
-                       -- games owned by the club itself (no owner attribution)
+                       -- games always available IN the club (left by members) — no owner attribution
 
 dbo.locations          id, name, address, disabled BIT DEFAULT 0, created_at, updated_at
                        -- reusable venues for club nights (admin managed)

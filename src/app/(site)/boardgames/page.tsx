@@ -204,7 +204,7 @@ export default function BoardgamesPage() {
         <h1 className="text-2xl font-bold text-neutral-900">Brætspil</h1>
         <p className="text-sm text-neutral-500">
           {tab === "club" ? (
-            "Spil ejet af klubben."
+            "Spil der altid er tilgængelige i klubben"
           ) : (
             <>
               Spil ejet af klubbens medlemmer.{" "}
@@ -228,7 +228,7 @@ export default function BoardgamesPage() {
       <div className="inline-flex self-start rounded-lg bg-neutral-200 dark:bg-neutral-800 p-1 gap-1">
         {(
           [
-            { key: "club", label: "Klubbens spil" },
+            { key: "club", label: "Spil i klubben" },
             { key: "members", label: "Medlemmernes spil" },
           ] as { key: Tab; label: string }[]
         ).map((t) => (
@@ -332,7 +332,7 @@ export default function BoardgamesPage() {
           <div className="p-8 text-center text-sm text-neutral-500">
             {sourceGames.length === 0
               ? tab === "club"
-                ? "Klubben har ingen spil registreret endnu."
+                ? "Ingen spil er registreret som tilgængelige i klubben endnu."
                 : "Ingen spil registreret endnu."
               : "Ingen spil matcher dine filtre."}
           </div>
@@ -372,9 +372,7 @@ export default function BoardgamesPage() {
             </thead>
             <tbody className="divide-y divide-neutral-100">
               {filtered.map((game) => {
-                const owners = showOwners
-                  ? (game as ApiBoardgame).owners
-                  : [];
+                const owners = showOwners ? (game as ApiBoardgame).owners : [];
                 const ownerNames = owners
                   .map((o) => o.name)
                   .filter(Boolean) as string[];
