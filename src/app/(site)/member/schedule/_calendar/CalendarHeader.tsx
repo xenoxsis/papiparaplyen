@@ -36,7 +36,7 @@ export function CalendarHeader({
         <Button variant="outline" size="sm" onClick={onPrevMonth} aria-label="Forrige måned">
           <ChevronLeft className="size-4" />
         </Button>
-        <span className="font-semibold text-sm text-neutral-900 min-w-[8rem] text-center">
+        <span className="font-semibold text-sm text-neutral-900 dark:text-neutral-100 min-w-[8rem] text-center">
           {monthNameDa(mobileMonth)} {mobileYear}
         </span>
         <Button variant="outline" size="sm" onClick={onNextMonth} aria-label="Næste måned">
@@ -50,11 +50,11 @@ export function CalendarHeader({
           <ChevronLeft className="size-4" />
         </Button>
         <div className="flex flex-col leading-tight min-w-[10rem] text-center">
-          <span className="font-semibold text-sm text-neutral-900">
+          <span className="font-semibold text-sm text-neutral-900 dark:text-neutral-100">
             {desktopPrimary}
           </span>
           {desktopSecondary && (
-            <span className="text-xs text-neutral-500">{desktopSecondary}</span>
+            <span className="text-xs text-neutral-500 dark:text-neutral-400">{desktopSecondary}</span>
           )}
         </div>
         <Button variant="outline" size="sm" onClick={onNext} aria-label="Næste periode">

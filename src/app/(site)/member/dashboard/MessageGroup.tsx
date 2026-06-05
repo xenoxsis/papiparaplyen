@@ -87,10 +87,10 @@ export const MessageGroup = memo(function MessageGroup({
         onClose={() => setDeletingMsg(null)}
         panelClassName="p-6"
       >
-        <h2 className="text-base font-semibold text-neutral-900 mb-3">
+        <h2 className="text-base font-semibold text-neutral-900 dark:text-neutral-100 mb-3">
           Slet besked
         </h2>
-        <p className="text-sm text-neutral-600 mb-4">
+        <p className="text-sm text-neutral-600 dark:text-neutral-300 mb-4">
           Er du sikker på, at du vil slette denne besked? Det kan ikke
           fortrydes.
         </p>
@@ -196,9 +196,9 @@ export const MessageGroup = memo(function MessageGroup({
                     </span>
                   </div>
                   {swapNight && (
-                    <p className="text-xs font-semibold text-neutral-800 leading-snug">
+                    <p className="text-xs font-semibold text-neutral-800 dark:text-neutral-100 leading-snug">
                       {swapNight.name}
-                      <span className="font-normal text-neutral-500 ml-1">
+                      <span className="font-normal text-neutral-500 dark:text-neutral-400 ml-1">
                         {new Date(swapNight.date).toLocaleDateString("da-DK", {
                           day: "numeric",
                           month: "short",
@@ -206,7 +206,7 @@ export const MessageGroup = memo(function MessageGroup({
                       </span>
                     </p>
                   )}
-                  <p className="text-xs text-neutral-600 leading-snug">
+                  <p className="text-xs text-neutral-600 dark:text-neutral-300 leading-snug">
                     {user ? renderMessageBody(msg.body, user.id) : msg.body}
                   </p>
                   {msg.swap_status === "pending" && (
@@ -227,7 +227,7 @@ export const MessageGroup = memo(function MessageGroup({
                         <div className="mt-1 flex flex-col gap-1">
                           <button
                             disabled
-                            className="w-full h-8 rounded-lg bg-neutral-100 text-neutral-400 text-xs font-semibold border border-neutral-200 cursor-not-allowed"
+                            className="w-full h-8 rounded-lg bg-neutral-100 dark:bg-neutral-800 text-neutral-400 dark:text-neutral-500 text-xs font-semibold border border-neutral-200 dark:border-neutral-700 cursor-not-allowed"
                           >
                             Tag vagt
                           </button>
@@ -318,7 +318,7 @@ export const MessageGroup = memo(function MessageGroup({
                           }
                         }}
                         rows={2}
-                        className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg resize-none outline-none focus:border-neutral-900 font-[inherit]"
+                        className="w-full px-3 py-2 text-sm border border-neutral-300 dark:border-neutral-700 bg-transparent text-neutral-900 dark:text-neutral-100 rounded-lg resize-none outline-none focus:border-neutral-900 dark:focus:border-neutral-400 font-[inherit]"
                       />
                       <div className="flex gap-1 justify-end text-xs">
                         <button
@@ -374,7 +374,7 @@ export const MessageGroup = memo(function MessageGroup({
                   {msg.sender_initials}
                 </div>
                 <div className="flex flex-col gap-0.5 max-w-md">
-                  <span className="text-[0.65rem] font-semibold text-neutral-600 pl-1">
+                  <span className="text-[0.65rem] font-semibold text-neutral-600 dark:text-neutral-300 pl-1">
                     {msg.sender_name}
                   </span>
                   {replyQuote}

@@ -29,8 +29,8 @@ export function GroupChatItem({
       onClick={onClick}
       className={`w-full text-left flex p-2 items-center gap-3 rounded-md transition-colors border-b ${
         color === "red"
-          ? `bg-red-50 border-red-100 ${active ? "bg-red-100" : "hover:bg-red-100"}`
-          : `bg-teal-50 border-teal-100 ${active ? "bg-teal-100" : "hover:bg-teal-100"}`
+          ? `bg-red-50 dark:bg-red-950/30 border-red-100 dark:border-red-900/40 ${active ? "bg-red-100 dark:bg-red-950/50" : "hover:bg-red-100 dark:hover:bg-red-950/50"}`
+          : `bg-teal-50 dark:bg-teal-950/30 border-teal-100 dark:border-teal-900/40 ${active ? "bg-teal-100 dark:bg-teal-950/50" : "hover:bg-teal-100 dark:hover:bg-teal-950/50"}`
       }`}
     >
       <div
@@ -46,7 +46,7 @@ export function GroupChatItem({
       <div className="flex flex-col flex-1 min-w-0">
         <div className="flex justify-between items-center">
           <span
-            className={`text-sm text-neutral-900 truncate ${active ? "font-semibold" : "font-medium"}`}
+            className={`text-sm text-neutral-900 dark:text-neutral-100 truncate ${active ? "font-semibold" : "font-medium"}`}
           >
             {name}
           </span>

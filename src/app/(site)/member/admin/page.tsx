@@ -332,7 +332,7 @@ export default function AdminPage() {
 
   if (!authorized) return null;
   return (
-    <main className="bg-neutral-100 min-h-[calc(100vh-3.5rem)] p-4 sm:p-8 flex flex-col gap-6 sm:gap-8">
+    <main className="bg-neutral-100 dark:bg-neutral-950 min-h-[calc(100vh-3.5rem)] p-4 sm:p-8 flex flex-col gap-6 sm:gap-8">
       {/* Confirm ban dialog */}
       <Modal
         open={pendingBan !== null}
@@ -346,10 +346,10 @@ export default function AdminPage() {
           </div>
         </div>
         <div className="flex flex-col gap-1">
-          <h2 className="font-semibold text-neutral-900">Udeluk medlem?</h2>
-          <p className="text-sm text-neutral-500">
+          <h2 className="font-semibold text-neutral-900 dark:text-neutral-100">Udeluk medlem?</h2>
+          <p className="text-sm text-neutral-500 dark:text-neutral-400">
             Er du sikker på, at du vil udelukke{" "}
-            <span className="font-medium text-neutral-900">
+            <span className="font-medium text-neutral-900 dark:text-neutral-100">
               {pendingBan?.name}
             </span>
             ? Medlemmet mister adgang til alle funktioner.
@@ -380,15 +380,15 @@ export default function AdminPage() {
           <div className="w-10 h-10 rounded-full bg-brand-teal/10 flex items-center justify-center shrink-0">
             <Ghost className="size-5 text-brand-teal" />
           </div>
-          <h2 className="font-semibold text-neutral-900">Opret virtuel vagt</h2>
+          <h2 className="font-semibold text-neutral-900 dark:text-neutral-100">Opret virtuel vagt</h2>
         </div>
-        <p className="text-sm text-neutral-500">
+        <p className="text-sm text-neutral-500 dark:text-neutral-400">
           En virtuel vagt har ingen login, modtager ingen e-mails og bekræfter
           automatisk sine vagter.
         </p>
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-neutral-700">Navn</label>
+            <label className="text-xs font-medium text-neutral-700 dark:text-neutral-300">Navn</label>
             <Input
               placeholder="f.eks. Vikar Hansen"
               value={virtualName}
@@ -396,7 +396,7 @@ export default function AdminPage() {
             />
           </div>
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-neutral-700">
+            <label className="text-xs font-medium text-neutral-700 dark:text-neutral-300">
               Initialer
             </label>
             <Input
@@ -435,20 +435,20 @@ export default function AdminPage() {
           <div className="w-10 h-10 rounded-full bg-brand-orange/10 flex items-center justify-center shrink-0">
             <Mail className="size-5 text-brand-orange" />
           </div>
-          <h2 className="font-semibold text-neutral-900">
+          <h2 className="font-semibold text-neutral-900 dark:text-neutral-100">
             Tildel e-mail til {realizingMember?.name}
           </h2>
         </div>
         {realizeResult ? (
           <div className="flex flex-col gap-3">
             {realizeResult.merged ? (
-              <p className="text-sm text-neutral-700">
+              <p className="text-sm text-neutral-700 dark:text-neutral-300">
                 ✅ Flettet med eksisterende bruger{" "}
                 <span className="font-medium">{realizeResult.name}</span>. Alle
                 vagter er overført.
               </p>
             ) : (
-              <p className="text-sm text-neutral-700">
+              <p className="text-sm text-neutral-700 dark:text-neutral-300">
                 ✅ Konverteret til rigtigt medlem. En invitationsmail er sendt
                 til <span className="font-medium">{realizeEmail}</span>.
               </p>
@@ -461,7 +461,7 @@ export default function AdminPage() {
           </div>
         ) : (
           <>
-            <p className="text-sm text-neutral-500">
+            <p className="text-sm text-neutral-500 dark:text-neutral-400">
               Angiv en e-mailadresse. Hvis der allerede findes en bruger med den
               e-mail, flettes vagterne med den bruger og den virtuelle profil
               slettes. Ellers sendes en invitationsmail.
@@ -511,12 +511,12 @@ export default function AdminPage() {
         </div>
       </MemberHero>
 
-      <div className="bg-white rounded-xl border border-neutral-200 p-6 flex flex-col gap-4 shadow-sm">
+      <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 p-6 flex flex-col gap-4 shadow-sm">
         {/* Toolbar */}
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <div className="flex items-center gap-2">
             <Users className="size-5" />
-            <h2 className="font-semibold text-base text-neutral-900">
+            <h2 className="font-semibold text-base text-neutral-900 dark:text-neutral-100">
               Medlemsoversigt
             </h2>
           </div>
@@ -562,7 +562,7 @@ export default function AdminPage() {
               className={`text-xs font-medium px-3 py-1 rounded-full transition-colors border ${
                 filter === f
                   ? "bg-neutral-900 text-white border-neutral-900"
-                  : "bg-white text-neutral-600 border-neutral-200 hover:border-neutral-400"
+                  : "bg-white dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 border-neutral-200 dark:border-neutral-700 hover:border-neutral-400"
               }`}
             >
               {f === "alle"
@@ -583,7 +583,7 @@ export default function AdminPage() {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-neutral-100 text-left text-xs text-neutral-500 uppercase tracking-wider">
+              <tr className="border-b border-neutral-100 dark:border-neutral-800 text-left text-xs text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">
                 <th className="pb-2 pr-4 font-medium">Medlem</th>
                 <th className="pb-2 pr-4 font-medium">E-mail</th>
                 <th className="pb-2 pr-4 font-medium">Tilmeldt</th>
@@ -591,7 +591,7 @@ export default function AdminPage() {
                 <th className="pb-2 font-medium">Handlinger</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-neutral-100">
+            <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800">
               {loading ? (
                 Array.from({ length: 6 }).map((_, i) => (
                   <tr key={i}>
@@ -643,7 +643,7 @@ export default function AdminPage() {
                               m.initials
                             )}
                           </div>
-                          <span className="font-medium text-neutral-900">
+                          <span className="font-medium text-neutral-900 dark:text-neutral-100">
                             {m.name}
                           </span>
                           {m.is_virtual && (
@@ -658,14 +658,14 @@ export default function AdminPage() {
                           )}
                         </div>
                       </td>
-                      <td className="py-3 pr-4 text-neutral-500">
+                      <td className="py-3 pr-4 text-neutral-500 dark:text-neutral-400">
                         {m.email ?? (
                           <span className="italic text-neutral-300">
                             Ingen e-mail
                           </span>
                         )}
                       </td>
-                      <td className="py-3 pr-4 text-neutral-500">
+                      <td className="py-3 pr-4 text-neutral-500 dark:text-neutral-400">
                         {new Date(m.joined_date).toLocaleDateString("da-DK", {
                           month: "long",
                           year: "numeric",
@@ -686,7 +686,7 @@ export default function AdminPage() {
                           </div>
                         ) : (
                           <div className="flex gap-1 flex-wrap">
-                            <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-neutral-100 text-neutral-500 border border-transparent">
+                            <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-neutral-100 dark:bg-neutral-800 text-neutral-500 dark:text-neutral-400 border border-transparent">
                               Medlem
                             </span>
                             {(
@@ -698,7 +698,7 @@ export default function AdminPage() {
                                 className={`text-[11px] font-medium px-2 py-0.5 rounded-full border transition-colors ${
                                   m.roles.includes(r)
                                     ? ROLE_STYLES[r] + " border-transparent"
-                                    : "bg-white text-neutral-400 border-neutral-200 hover:border-neutral-400"
+                                    : "bg-white dark:bg-neutral-800 text-neutral-400 border-neutral-200 dark:border-neutral-700 hover:border-neutral-400"
                                 }`}
                               >
                                 {r}
@@ -720,7 +720,7 @@ export default function AdminPage() {
                               className={`flex items-center gap-1 text-xs px-2 py-1 rounded border transition-colors ${
                                 m.show_on_about_page
                                   ? "text-brand-teal border-brand-teal/30 bg-brand-teal/5 hover:bg-brand-teal/10"
-                                  : "text-neutral-400 border-neutral-200 hover:border-neutral-400"
+                                  : "text-neutral-400 border-neutral-200 dark:border-neutral-700 hover:border-neutral-400"
                               }`}
                             >
                               {m.show_on_about_page ? (
@@ -780,8 +780,8 @@ export default function AdminPage() {
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <MapPin className="size-5 text-neutral-600" />
-            <h2 className="font-semibold text-neutral-900 text-base">Lokationer</h2>
+            <MapPin className="size-5 text-neutral-600 dark:text-neutral-300" />
+            <h2 className="font-semibold text-neutral-900 dark:text-neutral-100 text-base">Lokationer</h2>
           </div>
           <Button
             className="bg-brand-red hover:bg-red-600 text-white gap-2 text-sm"
@@ -792,16 +792,16 @@ export default function AdminPage() {
           </Button>
         </div>
 
-        <div className="bg-white rounded-xl border overflow-hidden">
+        <div className="bg-white dark:bg-neutral-900 rounded-xl border overflow-hidden">
           <table className="w-full text-sm">
-            <thead className="bg-neutral-50 text-neutral-500 text-xs uppercase tracking-wider">
+            <thead className="bg-neutral-50 dark:bg-neutral-800 text-neutral-500 dark:text-neutral-400 text-xs uppercase tracking-wider">
               <tr>
                 <th className="px-4 py-3 text-left font-medium">Navn</th>
                 <th className="px-4 py-3 text-left font-medium hidden sm:table-cell">Adresse</th>
                 <th className="px-4 py-3 text-right font-medium">Handlinger</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-neutral-100">
+            <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800">
               {locationsLoading ? (
                 <tr>
                   <td colSpan={3} className="px-4 py-6 text-center text-neutral-400 text-sm">
@@ -816,26 +816,26 @@ export default function AdminPage() {
                 </tr>
               ) : (
                 locations.map((loc) => (
-                  <tr key={loc.id} className="hover:bg-neutral-50">
-                    <td className="px-4 py-3 font-medium text-neutral-900">
+                  <tr key={loc.id} className="hover:bg-neutral-50 dark:hover:bg-neutral-800">
+                    <td className="px-4 py-3 font-medium text-neutral-900 dark:text-neutral-100">
                       <span className="flex items-center gap-2">
                         {loc.name}
                         {loc.is_default && (
-                          <span className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-600 bg-amber-50 rounded-full px-2 py-0.5">
+                          <span className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-600 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/30 rounded-full px-2 py-0.5">
                             <Star className="size-3 fill-amber-500 text-amber-500" />
                             Fast lokation
                           </span>
                         )}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-neutral-500 hidden sm:table-cell">{loc.address}</td>
+                    <td className="px-4 py-3 text-neutral-500 dark:text-neutral-400 hidden sm:table-cell">{loc.address}</td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex items-center justify-end gap-2">
                         {!loc.is_default && (
                           <button
                             onClick={() => handleSetDefaultLocation(loc.id)}
                             title="Gør til fast lokation"
-                            className="text-xs text-neutral-400 hover:text-amber-600 border border-neutral-200 rounded px-2 py-1 transition-colors flex items-center gap-1"
+                            className="text-xs text-neutral-400 hover:text-amber-600 border border-neutral-200 dark:border-neutral-700 rounded px-2 py-1 transition-colors flex items-center gap-1"
                           >
                             <Star className="size-3" />
                             Gør fast
@@ -843,7 +843,7 @@ export default function AdminPage() {
                         )}
                         <button
                           onClick={() => handleDisableLocation(loc.id)}
-                          className="text-xs text-neutral-400 hover:text-brand-red border border-neutral-200 rounded px-2 py-1 transition-colors flex items-center gap-1"
+                          className="text-xs text-neutral-400 hover:text-brand-red border border-neutral-200 dark:border-neutral-700 rounded px-2 py-1 transition-colors flex items-center gap-1"
                         >
                           <Ban className="size-3" />
                           Deaktiver
@@ -861,14 +861,14 @@ export default function AdminPage() {
       {/* Spil i klubben */}
       <div className="flex flex-col gap-4">
         <div className="flex items-center gap-2">
-          <Gamepad2 className="size-5 text-neutral-600" />
-          <h2 className="font-semibold text-neutral-900 text-base">
+          <Gamepad2 className="size-5 text-neutral-600 dark:text-neutral-300" />
+          <h2 className="font-semibold text-neutral-900 dark:text-neutral-100 text-base">
             Spil i klubben
           </h2>
         </div>
 
-        <div className="bg-white rounded-xl border p-6 flex flex-col gap-4">
-          <p className="text-sm text-neutral-600">
+        <div className="bg-white dark:bg-neutral-900 rounded-xl border p-6 flex flex-col gap-4">
+          <p className="text-sm text-neutral-600 dark:text-neutral-300">
             Registrér de spil der altid er tilgængelige i klubben (efterladt af
             medlemmer). Upload listen som CSV — eksportér fra{" "}
             <a
@@ -884,7 +884,7 @@ export default function AdminPage() {
           </p>
 
           {clubGameCount !== null && clubGameCount > 0 && (
-            <p className="text-sm font-medium text-neutral-700">
+            <p className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
               {clubGameCount} spil tilgængelige i klubben
             </p>
           )}
@@ -920,11 +920,11 @@ export default function AdminPage() {
             <div className="w-10 h-10 rounded-full bg-brand-red/10 flex items-center justify-center shrink-0">
               <MapPin className="size-5 text-brand-red" />
             </div>
-            <h2 className="font-semibold text-neutral-900">Tilføj lokation</h2>
+            <h2 className="font-semibold text-neutral-900 dark:text-neutral-100">Tilføj lokation</h2>
           </div>
           <div className="flex flex-col gap-3">
             <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-neutral-700">Navn</label>
+              <label className="text-xs font-medium text-neutral-700 dark:text-neutral-300">Navn</label>
               <Input
                 placeholder="f.eks. Café Finns Paraply"
                 value={newLocationName}
@@ -932,7 +932,7 @@ export default function AdminPage() {
               />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-neutral-700">Adresse</label>
+              <label className="text-xs font-medium text-neutral-700 dark:text-neutral-300">Adresse</label>
               <AddressAutocomplete
                 value={newLocationAddress}
                 onChange={setNewLocationAddress}

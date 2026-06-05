@@ -32,24 +32,24 @@ export function AssignModal({
       {/* Backdrop */}
       <div className="fixed inset-0 z-40 bg-black/40" onClick={onClose} />
       {/* Sheet */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-2xl shadow-2xl flex flex-col max-h-[75vh]">
+      <div className="fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-neutral-900 rounded-t-2xl shadow-2xl flex flex-col max-h-[75vh]">
         {/* Handle */}
         <div className="flex justify-center pt-3 pb-1 shrink-0">
-          <div className="w-10 h-1 rounded-full bg-neutral-200" />
+          <div className="w-10 h-1 rounded-full bg-neutral-200 dark:bg-neutral-700" />
         </div>
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-100 shrink-0">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-100 dark:border-neutral-800 shrink-0">
           <div className="flex flex-col">
-            <span className="font-semibold text-sm text-neutral-900">
+            <span className="font-semibold text-sm text-neutral-900 dark:text-neutral-100">
               Tildel vagt
             </span>
-            <span className="text-xs text-neutral-500 truncate">
+            <span className="text-xs text-neutral-500 dark:text-neutral-400 truncate">
               {night.name}
             </span>
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center rounded-full bg-neutral-100 text-neutral-500 hover:bg-neutral-200 transition-colors"
+            className="w-8 h-8 flex items-center justify-center rounded-full bg-neutral-100 dark:bg-neutral-800 text-neutral-500 dark:text-neutral-400 hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors"
           >
             <X className="size-4" />
           </button>
@@ -63,7 +63,7 @@ export function AssignModal({
               placeholder="Søg vagt…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full h-9 pl-9 pr-3 text-sm rounded-lg border border-neutral-200 outline-none bg-white placeholder:text-neutral-400 focus:border-neutral-400 font-[inherit]"
+              className="w-full h-9 pl-9 pr-3 text-sm rounded-lg border border-neutral-200 dark:border-neutral-700 outline-none bg-white dark:bg-neutral-800 dark:text-neutral-100 placeholder:text-neutral-400 focus:border-neutral-400 dark:focus:border-neutral-400 font-[inherit]"
             />
           </div>
         </div>
@@ -76,7 +76,7 @@ export function AssignModal({
                 onRemoveVagt(night.id);
                 onClose();
               }}
-              className="flex items-center gap-3 px-3 py-3 rounded-xl text-left hover:bg-red-50 transition-colors"
+              className="flex items-center gap-3 px-3 py-3 rounded-xl text-left hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
             >
               <div className="w-10 h-10 rounded-full bg-brand-red/10 text-brand-red flex items-center justify-center shrink-0">
                 <UserMinus className="size-4" />
@@ -101,7 +101,7 @@ export function AssignModal({
                   onClose();
                 }}
                 className={`flex items-center gap-3 px-3 py-3 rounded-xl text-left transition-colors ${
-                  isCurrent ? "bg-brand-teal/10" : "hover:bg-neutral-50"
+                  isCurrent ? "bg-brand-teal/10" : "hover:bg-neutral-50 dark:hover:bg-neutral-800"
                 }`}
               >
                 <div className="w-10 h-10 rounded-full bg-brand-red text-white flex items-center justify-center text-xs font-bold shrink-0 overflow-hidden">
@@ -119,7 +119,7 @@ export function AssignModal({
                   )}
                 </div>
                 <div className="flex flex-col flex-1 min-w-0">
-                  <span className="text-sm font-medium text-neutral-900 truncate">
+                  <span className="text-sm font-medium text-neutral-900 dark:text-neutral-100 truncate">
                     {m.name}
                   </span>
                   <span className="text-xs text-neutral-400">Vagt</span>

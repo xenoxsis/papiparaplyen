@@ -112,8 +112,8 @@ export const CalendarDay = forwardRef<HTMLDivElement, CalendarDayProps>(
     const rowBg = isOver
       ? "bg-brand-teal/10"
       : weekend || holidayName
-        ? "bg-[#e5e7eb]"
-        : "bg-white";
+        ? "bg-[#e5e7eb] dark:bg-neutral-800"
+        : "bg-white dark:bg-neutral-900";
 
     const rowBorder = isOver
       ? "border-brand-teal"
@@ -158,20 +158,20 @@ export const CalendarDay = forwardRef<HTMLDivElement, CalendarDayProps>(
         className={`relative flex items-center gap-1.5 px-2 h-7 border-l-2 border-b-2 ${
           isCurrentWeek && dow === 6
             ? "border-b-blue-300"
-            : "border-b-neutral-200"
+            : "border-b-neutral-200 dark:border-b-neutral-700"
         } ${rowBorder} ${rowBg} ${
           isCurrentWeek ? "border-r-2 border-r-blue-300" : ""
         } ${isCurrentWeek && isMonday ? "border-t-2 border-t-blue-300" : ""} ${
-          interactive ? "cursor-pointer hover:bg-neutral-50" : ""
+          interactive ? "cursor-pointer hover:bg-neutral-50 dark:hover:bg-neutral-800" : ""
         } transition-colors ${isDragging && !isDroppable ? "opacity-30" : ""}`}
       >
         {/* Day letter (M / T / O / T / F / L / S) */}
-        <span className="text-[11px] font-semibold w-3 text-neutral-700 select-none">
+        <span className="text-[11px] font-semibold w-3 text-neutral-700 dark:text-neutral-300 select-none">
           {DAY_INITIALS[dow]}
         </span>
 
         {/* Day number */}
-        <span className="text-xs font-medium w-4 text-neutral-900 select-none tabular-nums">
+        <span className="text-xs font-medium w-4 text-neutral-900 dark:text-neutral-100 select-none tabular-nums">
           {dayNum}
         </span>
 
@@ -182,9 +182,9 @@ export const CalendarDay = forwardRef<HTMLDivElement, CalendarDayProps>(
             cancelled
               ? "text-neutral-400 line-through"
               : holidayName
-                ? "text-neutral-700"
+                ? "text-neutral-700 dark:text-neutral-300"
                 : hasNight
-                  ? "text-neutral-800 font-medium"
+                  ? "text-neutral-800 dark:text-neutral-100 font-medium"
                   : "text-neutral-400"
           }`}
         >
@@ -207,11 +207,11 @@ export const CalendarDay = forwardRef<HTMLDivElement, CalendarDayProps>(
                 }}
                 className={`flex items-center rounded-full pl-0.5 pr-1.5 py-0.5 border shrink-0 ${
                   cancelled
-                    ? "border-neutral-300 bg-neutral-50"
+                    ? "border-neutral-300 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800"
                     : isPending
                       ? "border-dashed border-brand-orange bg-brand-orange/10"
                       : isAutoAssigned
-                        ? "border-purple-300 bg-purple-50"
+                        ? "border-purple-300 dark:border-purple-800/50 bg-purple-50 dark:bg-purple-950/30"
                         : "border-brand-teal/30 bg-brand-teal/10"
                 } ${isAdmin && !cancelled ? "cursor-grab active:cursor-grabbing" : ""}`}
                 title={vagt.name}
@@ -235,7 +235,7 @@ export const CalendarDay = forwardRef<HTMLDivElement, CalendarDayProps>(
                   )}
                 </div>
                 <span
-                  className={`text-[10px] leading-4 font-medium ml-0.5 ${cancelled ? "text-neutral-400" : "text-neutral-700"}`}
+                  className={`text-[10px] leading-4 font-medium ml-0.5 ${cancelled ? "text-neutral-400" : "text-neutral-700 dark:text-neutral-300"}`}
                 >
                   {vagt.name.split(" ")[0]}
                 </span>
@@ -255,7 +255,7 @@ export const CalendarDay = forwardRef<HTMLDivElement, CalendarDayProps>(
               <div
                 key={o.id}
                 title={o.name}
-                className="w-3.5 h-3.5 rounded-full bg-neutral-300 text-neutral-600 flex items-center justify-center text-[0.42rem] font-bold select-none"
+                className="w-3.5 h-3.5 rounded-full bg-neutral-300 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-300 flex items-center justify-center text-[0.42rem] font-bold select-none"
               >
                 {o.initials}
               </div>
@@ -270,7 +270,7 @@ export const CalendarDay = forwardRef<HTMLDivElement, CalendarDayProps>(
 
         {/* ISO week number — bold, right-aligned, on Mondays only */}
         {isMonday && (
-          <span className="ml-auto text-xs font-bold w-5 text-right text-neutral-500 select-none tabular-nums">
+          <span className="ml-auto text-xs font-bold w-5 text-right text-neutral-500 dark:text-neutral-400 select-none tabular-nums">
             {isoWeek(date)}
           </span>
         )}

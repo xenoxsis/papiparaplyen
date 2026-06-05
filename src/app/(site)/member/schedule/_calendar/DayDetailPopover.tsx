@@ -70,25 +70,25 @@ export function DayDetailPopover({
     <Popover open={open} onOpenChange={onOpenChange}>
       <PopoverAnchor asChild>{children}</PopoverAnchor>
       <PopoverContent className="w-80 p-0" align="center">
-        <div className="flex items-start justify-between px-4 pt-4 pb-2 border-b border-neutral-100">
+        <div className="flex items-start justify-between px-4 pt-4 pb-2 border-b border-neutral-100 dark:border-neutral-800">
           <div className="flex flex-col gap-0.5 min-w-0">
-            <span className="font-semibold text-sm text-neutral-900 truncate">
+            <span className="font-semibold text-sm text-neutral-900 dark:text-neutral-100 truncate">
               {night.name}
             </span>
-            <span className="text-xs text-neutral-500 first-letter:uppercase">
+            <span className="text-xs text-neutral-500 dark:text-neutral-400 first-letter:uppercase">
               {dateLabel}
             </span>
           </div>
           <button
             onClick={() => onOpenChange(false)}
-            className="w-7 h-7 flex items-center justify-center rounded-full bg-neutral-100 text-neutral-500 hover:bg-neutral-200 transition-colors shrink-0"
+            className="w-7 h-7 flex items-center justify-center rounded-full bg-neutral-100 dark:bg-neutral-800 text-neutral-500 dark:text-neutral-400 hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors shrink-0"
             aria-label="Luk"
           >
             <X className="size-3.5" />
           </button>
         </div>
 
-        <div className="px-4 py-3 flex flex-col gap-2 text-xs text-neutral-600">
+        <div className="px-4 py-3 flex flex-col gap-2 text-xs text-neutral-600 dark:text-neutral-300">
           <div className="flex items-center gap-2">
             <Clock className="size-3.5 text-neutral-400" />
             <span>
@@ -100,14 +100,14 @@ export function DayDetailPopover({
             <span>{night.location}</span>
           </div>
           {night.cancelled && (
-            <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-red-600 bg-red-50 border border-red-200 rounded-full px-2 py-0.5 self-start">
+            <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-red-600 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/40 rounded-full px-2 py-0.5 self-start">
               Aflyst
             </span>
           )}
         </div>
 
         {/* Assignment */}
-        <div className="px-4 pb-3 flex flex-col gap-2 border-t border-neutral-100 pt-3">
+        <div className="px-4 pb-3 flex flex-col gap-2 border-t border-neutral-100 dark:border-neutral-800 pt-3">
           {vagt ? (
             <div className="flex items-center gap-2">
               <div className="w-7 h-7 rounded-full bg-brand-red text-white flex items-center justify-center text-[0.55rem] font-bold shrink-0 overflow-hidden">
@@ -125,10 +125,10 @@ export function DayDetailPopover({
                 )}
               </div>
               <div className="flex flex-col flex-1 min-w-0">
-                <span className="text-sm font-medium text-neutral-900 truncate">
+                <span className="text-sm font-medium text-neutral-900 dark:text-neutral-100 truncate">
                   {vagt.name}
                 </span>
-                <span className="text-[10px] text-neutral-500">
+                <span className="text-[10px] text-neutral-500 dark:text-neutral-400">
                   {isPending
                     ? "Ugemt ændring"
                     : night.vagt_confirmed
@@ -159,7 +159,7 @@ export function DayDetailPopover({
 
           {/* Opted-out members */}
           {night.opted_out_members.length > 0 && (
-            <div className="flex flex-col gap-1 pt-2 border-t border-neutral-100">
+            <div className="flex flex-col gap-1 pt-2 border-t border-neutral-100 dark:border-neutral-800">
               <span className="text-[10px] text-neutral-400 font-medium uppercase tracking-wide">
                 Meldt fra
               </span>
@@ -168,12 +168,12 @@ export function DayDetailPopover({
                   <div
                     key={o.id}
                     title={o.name}
-                    className="rounded-full flex pl-0.5 pr-1.5 py-0.5 items-center gap-1 border bg-neutral-50 border-neutral-200"
+                    className="rounded-full flex pl-0.5 pr-1.5 py-0.5 items-center gap-1 border bg-neutral-50 dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700"
                   >
                     <div className="w-4 h-4 rounded-full bg-neutral-400 text-white flex items-center justify-center text-[0.45rem] font-bold shrink-0">
                       {o.initials}
                     </div>
-                    <span className="text-[10px] text-neutral-500">
+                    <span className="text-[10px] text-neutral-500 dark:text-neutral-400">
                       {o.name}
                     </span>
                   </div>
@@ -185,13 +185,13 @@ export function DayDetailPopover({
 
         {/* Admin actions */}
         {isAdmin && !isPast && (
-          <div className="border-t border-neutral-100 px-3 py-2 flex items-center gap-1 flex-wrap">
+          <div className="border-t border-neutral-100 dark:border-neutral-800 px-3 py-2 flex items-center gap-1 flex-wrap">
             <button
               onClick={() => {
                 onAssign();
                 onOpenChange(false);
               }}
-              className="flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-md text-neutral-700 hover:bg-neutral-100 transition-colors cursor-pointer"
+              className="flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-md text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors cursor-pointer"
             >
               <UserPlus className="size-3.5" />
               {vagt ? "Skift vagt" : "Tildel vagt"}
@@ -214,7 +214,7 @@ export function DayDetailPopover({
                   onEdit();
                   onOpenChange(false);
                 }}
-                className="flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-md text-neutral-700 hover:bg-neutral-100 transition-colors cursor-pointer"
+                className="flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-md text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors cursor-pointer"
               >
                 <Pencil className="size-3.5" />
                 Rediger

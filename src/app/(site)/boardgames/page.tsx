@@ -35,7 +35,7 @@ function WeightBar({ value }: { value: number | null }) {
           style={{ width: `${pct}%` }}
         />
       </div>
-      <span className="text-xs text-neutral-500 whitespace-nowrap">
+      <span className="text-xs text-neutral-500 dark:text-neutral-400 whitespace-nowrap">
         {value.toFixed(1)} <span className="hidden sm:inline">— {label}</span>
       </span>
     </div>
@@ -107,7 +107,7 @@ function ColHeader({
   const active = currentKey === sortKey;
   return (
     <th
-      className={`px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wide cursor-pointer select-none hover:text-neutral-800 whitespace-nowrap ${className ?? ""}`}
+      className={`px-4 py-3 text-left text-xs font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wide cursor-pointer select-none hover:text-neutral-800 dark:hover:text-neutral-100 whitespace-nowrap ${className ?? ""}`}
       onClick={() => onSort(sortKey)}
     >
       {label}{" "}
@@ -201,8 +201,10 @@ export default function BoardgamesPage() {
     <main className="bg-neutral-100 dark:bg-neutral-950 min-h-[calc(100vh-3.5rem)] p-4 sm:p-8 flex flex-col gap-6">
       {/* Header */}
       <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold text-neutral-900">Brætspil</h1>
-        <p className="text-sm text-neutral-500">
+        <h1 className="text-2xl font-bold text-neutral-900 dark:text-neutral-100">
+          Brætspil
+        </h1>
+        <p className="text-sm text-neutral-500 dark:text-neutral-400">
           {tab === "club" ? (
             "Spil der altid er tilgængelige i klubben"
           ) : (
@@ -249,7 +251,7 @@ export default function BoardgamesPage() {
       {/* Filters */}
       <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 p-4 shadow-sm flex flex-wrap gap-3 items-end">
         <div className="flex flex-col gap-1 flex-1 min-w-40">
-          <label className="text-xs font-medium text-neutral-600">
+          <label className="text-xs font-medium text-neutral-600 dark:text-neutral-300">
             Søg efter spil
           </label>
           <div className="relative">
@@ -259,13 +261,13 @@ export default function BoardgamesPage() {
               value={nameFilter}
               onChange={(e) => setNameFilter(e.target.value)}
               placeholder="Navn…"
-              className="h-9 w-full pl-8 pr-3 rounded-lg border border-neutral-200 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900"
+              className="h-9 w-full pl-8 pr-3 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 dark:placeholder:text-neutral-500 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900 dark:focus:ring-neutral-300"
             />
           </div>
         </div>
 
         <div className="flex flex-col gap-1 w-32">
-          <label className="text-xs font-medium text-neutral-600">
+          <label className="text-xs font-medium text-neutral-600 dark:text-neutral-300">
             Antal spillere
           </label>
           <input
@@ -274,12 +276,12 @@ export default function BoardgamesPage() {
             value={playerFilter}
             onChange={(e) => setPlayerFilter(e.target.value)}
             placeholder="F.eks. 4"
-            className="h-9 w-full px-3 rounded-lg border border-neutral-200 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900"
+            className="h-9 w-full px-3 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 dark:placeholder:text-neutral-500 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900 dark:focus:ring-neutral-300"
           />
         </div>
 
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-neutral-600">
+          <label className="text-xs font-medium text-neutral-600 dark:text-neutral-300">
             Sværhedsgrad (1–5)
           </label>
           <div className="flex items-center gap-2">
@@ -291,7 +293,7 @@ export default function BoardgamesPage() {
               value={weightMin}
               onChange={(e) => setWeightMin(e.target.value)}
               placeholder="Min"
-              className="h-9 w-20 px-3 rounded-lg border border-neutral-200 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900"
+              className="h-9 w-20 px-3 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 dark:placeholder:text-neutral-500 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900 dark:focus:ring-neutral-300"
             />
             <span className="text-neutral-400 text-sm">–</span>
             <input
@@ -302,7 +304,7 @@ export default function BoardgamesPage() {
               value={weightMax}
               onChange={(e) => setWeightMax(e.target.value)}
               placeholder="Max"
-              className="h-9 w-20 px-3 rounded-lg border border-neutral-200 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900"
+              className="h-9 w-20 px-3 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 dark:placeholder:text-neutral-500 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900 dark:focus:ring-neutral-300"
             />
           </div>
         </div>
@@ -338,7 +340,7 @@ export default function BoardgamesPage() {
           </div>
         ) : (
           <table className="w-full text-sm text-left">
-            <thead className="border-b border-neutral-200">
+            <thead className="border-b border-neutral-200 dark:border-neutral-700">
               <tr>
                 <ColHeader label="Navn" sortKey="name" {...colProps} />
                 <ColHeader
@@ -360,17 +362,17 @@ export default function BoardgamesPage() {
                   {...colProps}
                   className="hidden lg:table-cell"
                 />
-                <th className="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wide">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wide">
                   BGG
                 </th>
                 {showOwners && (
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wide">
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wide">
                     Ejere
                   </th>
                 )}
               </tr>
             </thead>
-            <tbody className="divide-y divide-neutral-100">
+            <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800">
               {filtered.map((game) => {
                 const owners = showOwners ? (game as ApiBoardgame).owners : [];
                 const ownerNames = owners
@@ -383,10 +385,10 @@ export default function BoardgamesPage() {
                     key={game.bgg_id}
                     className="hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
                   >
-                    <td className="px-4 py-3 font-medium text-neutral-900">
+                    <td className="px-4 py-3 font-medium text-neutral-900 dark:text-neutral-100">
                       {game.name}
                     </td>
-                    <td className="px-4 py-3 text-neutral-600 hidden sm:table-cell">
+                    <td className="px-4 py-3 text-neutral-600 dark:text-neutral-300 hidden sm:table-cell">
                       <PlayerCount
                         min={game.min_players}
                         max={game.max_players}
@@ -395,12 +397,12 @@ export default function BoardgamesPage() {
                     <td className="px-4 py-3">
                       <WeightBar value={game.avg_weight} />
                     </td>
-                    <td className="px-4 py-3 text-neutral-600 hidden md:table-cell">
+                    <td className="px-4 py-3 text-neutral-600 dark:text-neutral-300 hidden md:table-cell">
                       {game.year_published ?? (
                         <span className="text-neutral-400">—</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-neutral-600 hidden lg:table-cell">
+                    <td className="px-4 py-3 text-neutral-600 dark:text-neutral-300 hidden lg:table-cell">
                       {game.playing_time ? (
                         `${game.playing_time} min`
                       ) : (
@@ -419,7 +421,7 @@ export default function BoardgamesPage() {
                       </a>
                     </td>
                     {showOwners && (
-                      <td className="px-4 py-3 text-neutral-600 text-xs">
+                      <td className="px-4 py-3 text-neutral-600 dark:text-neutral-300 text-xs">
                         {!user ? (
                           <span className="text-neutral-400 italic">
                             Log ind for at se

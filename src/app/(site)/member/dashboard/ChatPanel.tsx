@@ -285,8 +285,8 @@ export function ChatPanel({
     <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 p-6 flex flex-col gap-4 shadow-sm">
       <div className="flex justify-between items-center">
         <div className="flex items-center gap-2">
-          <MessagesSquare className="size-5 text-neutral-900 shrink-0" />
-          <h2 className="font-semibold text-base text-neutral-900">
+          <MessagesSquare className="size-5 text-neutral-900 dark:text-neutral-100 shrink-0" />
+          <h2 className="font-semibold text-base text-neutral-900 dark:text-neutral-100">
             Medlemschat
           </h2>
         </div>
@@ -342,7 +342,7 @@ export function ChatPanel({
                     value={channelSearch}
                     onChange={(e) => setChannelSearch(e.target.value)}
                     placeholder="Søg i beskeder…"
-                    className="w-full h-8 pl-8 pr-3 text-xs rounded-md border border-neutral-200 outline-none bg-transparent placeholder:text-neutral-400 focus:border-neutral-400 font-[inherit]"
+                    className="w-full h-8 pl-8 pr-3 text-xs rounded-md border border-neutral-200 dark:border-neutral-700 outline-none bg-transparent text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 focus:border-neutral-400 font-[inherit]"
                   />
                 </div>
               </div>
@@ -405,7 +405,7 @@ export function ChatPanel({
                           {msg.sender_name}
                         </span>
                       </div>
-                      <p className="text-xs text-neutral-600 leading-4 line-clamp-2">
+                      <p className="text-xs text-neutral-600 dark:text-neutral-300 leading-4 line-clamp-2">
                         {before}
                         <mark className="bg-yellow-200 text-neutral-900 rounded-sm px-0">
                           {match}
@@ -710,7 +710,7 @@ export function ChatPanel({
                               )}
                             </div>
                           )}
-                          <span className="font-medium text-neutral-900">
+                          <span className="font-medium text-neutral-900 dark:text-neutral-100">
                             @{member.name}
                           </span>
                           {member.id < 0 && (

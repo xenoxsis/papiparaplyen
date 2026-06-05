@@ -69,10 +69,10 @@ export function AutoAssignSettingsModal({
           <Settings className="size-5 text-purple-700" />
         </div>
         <div>
-          <h2 className="font-semibold text-neutral-900">
+          <h2 className="font-semibold text-neutral-900 dark:text-neutral-100">
             Auto-tildel indstillinger
           </h2>
-          <p className="text-xs text-neutral-500">
+          <p className="text-xs text-neutral-500 dark:text-neutral-400">
             Vælg regler per vagt. Ændringer gemmes automatisk.
           </p>
         </div>
@@ -80,8 +80,8 @@ export function AutoAssignSettingsModal({
 
       <div className="overflow-y-auto -mx-6 px-6">
         <table className="w-full text-sm">
-          <thead className="sticky top-0 bg-white">
-            <tr className="text-left text-xs font-medium text-neutral-500">
+          <thead className="sticky top-0 bg-white dark:bg-neutral-900">
+            <tr className="text-left text-xs font-medium text-neutral-500 dark:text-neutral-400">
               <th className="py-2 pr-2">Vagt</th>
               <th className="py-2 px-2 text-center">
                 Tillad to vagter
@@ -113,7 +113,7 @@ export function AutoAssignSettingsModal({
             {sorted.map((m) => (
               <tr
                 key={m.id}
-                className="border-t border-neutral-100 hover:bg-neutral-50"
+                className="border-t border-neutral-100 dark:border-neutral-800 hover:bg-neutral-50 dark:hover:bg-neutral-800"
               >
                 <td className="py-2 pr-2">
                   <div className="flex items-center gap-2">
@@ -130,7 +130,7 @@ export function AutoAssignSettingsModal({
                         m.initials
                       )}
                     </div>
-                    <span className="font-medium text-neutral-800 truncate">
+                    <span className="font-medium text-neutral-800 dark:text-neutral-100 truncate">
                       {m.name}
                     </span>
                   </div>
@@ -159,7 +159,7 @@ export function AutoAssignSettingsModal({
         </table>
       </div>
 
-      <div className="flex justify-end pt-2 border-t border-neutral-100">
+      <div className="flex justify-end pt-2 border-t border-neutral-100 dark:border-neutral-800">
         <Button variant="outline" onClick={onClose}>
           Luk
         </Button>

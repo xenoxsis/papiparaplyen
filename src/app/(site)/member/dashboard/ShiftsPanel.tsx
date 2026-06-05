@@ -83,7 +83,7 @@ export function ShiftsPanel({
         <div className="bg-white dark:bg-neutral-900 rounded-xl border-l-4 border-brand-orange p-6 flex flex-col gap-4 shadow-sm w-full min-w-0">
           <div className="flex items-center gap-2">
             <AlarmClock className="size-5 text-brand-orange shrink-0" />
-            <h2 className="font-semibold text-base text-neutral-900">
+            <h2 className="font-semibold text-base text-neutral-900 dark:text-neutral-100">
               Afventende vagter
             </h2>
             <span className="ml-auto text-xs font-semibold bg-brand-orange/15 text-brand-orange rounded-full px-2 py-0.5">
@@ -112,7 +112,7 @@ export function ShiftsPanel({
                 <div className="flex items-center gap-3">
                   <DateBadge date={shift.date} colorClass="bg-brand-orange" />
                   <div className="flex flex-col gap-0.5 flex-1 min-w-0">
-                    <span className="font-semibold text-sm text-neutral-900 truncate">
+                    <span className="font-semibold text-sm text-neutral-900 dark:text-neutral-100 truncate">
                       {shift.name}
                     </span>
                     <div className="flex items-center gap-2 text-xs text-neutral-500">
@@ -153,7 +153,7 @@ export function ShiftsPanel({
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-2">
               <AlarmClock className="size-5 text-brand-red shrink-0" />
-              <h2 className="font-semibold text-base text-neutral-900">
+              <h2 className="font-semibold text-base text-neutral-900 dark:text-neutral-100">
                 {showAllShifts ? "Mine vagter" : "Min næste vagt"}
               </h2>
             </div>
@@ -172,7 +172,7 @@ export function ShiftsPanel({
                 <div className="bg-neutral-100 dark:bg-neutral-800 rounded-lg flex p-3 items-center gap-3">
                   <DateBadge date={nextShift.date} colorClass="bg-brand-teal" />
                   <div className="flex flex-col gap-1">
-                    <span className="font-semibold text-sm text-neutral-900">
+                    <span className="font-semibold text-sm text-neutral-900 dark:text-neutral-100">
                       {nextShift.name}
                     </span>
                     <span className="text-neutral-500 text-xs">
@@ -184,7 +184,7 @@ export function ShiftsPanel({
                     </span>
                   </div>
                 </div>
-                <div className="flex flex-col gap-2 text-sm text-neutral-900">
+                <div className="flex flex-col gap-2 text-sm text-neutral-900 dark:text-neutral-100">
                   <div className="flex items-center gap-2">
                     <Clock className="size-4 text-neutral-500 shrink-0" />
                     <span>
@@ -266,7 +266,7 @@ export function ShiftsPanel({
                             className={`font-semibold text-sm truncate ${
                               cancelled
                                 ? "text-neutral-400 line-through"
-                                : "text-neutral-900"
+                                : "text-neutral-900 dark:text-neutral-100"
                             }`}
                           >
                             {s.name}

@@ -181,12 +181,12 @@ export function ClubNightModal({
       onClick={handleOverlayClick}
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
     >
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 p-6 flex flex-col gap-5">
+      <div className="bg-white dark:bg-neutral-900 rounded-2xl shadow-xl w-full max-w-md mx-4 p-6 flex flex-col gap-5">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <CalendarDays className="size-5 text-brand-red" />
-            <h2 className="font-semibold text-neutral-900">
+            <h2 className="font-semibold text-neutral-900 dark:text-neutral-100">
               {isEditMode ? "Rediger klubaften" : "Tilføj klubaften"}
             </h2>
           </div>
@@ -201,7 +201,7 @@ export function ClubNightModal({
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           {/* Navn */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-neutral-700 uppercase tracking-wider">
+            <label className="text-xs font-medium text-neutral-700 dark:text-neutral-300 uppercase tracking-wider">
               Navn
             </label>
             <Input
@@ -214,7 +214,7 @@ export function ClubNightModal({
           {/* Dato — hidden in edit mode */}
           {!isEditMode && (
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-neutral-700 uppercase tracking-wider flex items-center gap-1.5">
+              <label className="text-xs font-medium text-neutral-700 dark:text-neutral-300 uppercase tracking-wider flex items-center gap-1.5">
                 <CalendarDays className="size-3.5" /> Dato
               </label>
               <Input
@@ -252,7 +252,7 @@ export function ClubNightModal({
 
           {/* Tid */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-neutral-700 uppercase tracking-wider flex items-center gap-1.5">
+            <label className="text-xs font-medium text-neutral-700 dark:text-neutral-300 uppercase tracking-wider flex items-center gap-1.5">
               <Clock className="size-3.5" /> Tid
             </label>
             <div className="flex items-center gap-2">
@@ -276,7 +276,7 @@ export function ClubNightModal({
 
           {/* Lokale */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-neutral-700 uppercase tracking-wider flex items-center gap-1.5">
+            <label className="text-xs font-medium text-neutral-700 dark:text-neutral-300 uppercase tracking-wider flex items-center gap-1.5">
               <MapPin className="size-3.5" /> Lokale
             </label>
             <select
@@ -285,7 +285,7 @@ export function ClubNightModal({
                 setLocationId(e.target.value ? Number(e.target.value) : null)
               }
               required
-              className="h-10 rounded-md border border-neutral-200 bg-white px-3 text-sm text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:ring-offset-0"
+              className="h-10 rounded-md border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 px-3 text-sm text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-neutral-900 dark:focus:ring-neutral-300 focus:ring-offset-0"
             >
               <option value="">Vælg lokation…</option>
               {locations.map((l) => (
@@ -299,7 +299,7 @@ export function ClubNightModal({
           {/* Vagt — only shown in add mode */}
           {!isEditMode && (
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-neutral-700 uppercase tracking-wider flex items-center gap-1.5">
+              <label className="text-xs font-medium text-neutral-700 dark:text-neutral-300 uppercase tracking-wider flex items-center gap-1.5">
                 <User className="size-3.5" /> Vagt{" "}
                 <span className="normal-case text-neutral-400 font-normal">
                   (valgfri)
@@ -308,7 +308,7 @@ export function ClubNightModal({
               <select
                 value={vagtId}
                 onChange={(e) => setVagtId(e.target.value)}
-                className="h-10 rounded-md border border-neutral-200 bg-white px-3 text-sm text-neutral-900 focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:ring-offset-0"
+                className="h-10 rounded-md border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800 px-3 text-sm text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-neutral-900 dark:focus:ring-neutral-300 focus:ring-offset-0"
               >
                 <option value="none">Ingen vagt valgt</option>
                 {vagter.map((v) => (
@@ -323,9 +323,9 @@ export function ClubNightModal({
           {/* Replace-cancelled warning (add mode) — the new night overwrites an
               overlapping cancelled aften, which will be permanently deleted. */}
           {!isEditMode && !isBlocked && replacedCancelled.length > 0 && (
-            <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2.5">
+            <div className="flex items-start gap-2 rounded-lg border border-amber-300 dark:border-amber-700/50 bg-amber-50 dark:bg-amber-950/30 px-3 py-2.5">
               <AlertTriangle className="size-4 text-amber-500 shrink-0 mt-0.5" />
-              <p className="text-xs text-amber-800 leading-5">
+              <p className="text-xs text-amber-800 dark:text-amber-300 leading-5">
                 {replacedCancelled.length === 1 ? (
                   <>
                     Dette erstatter en aflyst klubaften (
@@ -353,9 +353,9 @@ export function ClubNightModal({
 
           {/* Destructive-change warning */}
           {showWarning && (
-            <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2.5">
+            <div className="flex items-start gap-2 rounded-lg border border-amber-300 dark:border-amber-700/50 bg-amber-50 dark:bg-amber-950/30 px-3 py-2.5">
               <AlertTriangle className="size-4 text-amber-500 shrink-0 mt-0.5" />
-              <p className="text-xs text-amber-800 leading-5">
+              <p className="text-xs text-amber-800 dark:text-amber-300 leading-5">
                 <span className="font-semibold">
                   {night?.assigned_member_name ?? "Den tildelte vagt"}
                 </span>{" "}

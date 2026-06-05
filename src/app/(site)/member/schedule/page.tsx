@@ -237,7 +237,7 @@ export default function SchedulePage() {
   // ── Render ───────────────────────────────────────────────────────────────
   if (!authorized) return null;
   return (
-    <main className="bg-neutral-100 min-h-[calc(100vh-3.5rem)] p-4 sm:p-8 flex flex-col gap-6 sm:gap-8">
+    <main className="bg-neutral-100 dark:bg-neutral-950 min-h-[calc(100vh-3.5rem)] p-4 sm:p-8 flex flex-col gap-6 sm:gap-8">
       {/* Edit club night modal */}
       {isAdmin && editingNight && (
         <ClubNightModal
@@ -317,15 +317,15 @@ export default function SchedulePage() {
               maxWidth="max-w-sm"
               panelClassName="p-6 flex flex-col gap-4"
             >
-              <h2 className="font-semibold text-base text-neutral-900">
+              <h2 className="font-semibold text-base text-neutral-900 dark:text-neutral-100">
                 Erstat vagt?
               </h2>
-              <p className="text-sm text-neutral-500">
-                <span className="font-semibold text-neutral-900">
+              <p className="text-sm text-neutral-500 dark:text-neutral-400">
+                <span className="font-semibold text-neutral-900 dark:text-neutral-100">
                   {current?.name}
                 </span>{" "}
                 er allerede tildelt. Vil du erstatte med{" "}
-                <span className="font-semibold text-neutral-900">
+                <span className="font-semibold text-neutral-900 dark:text-neutral-100">
                   {newMember?.name}
                 </span>
                 ?
@@ -353,21 +353,21 @@ export default function SchedulePage() {
           maxWidth="max-w-sm"
           panelClassName="p-6 flex flex-col gap-4"
         >
-          <h2 className="font-semibold text-base text-neutral-900">
+          <h2 className="font-semibold text-base text-neutral-900 dark:text-neutral-100">
             Aflys klubaften?
           </h2>
-          <p className="text-sm text-neutral-500">
+          <p className="text-sm text-neutral-500 dark:text-neutral-400">
             Er du sikker på at du vil aflyse{" "}
-            <span className="font-semibold text-neutral-900">
+            <span className="font-semibold text-neutral-900 dark:text-neutral-100">
               {cancelConfirmNight.name}
             </span>
             ? Aftenen forbliver synlig på begivenhedssiden markeret som aflyst.
           </p>
-          <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2.5">
+          <div className="flex items-start gap-2 rounded-lg border border-amber-300 dark:border-amber-700/50 bg-amber-50 dark:bg-amber-950/30 px-3 py-2.5">
             <span className="text-amber-500 shrink-0 mt-0.5 text-base leading-4">
               ⚠️
             </span>
-            <p className="text-xs text-amber-800 leading-5">
+            <p className="text-xs text-amber-800 dark:text-amber-300 leading-5">
               Vagten og alle følgere vil modtage en notifikation og e-mail om
               aflysningen.
             </p>
@@ -412,22 +412,22 @@ export default function SchedulePage() {
               maxWidth="max-w-sm"
               panelClassName="p-6 flex flex-col gap-4"
             >
-              <h2 className="font-semibold text-base text-neutral-900">
+              <h2 className="font-semibold text-base text-neutral-900 dark:text-neutral-100">
                 Slet klubaften?
               </h2>
-              <p className="text-sm text-neutral-500">
+              <p className="text-sm text-neutral-500 dark:text-neutral-400">
                 Er du sikker på at du vil slette{" "}
-                <span className="font-semibold text-neutral-900">
+                <span className="font-semibold text-neutral-900 dark:text-neutral-100">
                   {night?.name}
                 </span>
                 ? Dette kan ikke fortrydes.
               </p>
               {night?.vagt_member_id && (
-                <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2.5">
+                <div className="flex items-start gap-2 rounded-lg border border-amber-300 dark:border-amber-700/50 bg-amber-50 dark:bg-amber-950/30 px-3 py-2.5">
                   <span className="text-amber-500 shrink-0 mt-0.5 text-base leading-4">
                     ⚠️
                   </span>
-                  <p className="text-xs text-amber-800 leading-5">
+                  <p className="text-xs text-amber-800 dark:text-amber-300 leading-5">
                     <span className="font-semibold">
                       {night.assigned_member_name ?? "En vagt"}
                     </span>{" "}
@@ -513,7 +513,7 @@ export default function SchedulePage() {
       {/* View toggle (list / calendar) — always visible above the main area. */}
       <div className="flex items-center justify-between gap-3 flex-wrap print:hidden">
         <div
-          className="inline-flex rounded-md border border-neutral-200 bg-white overflow-hidden"
+          className="inline-flex rounded-md border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 overflow-hidden"
           role="tablist"
           aria-label="Visningstilstand"
         >
@@ -524,7 +524,7 @@ export default function SchedulePage() {
             className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer border-none ${
               view === "list"
                 ? "bg-brand-red text-white"
-                : "bg-white text-neutral-600 hover:bg-neutral-50"
+                : "bg-white dark:bg-neutral-900 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800"
             }`}
           >
             <ListIcon className="size-3.5" />
@@ -534,10 +534,10 @@ export default function SchedulePage() {
             role="tab"
             aria-selected={view === "calendar"}
             onClick={() => setView("calendar")}
-            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer border-none border-l border-l-neutral-200 ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer border-none border-l border-l-neutral-200 dark:border-l-neutral-700 ${
               view === "calendar"
                 ? "bg-brand-red text-white"
-                : "bg-white text-neutral-600 hover:bg-neutral-50"
+                : "bg-white dark:bg-neutral-900 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-800"
             }`}
           >
             <LayoutGrid className="size-3.5" />
@@ -621,7 +621,7 @@ export default function SchedulePage() {
             </div>
           )}
           {isAdmin && (
-            <div className="hidden md:block sticky top-14 z-20 bg-neutral-100 -mx-4 sm:-mx-8 px-4 sm:px-8 pb-2 pt-1 print:static print:mx-0 print:px-0">
+            <div className="hidden md:block sticky top-14 z-20 bg-neutral-100 dark:bg-neutral-950 -mx-4 sm:-mx-8 px-4 sm:px-8 pb-2 pt-1 print:static print:mx-0 print:px-0">
               <VagterPanel
                 vagter={vagter}
                 draggingMemberId={draft.draggingMemberId}
@@ -689,7 +689,7 @@ export default function SchedulePage() {
 
               {/* Publish drafts banner — shown when admin has unpublished nights */}
               {isAdmin && draftCount > 0 && (
-                <div className="flex items-center gap-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-2.5">
+                <div className="flex items-center gap-3 rounded-lg border border-amber-300 dark:border-amber-700/50 bg-amber-50 dark:bg-amber-950/30 px-4 py-2.5">
                   <span className="text-amber-600 text-sm font-medium flex-1">
                     {draftCount === 1
                       ? `1 klubaften er kladde og ikke synlig for vagterne endnu.`
@@ -759,7 +759,7 @@ export default function SchedulePage() {
 
               <div className="relative">
                 <Search
-                  className="size-4 top-1/2 -translate-y-1/2 text-neutral-500 absolute left-3"
+                  className="size-4 top-1/2 -translate-y-1/2 text-neutral-500 dark:text-neutral-400 absolute left-3"
                   aria-hidden="true"
                 />
                 <Input
@@ -783,7 +783,7 @@ export default function SchedulePage() {
                   className={`flex items-center gap-1.5 text-xs font-medium rounded-full px-3 py-1 border cursor-pointer transition-colors ${
                     filterUnreviewed
                       ? "bg-brand-orange border-brand-orange text-white"
-                      : "bg-white border-neutral-200 text-neutral-600 hover:border-neutral-400"
+                      : "bg-white dark:bg-neutral-900 border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-300 hover:border-neutral-400"
                   }`}
                 >
                   Ikke gennemgået
@@ -799,7 +799,7 @@ export default function SchedulePage() {
                     className={`flex items-center gap-1.5 text-xs font-medium rounded-full px-3 py-1 border cursor-pointer transition-colors ${
                       filterMyShifts
                         ? "bg-brand-teal border-brand-teal text-white"
-                        : "bg-white border-neutral-200 text-neutral-600 hover:border-neutral-400"
+                        : "bg-white dark:bg-neutral-900 border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-300 hover:border-neutral-400"
                     }`}
                   >
                     Mine vagter
@@ -816,7 +816,7 @@ export default function SchedulePage() {
                     className={`flex items-center gap-1.5 text-xs font-medium rounded-full px-3 py-1 border cursor-pointer transition-colors ${
                       filterMissingVagt
                         ? "bg-brand-red border-brand-red text-white"
-                        : "bg-white border-neutral-200 text-neutral-600 hover:border-neutral-400"
+                        : "bg-white dark:bg-neutral-900 border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-300 hover:border-neutral-400"
                     }`}
                   >
                     Mangler vagt
@@ -833,7 +833,7 @@ export default function SchedulePage() {
                     className={`flex items-center gap-1.5 text-xs font-medium rounded-full px-3 py-1 border cursor-pointer transition-colors ${
                       filterDrafts
                         ? "bg-amber-500 border-amber-500 text-white"
-                        : "bg-white border-amber-300 text-amber-700 hover:border-amber-500"
+                        : "bg-white dark:bg-neutral-900 border-amber-300 dark:border-amber-700/50 text-amber-700 dark:text-amber-300 hover:border-amber-500"
                     }`}
                   >
                     Kladder{draftCount > 0 && ` (${draftCount})`}
@@ -847,10 +847,10 @@ export default function SchedulePage() {
               {hasUnreviewedNights && !isTilskuer && (
                 <div className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-lg border border-brand-orange/40 bg-brand-orange/10 p-3">
                   <div className="flex-1">
-                    <p className="text-sm font-medium text-neutral-800">
+                    <p className="text-sm font-medium text-neutral-800 dark:text-neutral-100">
                       Der er nye aftener siden du sidst gennemgik skemaet
                     </p>
-                    <p className="text-xs text-neutral-500 mt-0.5">
+                    <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-0.5">
                       Gennemgå listen og meld fra på de aftener du ikke kan tage
                     </p>
                   </div>
@@ -931,9 +931,9 @@ export default function SchedulePage() {
                   )}
                 </div>
                 {/* Top fade */}
-                <div className="pointer-events-none absolute inset-x-0 top-0 h-6 bg-gradient-to-b from-white to-transparent" />
+                <div className="pointer-events-none absolute inset-x-0 top-0 h-6 bg-gradient-to-b from-white dark:from-neutral-900 to-transparent" />
                 {/* Bottom fade */}
-                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-6 bg-gradient-to-t from-white to-transparent" />
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-6 bg-gradient-to-t from-white dark:from-neutral-900 to-transparent" />
               </div>
             </CardContent>
           </Card>
@@ -963,7 +963,7 @@ export default function SchedulePage() {
                       Skemaoversigt
                     </CardTitle>
                   </div>
-                  <p className="text-xs text-neutral-500">
+                  <p className="text-xs text-neutral-500 dark:text-neutral-400">
                     Har vagterne gennemgået de nyeste aftener?
                   </p>
                 </CardHeader>
@@ -983,7 +983,7 @@ export default function SchedulePage() {
                           <div className="w-7 h-7 rounded-full bg-brand-teal/30 border-2 border-dashed border-brand-teal text-brand-teal flex items-center justify-center text-[0.55rem] font-bold select-none shrink-0">
                             {m.initials}
                           </div>
-                          <span className="text-xs font-medium text-neutral-800 flex-1 truncate">
+                          <span className="text-xs font-medium text-neutral-800 dark:text-neutral-100 flex-1 truncate">
                             {m.name}
                           </span>
                           <span className="flex items-center gap-1 text-[10px] text-brand-teal font-medium whitespace-nowrap">
@@ -1002,7 +1002,7 @@ export default function SchedulePage() {
                     return (
                       <div
                         key={m.id}
-                        className="flex items-center gap-2 rounded-md px-2 py-2 border border-neutral-100 bg-white"
+                        className="flex items-center gap-2 rounded-md px-2 py-2 border border-neutral-100 dark:border-neutral-800 bg-white dark:bg-neutral-900"
                       >
                         <div
                           className={`w-7 h-7 rounded-full text-white flex items-center justify-center text-[0.55rem] font-bold select-none shrink-0 overflow-hidden ${m.is_virtual ? "bg-brand-teal/40 border border-dashed border-brand-teal" : "bg-brand-red"}`}
@@ -1020,7 +1020,7 @@ export default function SchedulePage() {
                             m.initials
                           )}
                         </div>
-                        <span className="text-xs font-medium text-neutral-800 flex-1 truncate">
+                        <span className="text-xs font-medium text-neutral-800 dark:text-neutral-100 flex-1 truncate">
                           {m.name}
                         </span>
                         {hasUnreviewed ? (

@@ -72,8 +72,8 @@ export function CalendarMonth({
   for (const n of nights) byDate.set(n.date, n);
 
   return (
-    <div className="flex flex-col border border-neutral-300 rounded-md overflow-hidden bg-white break-inside-avoid">
-      <div className="bg-neutral-200 px-3 py-2 text-center font-bold text-sm text-neutral-800 border-b border-neutral-300">
+    <div className="flex flex-col border border-neutral-300 dark:border-neutral-700 rounded-md overflow-hidden bg-white dark:bg-neutral-900 break-inside-avoid">
+      <div className="bg-neutral-200 dark:bg-neutral-800 px-3 py-2 text-center font-bold text-sm text-neutral-800 dark:text-neutral-100 border-b border-neutral-300 dark:border-neutral-700">
         {monthNameDa(monthIdx)} {year}
       </div>
       <div className="flex flex-col">

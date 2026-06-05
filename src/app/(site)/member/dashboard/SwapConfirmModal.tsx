@@ -24,8 +24,10 @@ export function SwapConfirmModal({
       maxWidth="max-w-sm"
       panelClassName="p-6 flex flex-col gap-4"
     >
-      <h2 className="font-semibold text-base text-neutral-900">Tag vagten?</h2>
-      <p className="text-sm text-neutral-500">
+      <h2 className="font-semibold text-base text-neutral-900 dark:text-neutral-100">
+        Tag vagten?
+      </h2>
+      <p className="text-sm text-neutral-500 dark:text-neutral-400">
         {nights.find((n) => n.id === msg?.shift_night_id)?.name ?? "Denne vagt"}{" "}
         flyttes til dig.
       </p>

@@ -27,11 +27,11 @@ export function SwapModal({
       onClose={onClose}
       panelClassName="p-6 flex flex-col gap-4"
     >
-      <h2 className="font-semibold text-base text-neutral-900">
+      <h2 className="font-semibold text-base text-neutral-900 dark:text-neutral-100">
         Anmod om vagtbytte
       </h2>
       {shift && (
-        <p className="text-sm text-neutral-500">
+        <p className="text-sm text-neutral-500 dark:text-neutral-400">
           {shift.name} —{" "}
           {new Date(shift.date).toLocaleDateString("da-DK", {
             day: "numeric",
@@ -41,7 +41,7 @@ export function SwapModal({
         </p>
       )}
       <textarea
-        className="w-full h-28 border border-neutral-200 rounded-lg px-3 py-2 text-sm outline-none font-[inherit] resize-none placeholder:text-neutral-400 focus:border-neutral-400"
+        className="w-full h-28 border border-neutral-200 dark:border-neutral-700 bg-transparent text-neutral-900 dark:text-neutral-100 rounded-lg px-3 py-2 text-sm outline-none font-[inherit] resize-none placeholder:text-neutral-400 dark:placeholder:text-neutral-500 focus:border-neutral-400"
         placeholder="Skriv en besked til de andre vagter (valgfrit)…"
         value={message}
         onChange={(e) => setMessage(e.target.value)}

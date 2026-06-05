@@ -30,30 +30,30 @@ import {
 // ── Event type colour coding ─────────────────────────────────────────────────
 
 const EVENT_COLOURS: Record<string, string> = {
-  "login.success": "bg-green-100 text-green-700",
-  "login.failure": "bg-red-100 text-red-700",
-  "auth.register": "bg-blue-100 text-blue-700",
-  "oauth.login": "bg-teal-100 text-teal-700",
-  "oauth.register": "bg-teal-100 text-teal-700",
-  "auth.erasure": "bg-red-200 text-red-800",
-  "email.password_reset": "bg-yellow-100 text-yellow-700",
-  "email.sent": "bg-purple-100 text-purple-700",
-  "shift.create": "bg-green-100 text-green-700",
-  "shift.edit": "bg-yellow-100 text-yellow-700",
-  "shift.delete": "bg-red-100 text-red-700",
-  "shift.assign": "bg-blue-100 text-blue-700",
-  "shift.unassign": "bg-orange-100 text-orange-700",
-  "shift.confirm": "bg-green-200 text-green-800",
-  "shift.optout": "bg-neutral-100 text-neutral-600",
-  "shift.optout_remove": "bg-neutral-100 text-neutral-600",
-  "vagter.settings": "bg-indigo-100 text-indigo-700",
-  "vagter.checklist_create": "bg-indigo-100 text-indigo-700",
-  "vagter.checklist_edit": "bg-indigo-100 text-indigo-700",
-  "vagter.checklist_delete": "bg-indigo-200 text-indigo-800",
+  "login.success": "bg-green-100 text-green-700 dark:bg-green-950/30 dark:text-green-400",
+  "login.failure": "bg-red-100 text-red-700 dark:bg-red-950/30 dark:text-red-400",
+  "auth.register": "bg-blue-100 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400",
+  "oauth.login": "bg-teal-100 text-teal-700 dark:bg-teal-950/30 dark:text-teal-400",
+  "oauth.register": "bg-teal-100 text-teal-700 dark:bg-teal-950/30 dark:text-teal-400",
+  "auth.erasure": "bg-red-200 text-red-800 dark:bg-red-950/30 dark:text-red-400",
+  "email.password_reset": "bg-yellow-100 text-yellow-700 dark:bg-yellow-950/30 dark:text-yellow-400",
+  "email.sent": "bg-purple-100 text-purple-700 dark:bg-purple-950/30 dark:text-purple-400",
+  "shift.create": "bg-green-100 text-green-700 dark:bg-green-950/30 dark:text-green-400",
+  "shift.edit": "bg-yellow-100 text-yellow-700 dark:bg-yellow-950/30 dark:text-yellow-400",
+  "shift.delete": "bg-red-100 text-red-700 dark:bg-red-950/30 dark:text-red-400",
+  "shift.assign": "bg-blue-100 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400",
+  "shift.unassign": "bg-orange-100 text-orange-700 dark:bg-orange-950/30 dark:text-orange-400",
+  "shift.confirm": "bg-green-200 text-green-800 dark:bg-green-950/30 dark:text-green-400",
+  "shift.optout": "bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300",
+  "shift.optout_remove": "bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300",
+  "vagter.settings": "bg-indigo-100 text-indigo-700 dark:bg-indigo-950/30 dark:text-indigo-400",
+  "vagter.checklist_create": "bg-indigo-100 text-indigo-700 dark:bg-indigo-950/30 dark:text-indigo-400",
+  "vagter.checklist_edit": "bg-indigo-100 text-indigo-700 dark:bg-indigo-950/30 dark:text-indigo-400",
+  "vagter.checklist_delete": "bg-indigo-200 text-indigo-800 dark:bg-indigo-950/30 dark:text-indigo-400",
 };
 
 function eventColour(type: string) {
-  return EVENT_COLOURS[type] ?? "bg-neutral-100 text-neutral-700";
+  return EVENT_COLOURS[type] ?? "bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300";
 }
 
 // ── Email HTML preview modal ─────────────────────────────────────────────────
@@ -71,18 +71,18 @@ function EmailPreviewModal({
       onClick={onClose}
     >
       <div
-        className="relative bg-white rounded-xl shadow-2xl w-full max-w-3xl mx-4 flex flex-col"
+        className="relative bg-white dark:bg-neutral-900 rounded-xl shadow-2xl w-full max-w-3xl mx-4 flex flex-col"
         style={{ height: "80vh" }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-200 shrink-0">
-          <span className="text-sm font-medium text-neutral-700 flex items-center gap-2">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-200 dark:border-neutral-700 shrink-0">
+          <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300 flex items-center gap-2">
             <Mail className="size-4 text-purple-600" />
             Email preview
           </span>
           <button
             onClick={onClose}
-            className="text-neutral-400 hover:text-neutral-700 transition-colors"
+            className="text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 transition-colors"
           >
             <X className="size-5" />
           </button>
@@ -128,7 +128,7 @@ function DetailCell({ detail }: { detail: Record<string, unknown> | null }) {
             {expanded ? "Skjul" : "Vis detaljer"}
           </button>
         ) : (
-          <code className="text-xs text-neutral-600 break-all">{preview}</code>
+          <code className="text-xs text-neutral-600 dark:text-neutral-300 break-all">{preview}</code>
         )}
         {htmlString && (
           <button
@@ -141,7 +141,7 @@ function DetailCell({ detail }: { detail: Record<string, unknown> | null }) {
         )}
       </div>
       {expanded && (
-        <pre className="mt-1 text-xs bg-neutral-50 border border-neutral-200 rounded p-2 overflow-x-auto max-h-40 whitespace-pre-wrap break-all">
+        <pre className="mt-1 text-xs bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded p-2 overflow-x-auto max-h-40 whitespace-pre-wrap break-all">
           {json}
         </pre>
       )}
@@ -168,7 +168,7 @@ function EmailLink({
   return (
     <div className="min-w-0">
       {name && (
-        <p className="text-xs font-medium text-neutral-800 truncate">{name}</p>
+        <p className="text-xs font-medium text-neutral-800 dark:text-neutral-100 truncate">{name}</p>
       )}
       <a
         href={`mailto:${email}`}
@@ -278,16 +278,16 @@ export default function AuditLogPage() {
     <div className="max-w-full px-4 sm:px-8 py-8">
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
-        <ScrollText className="size-6 text-neutral-500" />
+        <ScrollText className="size-6 text-neutral-500 dark:text-neutral-400" />
         <div>
-          <h1 className="text-xl font-bold text-neutral-900">Logbog</h1>
-          <p className="text-sm text-neutral-500">
+          <h1 className="text-xl font-bold text-neutral-900 dark:text-neutral-100">Logbog</h1>
+          <p className="text-sm text-neutral-500 dark:text-neutral-400">
             {total.toLocaleString("da-DK")} poster totalt
           </p>
         </div>
         <button
           onClick={() => loadPage(page)}
-          className="ml-auto p-2 rounded-lg text-neutral-500 hover:bg-neutral-100 transition-colors"
+          className="ml-auto p-2 rounded-lg text-neutral-500 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
           title="Genindlæs"
         >
           <RefreshCw className="size-4" />
@@ -303,8 +303,8 @@ export default function AuditLogPage() {
           }
           className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium border transition-colors ${
             silenced
-              ? "bg-amber-100 border-amber-300 text-amber-700 hover:bg-amber-200"
-              : "bg-white border-neutral-200 text-neutral-600 hover:bg-neutral-50"
+              ? "bg-amber-100 border-amber-300 text-amber-700 hover:bg-amber-200 dark:bg-amber-950/30 dark:border-amber-800 dark:text-amber-400"
+              : "bg-white border-neutral-200 text-neutral-600 hover:bg-neutral-50 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
           } disabled:opacity-50`}
         >
           {silenced ? (
@@ -322,17 +322,17 @@ export default function AuditLogPage() {
       </div>
 
       {/* Filter bar */}
-      <div className="bg-white border border-neutral-200 rounded-xl p-4 mb-4 flex flex-wrap gap-3 items-end">
+      <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-xl p-4 mb-4 flex flex-wrap gap-3 items-end">
         <Filter className="size-4 text-neutral-400 self-center" />
 
         <div className="flex flex-col gap-1 min-w-[160px]">
-          <label className="text-xs text-neutral-500 font-medium">
+          <label className="text-xs text-neutral-500 dark:text-neutral-400 font-medium">
             Hændelsestype
           </label>
           <select
             value={eventType}
             onChange={(e) => setEventType(e.target.value)}
-            className="text-sm border border-neutral-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-brand-teal/40"
+            className="text-sm border border-neutral-200 dark:border-neutral-700 rounded-lg px-3 py-2 bg-white dark:bg-neutral-800 dark:text-neutral-100 focus:outline-none focus:ring-2 focus:ring-brand-teal/40"
           >
             <option value="">Alle</option>
             {eventTypes.map((t) => (
@@ -344,7 +344,7 @@ export default function AuditLogPage() {
         </div>
 
         <div className="flex flex-col gap-1 min-w-[180px]">
-          <label className="text-xs text-neutral-500 font-medium">
+          <label className="text-xs text-neutral-500 dark:text-neutral-400 font-medium">
             Aktøremail
           </label>
           <Input
@@ -356,7 +356,7 @@ export default function AuditLogPage() {
         </div>
 
         <div className="flex flex-col gap-1 min-w-[180px]">
-          <label className="text-xs text-neutral-500 font-medium">
+          <label className="text-xs text-neutral-500 dark:text-neutral-400 font-medium">
             Målemail
           </label>
           <Input
@@ -368,7 +368,7 @@ export default function AuditLogPage() {
         </div>
 
         <div className="flex flex-col gap-1">
-          <label className="text-xs text-neutral-500 font-medium">Fra</label>
+          <label className="text-xs text-neutral-500 dark:text-neutral-400 font-medium">Fra</label>
           <Input
             type="date"
             value={from}
@@ -378,7 +378,7 @@ export default function AuditLogPage() {
         </div>
 
         <div className="flex flex-col gap-1">
-          <label className="text-xs text-neutral-500 font-medium">Til</label>
+          <label className="text-xs text-neutral-500 dark:text-neutral-400 font-medium">Til</label>
           <Input
             type="date"
             value={to}
@@ -388,7 +388,7 @@ export default function AuditLogPage() {
         </div>
 
         <div className="flex flex-col gap-1 min-w-[200px] flex-1">
-          <label className="text-xs text-neutral-500 font-medium">
+          <label className="text-xs text-neutral-500 dark:text-neutral-400 font-medium">
             Fritekst
           </label>
           <Input
@@ -418,10 +418,10 @@ export default function AuditLogPage() {
       </div>
 
       {/* Table */}
-      <div className="bg-white border border-neutral-200 rounded-xl overflow-x-auto">
+      <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded-xl overflow-x-auto">
         <table className="w-full text-sm min-w-[900px]">
           <thead>
-            <tr className="border-b border-neutral-100 bg-neutral-50 text-xs text-neutral-500 uppercase tracking-wide">
+            <tr className="border-b border-neutral-100 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-800 text-xs text-neutral-500 dark:text-neutral-400 uppercase tracking-wide">
               <th className="text-left px-4 py-3 font-medium">Tidspunkt</th>
               <th className="text-left px-4 py-3 font-medium">Hændelse</th>
               <th className="text-left px-4 py-3 font-medium">Aktør</th>
@@ -433,7 +433,7 @@ export default function AuditLogPage() {
           <tbody>
             {loading ? (
               Array.from({ length: 10 }).map((_, i) => (
-                <tr key={i} className="border-b border-neutral-50">
+                <tr key={i} className="border-b border-neutral-50 dark:border-neutral-800">
                   {Array.from({ length: 6 }).map((_, j) => (
                     <td key={j} className="px-4 py-3">
                       <Skeleton className="h-4 w-full" />
@@ -454,9 +454,9 @@ export default function AuditLogPage() {
               rows.map((row) => (
                 <tr
                   key={row.id}
-                  className="border-b border-neutral-50 hover:bg-neutral-50 transition-colors"
+                  className="border-b border-neutral-50 dark:border-neutral-800 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition-colors"
                 >
-                  <td className="px-4 py-3 text-xs text-neutral-500 whitespace-nowrap">
+                  <td className="px-4 py-3 text-xs text-neutral-500 dark:text-neutral-400 whitespace-nowrap">
                     {new Intl.DateTimeFormat("da-DK", {
                       dateStyle: "short",
                       timeStyle: "medium",
@@ -494,7 +494,7 @@ export default function AuditLogPage() {
       {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex items-center justify-between mt-4">
-          <p className="text-sm text-neutral-500">
+          <p className="text-sm text-neutral-500 dark:text-neutral-400">
             Side {page + 1} af {totalPages}
           </p>
           <div className="flex gap-2">

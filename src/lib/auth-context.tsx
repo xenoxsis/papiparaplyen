@@ -84,14 +84,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       window.removeEventListener("auth:unauthorized", handleUnauthorized);
   }, [router]);
 
+  // Fire-and-forget push subscription. This MUST never throw into the caller:
+  // the OneSignal SDK can throw synchronously when it isn't initialised yet,
+  // which would otherwise make a successful login look like a failure and flash
+  // the "wrong credentials" error before the redirect.
+  function registerPush(userId: number) {
+    try {
+      OneSignal.login(String(userId))
+        .then(() => OneSignal.showSlidedownPrompt())
+        .catch(() => {});
+    } catch {
+      // OneSignal not ready — non-fatal
+    }
+  }
+
   async function login(email: string, password: string): Promise<boolean> {
     try {
       const user = await postLogin(email, password);
       setUser(user);
       localStorage.setItem("auth_user", JSON.stringify(user));
-      OneSignal.login(String(user.id))
-        .then(() => OneSignal.showSlidedownPrompt())
-        .catch(() => {});
+      registerPush(user.id);
       return true;
     } catch {
       return false;
@@ -101,16 +113,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   function loginWithData(user: User) {
     setUser(user);
     localStorage.setItem("auth_user", JSON.stringify(user));
-    OneSignal.login(String(user.id))
-      .then(() => OneSignal.showSlidedownPrompt())
-      .catch(() => {});
+    registerPush(user.id);
   }
 
   function logout() {
     setUser(null);
     localStorage.removeItem("auth_user");
     postLogout().catch(() => {});
-    OneSignal.logout().catch(() => {});
+    try {
+      OneSignal.logout().catch(() => {});
+    } catch {
+      // OneSignal not ready — non-fatal
+    }
   }
 
   function updateUser(partial: Partial<User>) {

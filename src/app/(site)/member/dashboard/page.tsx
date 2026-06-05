@@ -566,7 +566,7 @@ export default function ProfilePage() {
   if (!authorized) return null;
 
   return (
-    <main className="bg-neutral-100 min-h-[calc(100vh-3.5rem)] p-4 sm:p-8 flex flex-col gap-6">
+    <main className="bg-neutral-100 dark:bg-neutral-950 min-h-[calc(100vh-3.5rem)] p-4 sm:p-8 flex flex-col gap-6">
       {/* Add night modal */}
       {showAddModal && (
         <ClubNightModal
@@ -649,10 +649,10 @@ export default function ProfilePage() {
           <div className="flex items-start gap-3 flex-1">
             <Bell className="size-5 text-brand-orange shrink-0 mt-0.5" />
             <div className="flex flex-col gap-0.5">
-              <p className="text-sm font-semibold text-neutral-900">
+              <p className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">
                 Der er nye aftener siden du sidst gennemgik skemaet
               </p>
-              <p className="text-xs text-neutral-500">
+              <p className="text-xs text-neutral-500 dark:text-neutral-400">
                 Gennemgå listen og meld fra på de aftener du ikke kan tage
               </p>
             </div>
@@ -707,16 +707,16 @@ export default function ProfilePage() {
           <div className="flex flex-col gap-2">
             <div className="flex justify-between items-center">
               <div className="flex items-center gap-2">
-                <CalendarDays className="size-5 text-neutral-900 shrink-0" />
-                <h2 className="font-semibold text-base text-neutral-900">
+                <CalendarDays className="size-5 text-neutral-900 dark:text-neutral-100 shrink-0" />
+                <h2 className="font-semibold text-base text-neutral-900 dark:text-neutral-100">
                   Klubaftener
                 </h2>
-                <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-neutral-100 text-neutral-500">
+                <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-neutral-100 dark:bg-neutral-800 text-neutral-500 dark:text-neutral-400">
                   {confirmedNightsCount} kommende
                 </span>
               </div>
             </div>
-            <p className="text-xs text-neutral-500">
+            <p className="text-xs text-neutral-500 dark:text-neutral-400">
               Administrer kommende klubaftener og vagter
             </p>
           </div>
@@ -740,7 +740,9 @@ export default function ProfilePage() {
                   <div
                     key={evt.id}
                     className={`rounded-lg flex p-3 items-center gap-4 border ${
-                      cancelled ? "border-red-200" : "border-neutral-200"
+                      cancelled
+                        ? "border-red-200 dark:border-red-900/40"
+                        : "border-neutral-200 dark:border-neutral-700"
                     }`}
                   >
                     <DateBadge date={evt.date} colorClass={colorClass} />
@@ -749,7 +751,7 @@ export default function ProfilePage() {
                         className={`font-semibold text-sm truncate ${
                           cancelled
                             ? "text-neutral-400 line-through"
-                            : "text-neutral-900"
+                            : "text-neutral-900 dark:text-neutral-100"
                         }`}
                       >
                         {evt.name}
@@ -789,7 +791,7 @@ export default function ProfilePage() {
                             {evt.assigned_member_initials}
                           </span>
                         )}
-                        <span className="text-xs font-medium text-neutral-600 whitespace-nowrap">
+                        <span className="text-xs font-medium text-neutral-600 dark:text-neutral-300 whitespace-nowrap">
                           {evt.assigned_member_name}
                         </span>
                       </div>

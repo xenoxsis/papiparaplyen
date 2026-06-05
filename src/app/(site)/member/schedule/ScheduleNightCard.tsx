@@ -89,7 +89,7 @@ export function ScheduleNightCard({
         : {})}
       className={`relative shrink-0 overflow-hidden rounded-lg flex flex-col p-4 gap-3 border transition-colors ${
         night.cancelled
-          ? "border-neutral-300 bg-neutral-50"
+          ? "border-neutral-300 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800"
           : isOver
             ? "border-brand-teal bg-brand-teal/5"
             : isProblem
@@ -97,14 +97,14 @@ export function ScheduleNightCard({
               : isPending
                 ? "border-brand-orange/60 bg-brand-orange/5"
                 : hasVagt
-                  ? "border-neutral-200 bg-white"
+                  ? "border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900"
                   : "border-brand-red/40 bg-brand-red/5"
       }`}
     >
       {/* Draft overlay — only visible to admins (API already hides drafts from others) */}
       {night.status === "draft" && (
         <div className="absolute top-2 right-2 z-20 pointer-events-none">
-          <span className="text-[10px] font-bold uppercase tracking-widest bg-amber-100 text-amber-800 border border-amber-300 rounded px-1.5 py-0.5">
+          <span className="text-[10px] font-bold uppercase tracking-widest bg-amber-100 dark:bg-amber-950/30 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-700/50 rounded px-1.5 py-0.5">
             Kladde
           </span>
         </div>
@@ -113,7 +113,7 @@ export function ScheduleNightCard({
       {/* Aflyst overlay */}
       {night.cancelled && (
         <>
-          <div className="absolute inset-0 bg-neutral-100/60 z-10 pointer-events-none" />
+          <div className="absolute inset-0 bg-neutral-100/60 dark:bg-neutral-900/60 z-10 pointer-events-none" />
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
             <span className="font-black text-4xl text-red-600 rotate-[-25deg] tracking-widest uppercase select-none border-4 border-red-600 px-4 py-1 opacity-75">
               Aflyst
@@ -140,7 +140,7 @@ export function ScheduleNightCard({
           <span className="font-semibold text-sm leading-5 truncate">
             {night.name}
           </span>
-          <div className="text-neutral-500 text-xs leading-4 flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
+          <div className="text-neutral-500 dark:text-neutral-400 text-xs leading-4 flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
             <span className="flex items-center gap-1">
               <Clock className="size-3" />
               {night.time_from} – {night.time_to}
@@ -178,7 +178,7 @@ export function ScheduleNightCard({
                   className={`self-start rounded-full flex pl-1 pr-2 py-1 items-center gap-1 border ${
                     isPending
                       ? "bg-brand-orange/10 border-brand-orange/40"
-                      : "bg-white border-neutral-200"
+                      : "bg-white dark:bg-neutral-900 border-neutral-200 dark:border-neutral-700"
                   } ${isAdmin ? "cursor-pointer hover:border-neutral-400" : ""}`}
                 >
                   <div className="w-6 h-6 rounded-full bg-brand-red text-white flex items-center justify-center text-[0.55rem] font-bold select-none shrink-0 overflow-hidden">
@@ -202,7 +202,7 @@ export function ScheduleNightCard({
                         e.stopPropagation();
                         onRemoveVagt();
                       }}
-                      className="cursor-pointer text-neutral-400 border-none bg-transparent p-0 hover:text-neutral-700 transition-colors"
+                      className="cursor-pointer text-neutral-400 border-none bg-transparent p-0 hover:text-neutral-700 dark:hover:text-neutral-300 transition-colors"
                     >
                       <X className="size-3" />
                     </button>
@@ -319,7 +319,7 @@ export function ScheduleNightCard({
 
       {/* Bottom row: opt-outs + opt-out button */}
       {(night.opted_out_members.length > 0 || !!userId) && (
-        <div className="flex items-center gap-2 flex-wrap border-t border-neutral-100 pt-2">
+        <div className="flex items-center gap-2 flex-wrap border-t border-neutral-100 dark:border-neutral-800 pt-2">
           {night.opted_out_members.length > 0 && (
             <>
               <span className="text-[10px] text-neutral-400 font-medium uppercase tracking-wide">
@@ -329,12 +329,12 @@ export function ScheduleNightCard({
                 <div
                   key={o.id}
                   title={o.name}
-                  className="rounded-full flex pl-1 pr-2 py-0.5 items-center gap-1 border bg-neutral-50 border-neutral-200"
+                  className="rounded-full flex pl-1 pr-2 py-0.5 items-center gap-1 border bg-neutral-50 dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700"
                 >
                   <div className="w-5 h-5 rounded-full bg-neutral-400 text-white flex items-center justify-center text-[0.5rem] font-bold select-none shrink-0">
                     {o.initials}
                   </div>
-                  <span className="text-[10px] text-neutral-500">{o.name}</span>
+                  <span className="text-[10px] text-neutral-500 dark:text-neutral-400">{o.name}</span>
                 </div>
               ))}
             </>
@@ -344,7 +344,7 @@ export function ScheduleNightCard({
               onClick={onToggleOptOut}
               className={`ml-auto flex items-center gap-1 text-[10px] font-medium rounded-full px-2 py-0.5 border cursor-pointer transition-colors ${
                 myOptOut
-                  ? "bg-neutral-100 border-neutral-300 text-neutral-600 hover:bg-neutral-200"
+                  ? "bg-neutral-100 dark:bg-neutral-800 border-neutral-300 dark:border-neutral-700 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-700"
                   : "bg-brand-red/10 border-brand-red/30 text-brand-red hover:bg-brand-red/20"
               }`}
             >
@@ -360,7 +360,7 @@ export function ScheduleNightCard({
 
 export function ScheduleNightCardSkeleton() {
   return (
-    <div className="shrink-0 rounded-lg flex flex-col p-4 gap-3 border border-neutral-200 bg-white animate-pulse">
+    <div className="shrink-0 rounded-lg flex flex-col p-4 gap-3 border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 animate-pulse">
       {/* Date + title row */}
       <div className="flex items-center gap-3">
         <Skeleton className="w-10 h-12 rounded-lg shrink-0" />

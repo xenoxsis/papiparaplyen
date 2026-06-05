@@ -69,7 +69,7 @@ function TonightBanner({
 }) {
   if (loading) {
     return (
-      <div className="bg-neutral-50 border border-neutral-200 rounded-xl p-5 flex items-center gap-4">
+      <div className="bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-xl p-5 flex items-center gap-4">
         <Skeleton className="w-12 h-14 rounded-lg shrink-0" />
         <div className="flex flex-col gap-2 flex-1">
           <Skeleton className="h-4 w-24 rounded" />
@@ -87,9 +87,9 @@ function TonightBanner({
 
   if (!next) {
     return (
-      <div className="bg-neutral-50 border border-neutral-200 rounded-xl p-5 flex items-center gap-3">
+      <div className="bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-xl p-5 flex items-center gap-3">
         <Clock className="size-5 text-neutral-400 shrink-0" />
-        <p className="text-sm text-neutral-500">
+        <p className="text-sm text-neutral-500 dark:text-neutral-400">
           Ingen kommende vagter fundet.
         </p>
       </div>
@@ -103,7 +103,7 @@ function TonightBanner({
       className={`rounded-xl border p-5 flex flex-col sm:flex-row sm:items-center gap-4 ${
         isToday
           ? "bg-brand-teal/10 border-brand-teal/30"
-          : "bg-neutral-50 border-neutral-200"
+          : "bg-neutral-50 dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700"
       }`}
     >
       <DateBadge
@@ -117,11 +117,11 @@ function TonightBanner({
               I dag
             </span>
           )}
-          <span className="font-semibold text-sm text-neutral-900 truncate">
+          <span className="font-semibold text-sm text-neutral-900 dark:text-neutral-100 truncate">
             {next.name}
           </span>
         </div>
-        <div className="flex items-center gap-3 text-neutral-500 text-xs flex-wrap">
+        <div className="flex items-center gap-3 text-neutral-500 dark:text-neutral-400 text-xs flex-wrap">
           <span className="flex items-center gap-1">
             <Clock className="size-3" />
             {next.time_from} – {next.time_to}
@@ -148,7 +148,7 @@ function TonightBanner({
               {next.assigned_member_initials}
             </div>
           )}
-          <span className="text-sm font-medium text-neutral-700">
+          <span className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
             {next.assigned_member_name}
           </span>
         </div>
@@ -190,7 +190,7 @@ function AccessCodesCard({
 
   if (loading) {
     return (
-      <div className="bg-white rounded-xl border border-neutral-200 p-5 shadow-sm flex flex-col gap-4">
+      <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 p-5 shadow-sm flex flex-col gap-4">
         <div className="flex items-center gap-2">
           <Skeleton className="w-5 h-5 rounded" />
           <Skeleton className="h-5 w-24 rounded" />
@@ -222,16 +222,16 @@ function AccessCodesCard({
   }
 
   return (
-    <div className="bg-white rounded-xl border border-neutral-200 p-5 shadow-sm flex flex-col gap-4">
+    <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 p-5 shadow-sm flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <KeyRound className="size-5 text-neutral-700 shrink-0" />
-          <h2 className="font-semibold text-base text-neutral-900">Koder</h2>
+          <KeyRound className="size-5 text-neutral-700 dark:text-neutral-300 shrink-0" />
+          <h2 className="font-semibold text-base text-neutral-900 dark:text-neutral-100">Koder</h2>
         </div>
         {isAdmin && !editing && (
           <button
             onClick={() => setEditing(true)}
-            className="flex items-center gap-1 text-xs text-neutral-500 hover:text-neutral-900 transition-colors"
+            className="flex items-center gap-1 text-xs text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200 transition-colors"
           >
             <Pencil className="size-3.5" />
             Rediger
@@ -246,7 +246,7 @@ function AccessCodesCard({
                 locker_code: settings.locker_code,
               });
             }}
-            className="flex items-center gap-1 text-xs text-neutral-500 hover:text-neutral-900 transition-colors"
+            className="flex items-center gap-1 text-xs text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200 transition-colors"
           >
             <X className="size-3.5" />
             Annuller
@@ -257,7 +257,7 @@ function AccessCodesCard({
       {editing ? (
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-neutral-600">
+            <label className="text-xs font-medium text-neutral-600 dark:text-neutral-300">
               Dør-kode
             </label>
             <input
@@ -266,12 +266,12 @@ function AccessCodesCard({
               onChange={(e) =>
                 setDraft((d) => ({ ...d, door_code: e.target.value }))
               }
-              className="border border-neutral-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-teal/40"
+              className="border border-neutral-200 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-teal/40"
               placeholder="Indtast dør-kode"
             />
           </div>
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-neutral-600">
+            <label className="text-xs font-medium text-neutral-600 dark:text-neutral-300">
               Brætspilsskabs-kode
             </label>
             <input
@@ -280,7 +280,7 @@ function AccessCodesCard({
               onChange={(e) =>
                 setDraft((d) => ({ ...d, locker_code: e.target.value }))
               }
-              className="border border-neutral-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-teal/40"
+              className="border border-neutral-200 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-teal/40"
               placeholder="Indtast skabs-kode"
             />
           </div>
@@ -350,12 +350,12 @@ function CodeRow({
   }, []);
 
   return (
-    <div className="flex items-center justify-between gap-3 rounded-lg bg-neutral-50 border border-neutral-100 px-4 py-3">
+    <div className="flex items-center justify-between gap-3 rounded-lg bg-neutral-50 dark:bg-neutral-800 border border-neutral-100 dark:border-neutral-800 px-4 py-3">
       <div className="flex items-center gap-2.5 min-w-0">
         {icon}
         <div className="flex flex-col min-w-0">
-          <span className="text-xs text-neutral-500">{label}</span>
-          <span className="font-mono font-semibold text-neutral-900 text-sm tracking-widest select-none">
+          <span className="text-xs text-neutral-500 dark:text-neutral-400">{label}</span>
+          <span className="font-mono font-semibold text-neutral-900 dark:text-neutral-100 text-sm tracking-widest select-none">
             {code.length === 0 ? (
               <span className="text-neutral-400 font-sans font-normal tracking-normal">
                 Ikke angivet
@@ -371,7 +371,7 @@ function CodeRow({
       {code.length > 0 && (
         <button
           onClick={startReveal}
-          className="flex items-center gap-1.5 text-neutral-400 hover:text-neutral-700 transition-colors shrink-0 cursor-pointer"
+          className="flex items-center gap-1.5 text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 transition-colors shrink-0 cursor-pointer"
           aria-label="Vis kode"
         >
           {show && (
@@ -504,7 +504,7 @@ function ChecklistCard({
 
   if (loading) {
     return (
-      <div className="bg-white rounded-xl border border-neutral-200 p-5 shadow-sm flex flex-col gap-4">
+      <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 p-5 shadow-sm flex flex-col gap-4">
         <div className="flex items-center gap-2">
           <Skeleton className="w-5 h-5 rounded" />
           <Skeleton className="h-5 w-24 rounded" />
@@ -523,12 +523,12 @@ function ChecklistCard({
   const totalItems = items.filter((i) => !i.is_header).length;
 
   return (
-    <div className="bg-white rounded-xl border border-neutral-200 p-5 shadow-sm flex flex-col gap-4">
+    <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 p-5 shadow-sm flex flex-col gap-4">
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Check className="size-5 text-neutral-700 shrink-0" />
-            <h2 className="font-semibold text-base text-neutral-900">
+            <Check className="size-5 text-neutral-700 dark:text-neutral-300 shrink-0" />
+            <h2 className="font-semibold text-base text-neutral-900 dark:text-neutral-100">
               Tjekliste
             </h2>
             {checklistMode ? (
@@ -536,7 +536,7 @@ function ChecklistCard({
                 {checkedCount} / {totalItems}
               </span>
             ) : (
-              <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-neutral-100 text-neutral-500">
+              <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-neutral-100 dark:bg-neutral-800 text-neutral-500 dark:text-neutral-400">
                 {totalItems} punkter
               </span>
             )}
@@ -544,7 +544,7 @@ function ChecklistCard({
           {isAdmin && (
             <button
               onClick={() => setShowAddForm((v) => !v)}
-              className="flex items-center gap-1 text-xs text-neutral-500 hover:text-neutral-900 transition-colors"
+              className="flex items-center gap-1 text-xs text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200 transition-colors"
             >
               {showAddForm ? (
                 <>
@@ -573,7 +573,7 @@ function ChecklistCard({
             className={`flex items-center gap-1 text-xs transition-colors ${
               checklistMode
                 ? "text-brand-teal hover:text-teal-700"
-                : "text-neutral-500 hover:text-neutral-900"
+                : "text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200"
             }`}
             title={
               checklistMode
@@ -598,7 +598,7 @@ function ChecklistCard({
               placeholder={
                 addingIsHeader ? "Sektion titel…" : "Nyt tjeklistepunkt…"
               }
-              className="flex-1 border border-neutral-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-teal/40"
+              className="flex-1 border border-neutral-200 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-teal/40"
               autoFocus
             />
             <button
@@ -609,7 +609,7 @@ function ChecklistCard({
               Tilføj
             </button>
           </div>
-          <label className="flex items-center gap-2 text-xs text-neutral-500 cursor-pointer select-none">
+          <label className="flex items-center gap-2 text-xs text-neutral-500 dark:text-neutral-400 cursor-pointer select-none">
             <input
               type="checkbox"
               checked={addingIsHeader}
@@ -672,10 +672,10 @@ function ChecklistCard({
                                   if (e.key === "Enter") handleUpdate(item.id);
                                   if (e.key === "Escape") setEditingId(null);
                                 }}
-                                className="w-full border border-neutral-200 rounded-lg px-2 py-1 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-brand-teal/40"
+                                className="w-full border border-neutral-200 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100 rounded-lg px-2 py-1 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-brand-teal/40"
                                 autoFocus
                               />
-                              <label className="flex items-center gap-2 text-xs text-neutral-500 cursor-pointer select-none">
+                              <label className="flex items-center gap-2 text-xs text-neutral-500 dark:text-neutral-400 cursor-pointer select-none">
                                 <input
                                   type="checkbox"
                                   checked={editIsHeader}
@@ -689,10 +689,10 @@ function ChecklistCard({
                             </div>
                           ) : (
                             <div className="flex-1 flex items-center gap-2 min-w-0">
-                              <span className="text-xs font-bold uppercase tracking-widest text-neutral-500 shrink-0">
+                              <span className="text-xs font-bold uppercase tracking-widest text-neutral-500 dark:text-neutral-400 shrink-0">
                                 {item.text}
                               </span>
-                              <div className="flex-1 h-px bg-neutral-200" />
+                              <div className="flex-1 h-px bg-neutral-200 dark:bg-neutral-700" />
                             </div>
                           )}
                           {isAdmin && (
@@ -708,7 +708,7 @@ function ChecklistCard({
                                   </button>
                                   <button
                                     onClick={() => setEditingId(null)}
-                                    className="p-1 rounded text-neutral-400 hover:bg-neutral-100 transition-colors"
+                                    className="p-1 rounded text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
                                     title="Annuller"
                                   >
                                     <X className="size-3.5" />
@@ -719,7 +719,7 @@ function ChecklistCard({
                                   <button
                                     onClick={() => onReorder(item.id, "up")}
                                     disabled={idx === 0}
-                                    className="p-1 rounded text-neutral-400 hover:text-neutral-700 disabled:opacity-30 transition-colors"
+                                    className="p-1 rounded text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 disabled:opacity-30 transition-colors"
                                     title="Flyt op"
                                   >
                                     <ChevronUp className="size-3.5" />
@@ -727,14 +727,14 @@ function ChecklistCard({
                                   <button
                                     onClick={() => onReorder(item.id, "down")}
                                     disabled={idx === items.length - 1}
-                                    className="p-1 rounded text-neutral-400 hover:text-neutral-700 disabled:opacity-30 transition-colors"
+                                    className="p-1 rounded text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 disabled:opacity-30 transition-colors"
                                     title="Flyt ned"
                                   >
                                     <ChevronDown className="size-3.5" />
                                   </button>
                                   <button
                                     onClick={() => startEdit(item)}
-                                    className="p-1 rounded text-neutral-400 hover:text-neutral-700 transition-colors"
+                                    className="p-1 rounded text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 transition-colors"
                                     title="Rediger"
                                   >
                                     <Pencil className="size-3.5" />
@@ -756,7 +756,7 @@ function ChecklistCard({
 
                   {/* Section children */}
                   <ul
-                    className={`flex flex-col gap-1.5 ${section.header ? "pl-3 border-l-2 border-neutral-200 ml-1 mb-1" : "mb-0"}`}
+                    className={`flex flex-col gap-1.5 ${section.header ? "pl-3 border-l-2 border-neutral-200 dark:border-neutral-700 ml-1 mb-1" : "mb-0"}`}
                   >
                     {section.children.map((item) => {
                       const idx = items.findIndex((i) => i.id === item.id);
@@ -765,7 +765,7 @@ function ChecklistCard({
                       return (
                         <li
                           key={item.id}
-                          className="flex items-center gap-3 rounded-lg border border-neutral-100 bg-neutral-50 px-4 py-3"
+                          className="flex items-center gap-3 rounded-lg border border-neutral-100 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-800 px-4 py-3"
                         >
                           {!isEditing && checklistMode && (
                             <button
@@ -800,10 +800,10 @@ function ChecklistCard({
                                   if (e.key === "Enter") handleUpdate(item.id);
                                   if (e.key === "Escape") setEditingId(null);
                                 }}
-                                className="w-full border border-neutral-200 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-brand-teal/40"
+                                className="w-full border border-neutral-200 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-brand-teal/40"
                                 autoFocus
                               />
-                              <label className="flex items-center gap-2 text-xs text-neutral-500 cursor-pointer select-none">
+                              <label className="flex items-center gap-2 text-xs text-neutral-500 dark:text-neutral-400 cursor-pointer select-none">
                                 <input
                                   type="checkbox"
                                   checked={editIsHeader}
@@ -817,7 +817,7 @@ function ChecklistCard({
                             </div>
                           ) : (
                             <span
-                              className={`flex-1 text-sm ${checklistMode && isChecked ? "line-through text-neutral-400" : "text-neutral-800"}`}
+                              className={`flex-1 text-sm ${checklistMode && isChecked ? "line-through text-neutral-400" : "text-neutral-800 dark:text-neutral-100"}`}
                             >
                               {item.text}
                             </span>
@@ -836,7 +836,7 @@ function ChecklistCard({
                                   </button>
                                   <button
                                     onClick={() => setEditingId(null)}
-                                    className="p-1 rounded text-neutral-400 hover:bg-neutral-100 transition-colors"
+                                    className="p-1 rounded text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
                                     title="Annuller"
                                   >
                                     <X className="size-3.5" />
@@ -847,7 +847,7 @@ function ChecklistCard({
                                   <button
                                     onClick={() => onReorder(item.id, "up")}
                                     disabled={idx === 0}
-                                    className="p-1 rounded text-neutral-400 hover:text-neutral-700 disabled:opacity-30 transition-colors"
+                                    className="p-1 rounded text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 disabled:opacity-30 transition-colors"
                                     title="Flyt op"
                                   >
                                     <ChevronUp className="size-3.5" />
@@ -855,14 +855,14 @@ function ChecklistCard({
                                   <button
                                     onClick={() => onReorder(item.id, "down")}
                                     disabled={idx === items.length - 1}
-                                    className="p-1 rounded text-neutral-400 hover:text-neutral-700 disabled:opacity-30 transition-colors"
+                                    className="p-1 rounded text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 disabled:opacity-30 transition-colors"
                                     title="Flyt ned"
                                   >
                                     <ChevronDown className="size-3.5" />
                                   </button>
                                   <button
                                     onClick={() => startEdit(item)}
-                                    className="p-1 rounded text-neutral-400 hover:text-neutral-700 transition-colors"
+                                    className="p-1 rounded text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 transition-colors"
                                     title="Rediger"
                                   >
                                     <Pencil className="size-3.5" />
@@ -913,7 +913,7 @@ function ShiftNoteCard({
 
   if (loading) {
     return (
-      <div className="bg-white rounded-xl border border-neutral-200 p-5 shadow-sm flex flex-col gap-4">
+      <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 p-5 shadow-sm flex flex-col gap-4">
         <div className="flex items-center gap-2">
           <Skeleton className="w-5 h-5 rounded" />
           <Skeleton className="h-5 w-36 rounded" />
@@ -943,18 +943,18 @@ function ShiftNoteCard({
   }
 
   return (
-    <div className="bg-white rounded-xl border border-neutral-200 p-5 shadow-sm flex flex-col gap-4">
+    <div className="bg-white dark:bg-neutral-900 rounded-xl border border-neutral-200 dark:border-neutral-700 p-5 shadow-sm flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <StickyNote className="size-5 text-neutral-700 shrink-0" />
-          <h2 className="font-semibold text-base text-neutral-900">
+          <StickyNote className="size-5 text-neutral-700 dark:text-neutral-300 shrink-0" />
+          <h2 className="font-semibold text-base text-neutral-900 dark:text-neutral-100">
             Besked fra admin
           </h2>
         </div>
         {isAdmin && !editing && (
           <button
             onClick={() => setEditing(true)}
-            className="flex items-center gap-1 text-xs text-neutral-500 hover:text-neutral-900 transition-colors"
+            className="flex items-center gap-1 text-xs text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200 transition-colors"
           >
             <Pencil className="size-3.5" />
             Rediger
@@ -966,7 +966,7 @@ function ShiftNoteCard({
               setEditing(false);
               setDraft(note);
             }}
-            className="flex items-center gap-1 text-xs text-neutral-500 hover:text-neutral-900 transition-colors"
+            className="flex items-center gap-1 text-xs text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200 transition-colors"
           >
             <X className="size-3.5" />
             Annuller
@@ -980,7 +980,7 @@ function ShiftNoteCard({
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             rows={4}
-            className="border border-neutral-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-teal/40 resize-y"
+            className="border border-neutral-200 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-teal/40 resize-y"
             placeholder="Skriv en besked til vagterne…"
           />
           <button
@@ -992,7 +992,7 @@ function ShiftNoteCard({
           </button>
         </div>
       ) : note.trim() ? (
-        <p className="text-sm text-neutral-700 whitespace-pre-wrap leading-relaxed">
+        <p className="text-sm text-neutral-700 dark:text-neutral-300 whitespace-pre-wrap leading-relaxed">
           {note}
         </p>
       ) : (

@@ -91,7 +91,7 @@ export function VagterPanel({
             </div>
           )}
         </div>
-        <p className="text-xs text-neutral-500">
+        <p className="text-xs text-neutral-500 dark:text-neutral-400">
           Træk en person til en klubaften for at tildele
         </p>
       </CardHeader>
@@ -104,7 +104,7 @@ export function VagterPanel({
       >
         {!horizontal && (
           <div className="relative">
-            <Search className="size-4 top-1/2 -translate-y-1/2 text-neutral-500 absolute left-3" />
+            <Search className="size-4 top-1/2 -translate-y-1/2 text-neutral-500 dark:text-neutral-400 absolute left-3" />
             <Input
               aria-label="Søg vagt"
               placeholder="Søg vagt…"
@@ -131,13 +131,13 @@ export function VagterPanel({
                 horizontal
                   ? `select-none cursor-grab active:cursor-grabbing rounded-full flex pl-1 pr-3 py-1 items-center gap-2 border transition-colors ${
                       draggingMemberId === m.id
-                        ? "opacity-50 border-neutral-200 bg-neutral-50"
-                        : "border-neutral-200 bg-white hover:border-neutral-400"
+                        ? "opacity-50 border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800"
+                        : "border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 hover:border-neutral-400"
                     }`
                   : `select-none cursor-grab active:cursor-grabbing rounded-md flex p-2 items-center gap-3 border transition-colors ${
                       draggingMemberId === m.id
-                        ? "opacity-50 border-neutral-200 bg-neutral-50"
-                        : "border-transparent hover:bg-neutral-50 hover:border-neutral-200"
+                        ? "opacity-50 border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800"
+                        : "border-transparent hover:bg-neutral-50 dark:hover:bg-neutral-800 hover:border-neutral-200 dark:hover:border-neutral-700"
                     }`
               }
             >
