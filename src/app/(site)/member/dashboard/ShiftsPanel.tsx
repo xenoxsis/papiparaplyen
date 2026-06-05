@@ -36,7 +36,10 @@ export function ShiftsPanel({
   onCancelSwap,
 }: ShiftsPanelProps) {
   const [showAllShifts, setShowAllShifts] = useState(false);
-  const nextShift = shifts[0] ?? null;
+  // A cancelled shift is no longer an obligation: it isn't the "next" shift and
+  // isn't counted, but it still appears in the full list marked "Aflyst".
+  const activeShifts = shifts.filter((s) => !s.cancelled);
+  const nextShift = activeShifts[0] ?? null;
 
   if (loading) {
     return (
@@ -157,7 +160,7 @@ export function ShiftsPanel({
           </div>
           {showAllShifts && (
             <p className="text-xs text-neutral-500">
-              {shifts.length} vagter i alt
+              {activeShifts.length} vagter i alt
             </p>
           )}
         </div>
@@ -241,50 +244,74 @@ export function ShiftsPanel({
                   Ingen kommende vagter
                 </p>
               )}
-              {shifts.map((s) => (
-                <div
-                  key={s.id}
-                  className="rounded-lg flex flex-col gap-2 p-3 border bg-white dark:bg-neutral-900 border-neutral-200 dark:border-neutral-700"
-                >
-                  <div className="flex items-center gap-3">
-                    <DateBadge date={s.date} colorClass="bg-brand-teal" />
-                    <div className="flex flex-col gap-0.5 flex-1 min-w-0">
-                      <span className="font-semibold text-sm text-neutral-900 truncate">
-                        {s.name}
-                      </span>
-                      <div className="flex items-center gap-2 text-xs text-neutral-500">
-                        <span className="flex items-center gap-1">
-                          <Clock className="size-3" />
-                          {s.time_from} - {s.time_to}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <MapPin className="size-3" />
-                          {s.location}
-                        </span>
+              {shifts.map((s) => {
+                const cancelled = !!s.cancelled;
+                return (
+                  <div
+                    key={s.id}
+                    className={`rounded-lg flex flex-col gap-2 p-3 border bg-white dark:bg-neutral-900 ${
+                      cancelled
+                        ? "border-red-200 dark:border-red-900/40"
+                        : "border-neutral-200 dark:border-neutral-700"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <DateBadge
+                        date={s.date}
+                        colorClass={cancelled ? "bg-neutral-400" : "bg-brand-teal"}
+                      />
+                      <div className="flex flex-col gap-0.5 flex-1 min-w-0">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span
+                            className={`font-semibold text-sm truncate ${
+                              cancelled
+                                ? "text-neutral-400 line-through"
+                                : "text-neutral-900"
+                            }`}
+                          >
+                            {s.name}
+                          </span>
+                          {cancelled && (
+                            <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-red-600 bg-red-50 px-1.5 py-0.5 rounded-full">
+                              Aflyst
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-neutral-500">
+                          <span className="flex items-center gap-1">
+                            <Clock className="size-3" />
+                            {s.time_from} - {s.time_to}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <MapPin className="size-3" />
+                            {s.location}
+                          </span>
+                        </div>
                       </div>
                     </div>
+                    {!cancelled &&
+                      (pendingSwap?.shiftId === s.id ? (
+                        <button
+                          onClick={onCancelSwap}
+                          className="w-full h-8 rounded-lg border border-red-200 bg-red-50 text-brand-red text-xs font-medium hover:bg-red-100 transition-colors cursor-pointer"
+                        >
+                          Annuller vagtbytte
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => onRequestSwap(s)}
+                          disabled={
+                            pendingSwap !== null && pendingSwap.shiftId !== s.id
+                          }
+                          className="w-full h-8 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 text-xs font-medium hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
+                        >
+                          <RefreshCcw className="size-3" />
+                          Byt vagt
+                        </button>
+                      ))}
                   </div>
-                  {pendingSwap?.shiftId === s.id ? (
-                    <button
-                      onClick={onCancelSwap}
-                      className="w-full h-8 rounded-lg border border-red-200 bg-red-50 text-brand-red text-xs font-medium hover:bg-red-100 transition-colors cursor-pointer"
-                    >
-                      Annuller vagtbytte
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => onRequestSwap(s)}
-                      disabled={
-                        pendingSwap !== null && pendingSwap.shiftId !== s.id
-                      }
-                      className="w-full h-8 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 text-xs font-medium hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
-                    >
-                      <RefreshCcw className="size-3" />
-                      Byt vagt
-                    </button>
-                  )}
-                </div>
-              ))}
+                );
+              })}
             </div>
             <button
               onClick={() => setShowAllShifts(false)}

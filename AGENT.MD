@@ -104,12 +104,13 @@ backend/src/
     boardgames.ts          /api/boardgames/* — member BGG collection (public list) + CSV upload;
                            also /club (public list) + /club/upload (admin-only CSV) for games always available in the club
     locations.ts           /api/locations/* — venue locations (admin CRUD, public GET)
+                           GET /default (public), PATCH /:id/default (admin, single "Fast lokation")
     address-autocomplete.ts  /api/address-autocomplete?q=... — proxies api.danskadresseapi.dk
 
 database/
   setup.sql                Full schema (idempotent drop+recreate) — update when adding columns
   migrations/              Incremental idempotent SQL scripts (001…024)
-                           Latest: 026_club_boardgames.sql
+                           Latest: 027_locations_default.sql
 ```
 
 ---
@@ -198,8 +199,11 @@ dbo.member_boardgames  member_id FK, bgg_id INT FK→boardgames
 dbo.club_boardgames    bgg_id INT PK FK→boardgames (CASCADE DELETE)
                        -- games always available IN the club (left by members) — no owner attribution
 
-dbo.locations          id, name, address, disabled BIT DEFAULT 0, created_at, updated_at
+dbo.locations          id, name, address, disabled BIT DEFAULT 0, is_default BIT DEFAULT 0, created_at, updated_at
                        -- reusable venues for club nights (admin managed)
+                       -- is_default: the club's usual venue ("Fast lokation"); filtered
+                       --   unique index UX_locations_default enforces at most one default.
+                       --   Shown as a Google Maps embed on the public About page.
 
 dbo.audit_log          id, event_type NVARCHAR(50), actor_member_id INT NULL,
                        actor_email NVARCHAR(255) NULL, target_member_id INT NULL,
@@ -578,6 +582,6 @@ cd backend && npx tsc --noEmit
 
 Migrations live in `database/migrations/` and are **idempotent** (safe to re-run).
 They must be run manually against the SQL Server container after deploying schema changes.
-Latest migration: **026_club_boardgames.sql**
+Latest migration: **027_locations_default.sql**
 
 > **Agents must not run migrations.** Write the SQL file and inform the user — they will apply it themselves.

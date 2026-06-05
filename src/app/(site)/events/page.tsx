@@ -67,6 +67,10 @@ export default function EventsPage() {
     [user],
   );
 
+  // The "Næste aften" highlight belongs to the next live night — skip any
+  // cancelled nights that sort earlier.
+  const nextLiveNightId = nights.find((n) => !n.cancelled)?.id;
+
   const isAndroid =
     typeof navigator !== "undefined" && /android/i.test(navigator.userAgent);
   const feedUrl =
@@ -131,11 +135,11 @@ export default function EventsPage() {
               ? Array.from({ length: 4 }).map((_, i) => (
                   <NightCardSkeleton key={i} variant="card" />
                 ))
-              : nights.map((night, i) => (
+              : nights.map((night) => (
                   <NightCard
                     key={night.id}
                     night={night}
-                    index={i}
+                    isNext={night.id === nextLiveNightId}
                     publicFacing
                     isFollowing={
                       user && !night.cancelled
@@ -156,11 +160,11 @@ export default function EventsPage() {
               ? Array.from({ length: 4 }).map((_, i) => (
                   <NightCardSkeleton key={i} variant="row" />
                 ))
-              : nights.map((night, i) => (
+              : nights.map((night) => (
                   <NightCard
                     key={night.id}
                     night={night}
-                    index={i}
+                    isNext={night.id === nextLiveNightId}
                     variant="row"
                     publicFacing
                     isFollowing={

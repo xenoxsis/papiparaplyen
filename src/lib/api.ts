@@ -62,6 +62,7 @@ export type ApiLocation = {
   name: string;
   address: string;
   disabled: boolean;
+  is_default: boolean;
   created_at: string;
   updated_at: string;
 };
@@ -217,10 +218,15 @@ export const publishDraftNights = () =>
 // ── Locations ─────────────────────────────────────────────────────────────────
 
 export const getLocations = () => api<ApiLocation[]>("/api/locations");
+/** The club's default ("Fast lokation"), or null if none is set. Public. */
+export const getDefaultLocation = () =>
+  api<ApiLocation | null>("/api/locations/default");
 export const createLocation = (body: { name: string; address: string }) =>
   apiPost<ApiLocation>("/api/locations", body);
 export const disableLocation = (id: number) =>
   apiPatch<ApiLocation>(`/api/locations/${id}/disable`);
+export const setDefaultLocation = (id: number) =>
+  apiPatch<ApiLocation>(`/api/locations/${id}/default`);
 
 // ── Schedule Reviews ──────────────────────────────────────────────────────────
 
@@ -514,7 +520,7 @@ export type ApiBggPrefs = {
   game_count: number;
 };
 
-/** Club-owned games have no owner attribution. */
+/** Games left at the club for shared use; no per-owner attribution. */
 export type ApiClubBoardgame = Omit<ApiBoardgame, "owners">;
 
 export const getBoardgames = () => api<ApiBoardgame[]>("/api/boardgames");

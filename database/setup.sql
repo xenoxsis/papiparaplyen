@@ -107,10 +107,17 @@ CREATE TABLE dbo.locations (
     name       NVARCHAR(100)  NOT NULL,
     address    NVARCHAR(255)  NOT NULL,
     disabled   BIT            NOT NULL DEFAULT 0,
+    is_default BIT            NOT NULL DEFAULT 0,
     created_at DATETIME2      NOT NULL DEFAULT GETDATE(),
     updated_at DATETIME2      NOT NULL DEFAULT GETDATE(),
     CONSTRAINT PK_locations PRIMARY KEY (id)
 );
+GO
+
+-- At most one location can be the club's default ("Fast lokation").
+CREATE UNIQUE INDEX UX_locations_default
+    ON dbo.locations (is_default)
+    WHERE is_default = 1;
 GO
 
 -- ---------------------------------------------------------------

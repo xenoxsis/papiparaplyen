@@ -25,8 +25,25 @@ async function getUpcomingNights(): Promise<ApiClubNight[]> {
   }
 }
 
+// Live count of games currently left at the club for shared use.
+async function getClubGameCount(): Promise<number> {
+  try {
+    const res = await fetch(`${API}/api/boardgames/club`, {
+      cache: "no-store",
+    });
+    if (!res.ok) return 0;
+    const games: unknown = await res.json();
+    return Array.isArray(games) ? games.length : 0;
+  } catch {
+    return 0;
+  }
+}
+
 export default async function Home() {
-  const nights = await getUpcomingNights();
+  const [nights, clubGameCount] = await Promise.all([
+    getUpcomingNights(),
+    getClubGameCount(),
+  ]);
   return (
     <>
       {/* Hero */}
@@ -45,7 +62,7 @@ export default async function Home() {
           <div className="flex flex-col gap-4">
             <span className="inline-flex items-center gap-1 bg-yellow-400 text-black rounded-full px-4 py-1 text-sm font-medium mx-auto sm:mx-0 w-fit">
               <Sparkles className="size-3 mr-1" />
-              Brætspilsklub siden 2022
+              Brætspilsklub siden 2024
             </span>
             <h1 className="font-bold text-white text-3xl sm:text-5xl tracking-tight leading-none">
               Esbjerg Brætspil
@@ -98,28 +115,26 @@ export default async function Home() {
               helt ny i brætspilsverdenen.
             </p>
             <p className="leading-relaxed text-neutral-500 dark:text-neutral-400">
-              Klubben råder over et stort spilbibliotek med over 200 titler, så
+              Der er altid et stort udvalg af spil tilgængeligt i klubben, så
               der er altid noget nyt at prøve.
             </p>
             <div className="flex flex-row gap-6 mt-2">
               <div className="flex flex-col gap-1">
-                <span className="font-bold text-2xl text-red-500">200+</span>
-                <span className="text-neutral-500 text-xs">
-                  Spil i biblioteket
+                <span className="font-bold text-2xl text-red-500">
+                  {clubGameCount}
                 </span>
+                <span className="text-neutral-500 text-xs">Spil i klubben</span>
               </div>
               <div className="flex flex-col gap-1">
-                <span className="font-bold text-2xl text-yellow-500">85</span>
-                <span className="text-neutral-500 text-xs">
-                  Aktive medlemmer
-                </span>
+                <span className="font-bold text-2xl text-yellow-500">0 kr</span>
+                <span className="text-neutral-500 text-xs">Kontingent</span>
               </div>
               <div className="flex flex-col gap-1">
-                <span className="font-bold text-2xl text-green-600">10</span>
-                <span className="text-neutral-500 text-xs">År med spil</span>
+                <span className="font-bold text-2xl text-green-600">2024</span>
+                <span className="text-neutral-500 text-xs">Stiftet</span>
               </div>
               <div className="flex flex-col gap-1">
-                <span className="font-bold text-2xl text-blue-500">52</span>
+                <span className="font-bold text-2xl text-blue-500">64</span>
                 <span className="text-neutral-500 text-xs">Klubaftener/år</span>
               </div>
             </div>
@@ -134,7 +149,7 @@ export default async function Home() {
             />
             <div className="absolute left-4 right-4 bottom-4 bg-white/90 dark:bg-neutral-900/90 rounded-lg p-4 flex items-center gap-2 font-medium text-sm text-neutral-900 dark:text-neutral-100">
               <Users className="size-5 text-red-500 shrink-0" />
-              <span>Hver torsdag aften - helt gratis</span>
+              <span>Hver torsdag aften - bare mød op</span>
             </div>
           </div>
         </div>
@@ -160,8 +175,13 @@ export default async function Home() {
             </Button>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {nights.map((night, i) => (
-              <NightCard key={night.id} night={night} index={i} publicFacing />
+            {nights.map((night) => (
+              <NightCard
+                key={night.id}
+                night={night}
+                isNext={night.id === nights.find((n) => !n.cancelled)?.id}
+                publicFacing
+              />
             ))}
             {nights.length === 0 && (
               <p className="col-span-3 text-center text-neutral-400 py-8">

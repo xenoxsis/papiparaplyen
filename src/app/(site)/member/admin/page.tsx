@@ -15,6 +15,7 @@ import {
   Mail,
   MapPin,
   Ban,
+  Star,
   Gamepad2,
   Upload,
 } from "lucide-react";
@@ -31,6 +32,7 @@ import {
   getLocations,
   createLocation,
   disableLocation,
+  setDefaultLocation,
   getClubBoardgames,
   uploadClubBoardgames,
   type ApiMember,
@@ -313,6 +315,18 @@ export default function AdminPage() {
       setLocations((prev) => prev.filter((l) => l.id !== id));
     } catch (err: unknown) {
       alert((err as Error).message ?? "Kunne ikke deaktivere lokation");
+    }
+  }
+
+  async function handleSetDefaultLocation(id: number) {
+    try {
+      await setDefaultLocation(id);
+      // Only one location can be default — reflect that locally.
+      setLocations((prev) =>
+        prev.map((l) => ({ ...l, is_default: l.id === id })),
+      );
+    } catch (err: unknown) {
+      alert((err as Error).message ?? "Kunne ikke sætte fast lokation");
     }
   }
 
@@ -801,16 +815,38 @@ export default function AdminPage() {
               ) : (
                 locations.map((loc) => (
                   <tr key={loc.id} className="hover:bg-neutral-50">
-                    <td className="px-4 py-3 font-medium text-neutral-900">{loc.name}</td>
+                    <td className="px-4 py-3 font-medium text-neutral-900">
+                      <span className="flex items-center gap-2">
+                        {loc.name}
+                        {loc.is_default && (
+                          <span className="inline-flex items-center gap-1 text-[11px] font-medium text-amber-600 bg-amber-50 rounded-full px-2 py-0.5">
+                            <Star className="size-3 fill-amber-500 text-amber-500" />
+                            Fast lokation
+                          </span>
+                        )}
+                      </span>
+                    </td>
                     <td className="px-4 py-3 text-neutral-500 hidden sm:table-cell">{loc.address}</td>
                     <td className="px-4 py-3 text-right">
-                      <button
-                        onClick={() => handleDisableLocation(loc.id)}
-                        className="text-xs text-neutral-400 hover:text-brand-red border border-neutral-200 rounded px-2 py-1 transition-colors flex items-center gap-1 ml-auto"
-                      >
-                        <Ban className="size-3" />
-                        Deaktiver
-                      </button>
+                      <div className="flex items-center justify-end gap-2">
+                        {!loc.is_default && (
+                          <button
+                            onClick={() => handleSetDefaultLocation(loc.id)}
+                            title="Gør til fast lokation"
+                            className="text-xs text-neutral-400 hover:text-amber-600 border border-neutral-200 rounded px-2 py-1 transition-colors flex items-center gap-1"
+                          >
+                            <Star className="size-3" />
+                            Gør fast
+                          </button>
+                        )}
+                        <button
+                          onClick={() => handleDisableLocation(loc.id)}
+                          className="text-xs text-neutral-400 hover:text-brand-red border border-neutral-200 rounded px-2 py-1 transition-colors flex items-center gap-1"
+                        >
+                          <Ban className="size-3" />
+                          Deaktiver
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))

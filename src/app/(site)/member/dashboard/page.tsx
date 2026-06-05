@@ -367,8 +367,13 @@ export default function ProfilePage() {
       return end > now;
     });
   })();
+  // Cancelled shifts stay visible (marked "Aflyst") but don't count as real
+  // upcoming obligations.
+  const activeUpcomingShiftCount = upcomingShifts.filter(
+    (n) => !n.cancelled,
+  ).length;
   const confirmedNightsCount = nights.filter(
-    (n) => n.vagt_confirmed && n.date >= today,
+    (n) => n.vagt_confirmed && !n.cancelled && n.date >= today,
   ).length;
   const isVagt = user?.roles.includes("Vagt") ?? false;
   const hasUnreviewedNights =
@@ -381,7 +386,10 @@ export default function ProfilePage() {
   const pendingShiftsForMe = user
     ? nights.filter(
         (n) =>
-          n.vagt_member_id === user.id && !n.vagt_confirmed && n.date >= today,
+          n.vagt_member_id === user.id &&
+          !n.vagt_confirmed &&
+          !n.cancelled &&
+          n.date >= today,
       )
     : [];
   const isVagtOrAdmin =
@@ -615,7 +623,7 @@ export default function ProfilePage() {
       <MemberHero>
         <div className="flex flex-col items-center">
           <span className="font-bold text-2xl text-brand-orange">
-            {upcomingShifts.length}
+            {activeUpcomingShiftCount}
           </span>
           <span className="text-white/60 text-xs">Vagter</span>
         </div>
@@ -711,22 +719,33 @@ export default function ProfilePage() {
             {nights
               .filter((n) => n.vagt_confirmed && n.date >= today)
               .map((evt) => {
+                const cancelled = evt.cancelled;
                 const isMyShift = evt.vagt_member_id === user?.id;
                 const hasOtherVagt = evt.vagt_member_id !== null && !isMyShift;
-                const colorClass = isMyShift
-                  ? "bg-brand-teal"
-                  : hasOtherVagt
-                    ? "bg-brand-orange"
-                    : "bg-brand-red";
+                const colorClass = cancelled
+                  ? "bg-neutral-400"
+                  : isMyShift
+                    ? "bg-brand-teal"
+                    : hasOtherVagt
+                      ? "bg-brand-orange"
+                      : "bg-brand-red";
 
                 return (
                   <div
                     key={evt.id}
-                    className="border border-neutral-200 rounded-lg flex p-3 items-center gap-4"
+                    className={`rounded-lg flex p-3 items-center gap-4 border ${
+                      cancelled ? "border-red-200" : "border-neutral-200"
+                    }`}
                   >
                     <DateBadge date={evt.date} colorClass={colorClass} />
                     <div className="flex flex-col flex-1 min-w-0 gap-0.5">
-                      <span className="font-semibold text-sm text-neutral-900 truncate">
+                      <span
+                        className={`font-semibold text-sm truncate ${
+                          cancelled
+                            ? "text-neutral-400 line-through"
+                            : "text-neutral-900"
+                        }`}
+                      >
                         {evt.name}
                       </span>
                       <div className="flex items-center gap-3 text-neutral-500 text-xs">
@@ -740,7 +759,11 @@ export default function ProfilePage() {
                         </span>
                       </div>
                     </div>
-                    {isMyShift ? (
+                    {cancelled ? (
+                      <span className="text-xs font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full whitespace-nowrap bg-red-50 text-red-600 shrink-0">
+                        Aflyst
+                      </span>
+                    ) : isMyShift ? (
                       <span className="text-xs font-medium px-2 py-0.5 rounded-full whitespace-nowrap bg-brand-teal/10 text-brand-teal shrink-0">
                         Din vagt
                       </span>

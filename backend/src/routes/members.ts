@@ -475,6 +475,7 @@ router.get("/:id/shifts", async (req, res) => {
     .input("today", sql.Date, today).query(`
       SELECT n.id, n.number, n.name, n.date, n.time_from, n.time_to,
              n.location, n.vagt_member_id, n.vagt_confirmed,
+             n.cancelled, n.cancelled_at,
              n.created_at, n.updated_at,
              m.name AS assigned_member_name,
              m.initials AS assigned_member_initials,
@@ -487,7 +488,12 @@ router.get("/:id/shifts", async (req, res) => {
         AND n.date >= @today
       ORDER BY n.date
     `);
-  res.json(result.recordset);
+  res.json(
+    result.recordset.map((r) => ({
+      ...r,
+      cancelled: r.cancelled === true || r.cancelled === 1,
+    })),
+  );
 });
 
 export default router;

@@ -4,8 +4,11 @@ import type { ApiClubNight } from "@/lib/api";
 
 interface NightCardProps {
   night: ApiClubNight;
-  /** Index in list — 0 = "next night" styling */
+  /** Index in list — 0 = "next night" styling (unless `isNext` is given) */
   index?: number;
+  /** Overrides the default (index === 0) "next night" highlight. Lets callers
+   *  skip cancelled nights so the highlight lands on the next live aften. */
+  isNext?: boolean;
   variant?: "card" | "row";
   /** If true, shows "name, address" instead of name only */
   publicFacing?: boolean;
@@ -18,13 +21,14 @@ interface NightCardProps {
 export function NightCard({
   night,
   index = 0,
+  isNext: isNextProp,
   variant = "card",
   publicFacing = false,
   isFollowing,
   onFollowToggle,
 }: NightCardProps) {
   const d = new Date(night.date);
-  const isNext = index === 0;
+  const isNext = isNextProp ?? index === 0;
   const hasVagt = night.vagt_member_id !== null;
 
   const locationDisplay = night.location_name
