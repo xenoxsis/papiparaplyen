@@ -202,7 +202,7 @@ export default function AboutPage() {
                   </div>
                 </div>
                 <a
-                  href={`https://www.google.com/maps/dir/?api=1&destination=${mapQuery}`}
+                  href={`https://www.google.com/maps/dir/?api=1&destination=${mapQuery}&hl=da`}
                   target="_blank"
                   rel="noreferrer"
                   className="inline-flex items-center gap-2 self-start rounded-lg bg-brand-teal hover:bg-teal-600 text-white text-sm font-medium px-4 py-2 transition-colors"
@@ -215,7 +215,7 @@ export default function AboutPage() {
               <div className="relative rounded-2xl overflow-hidden border border-neutral-200 dark:border-neutral-700 min-h-64 md:min-h-80">
                 <iframe
                   title={`Kort over ${location.name}`}
-                  src={`https://www.google.com/maps?q=${mapQuery}&output=embed`}
+                  src={`https://www.google.com/maps?q=${mapQuery}&output=embed&hl=da`}
                   loading="lazy"
                   referrerPolicy="no-referrer-when-downgrade"
                   className="absolute inset-0 w-full h-full"
