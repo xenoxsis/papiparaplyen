@@ -24,6 +24,7 @@ Quick-reference for AI agents making changes to this repository.
 | Auth            | JWT (7-day expiry) in **httpOnly cookie** (`auth_token`) |
 | Email           | Nodemailer (`backend/src/email.ts`)                      |
 | Real-time       | SSE via `backend/src/broadcaster.ts`                     |
+| E2E tests       | Cypress (`cypress/`) — see [Testing](#testing-cypress)   |
 | Package manager | pnpm (workspace)                                         |
 
 ---
@@ -111,6 +112,16 @@ database/
   setup.sql                Full schema (idempotent drop+recreate) — update when adding columns
   migrations/              Incremental idempotent SQL scripts (001…024)
                            Latest: 027_locations_default.sql
+
+cypress/                   E2E tests (Cypress) — see Testing section
+  e2e/public/              Stubbed public-page specs (home, events, boardgames, about, …)
+  e2e/auth/                Faux-auth specs (dashboard, route guards)
+  e2e/smoke/               Tier-2 real-backend smoke (login) — opt-in, env-gated
+  fixtures/                JSON response fixtures (shapes match src/lib/api.ts)
+  support/commands.ts      cy.loginAs / cy.loginReal / cy.stubPublicApis / cy.assertSiteChrome
+  support/authState.ts     Shared faux-auth state read by the /api/auth/me intercept
+  tasks/seed.ts            cy.task('db:seed' | 'db:reset') — tier-2 only, guarded to *_test DBs
+cypress.config.ts          baseUrl http://localhost:3010, registers db tasks
 ```
 
 ---
@@ -260,7 +271,7 @@ logEvent({
 `login.success`, `login.failure`, `auth.register`, `oauth.login`, `oauth.register`,
 `email.password_reset`, `auth.erasure`,
 `shift.create`, `shift.edit`, `shift.delete`, `shift.assign`, `shift.unassign`,
-`shift.confirm`, `shift.optout`, `shift.optout_remove`,
+`shift.confirm`, `shift.optout`, `shift.optout_remove`, `shift.publish`, `shift.publish_drafts`,
 `vagter.settings`, `vagter.checklist_create`, `vagter.checklist_edit`, `vagter.checklist_delete`,
 `email.sent`
 
@@ -398,7 +409,13 @@ Members with `is_virtual = 1` have no login account — they can be assigned to 
 
 ### Draft nights
 
-Club nights have `status: 'draft' | 'published'`. Drafts are only visible to Administrators. Vagter only see published nights. Bulk-publish via `POST /api/club-nights/publish`.
+Club nights have `status: 'draft' | 'published'`. Drafts are only visible to Administrators (`GET /api/club-nights` filters to published for everyone else). Vagter only see published nights. Newly created nights start as `draft`; notifications/emails are sent only on publish.
+
+Two publish paths (both admin-only):
+- **Publish all** — `POST /api/club-nights/publish-drafts`: flips every draft to published, sends one batched `nights_published` notification + a single digest email.
+- **Publish one** — `POST /api/club-nights/:id/publish`: releases a single draft (so admins can stage releases). 409 if the night is already published. Notifies Vagter/Administrators and queues the night email.
+
+Both broadcast the SSE `schedule_updated` / `drafts_published` payload (the single-publish path sends a one-element array), so the schedule page updates live. UI: an amber **Udgiv** button per draft on the schedule list card and in the calendar day popover, alongside the existing publish-all banner. Audit events: `shift.publish` (single), `shift.publish_drafts` (all).
 
 ### Creating a night on a day that already has one
 
@@ -541,10 +558,49 @@ broadcast(`user:${memberId}`, { event: "my_event", data: { ... } });
 
 ---
 
+## Testing (Cypress)
+
+End-to-end tests live in `cypress/` and run against the Next.js dev server
+(`baseUrl: http://localhost:3010`). UI is Danish and has **no `data-testid`s** —
+assert on Danish text, existing `aria-label`s, and stable ids (`#email`, `#password`).
+
+**Two tiers:**
+
+- **Tier 1 — stubbed (default, no backend).** `cy.intercept` + JSON fixtures cover
+  every client-rendered public page and a faux-authenticated dashboard. Run with only
+  the frontend up. The home page (`/`) is a **Server Component**, so its data is fetched
+  server-side and cannot be intercepted — its spec asserts static copy only.
+- **Tier 2 — real backend (opt-in smoke).** `cypress/e2e/smoke/` exercises the genuine
+  login flow (httpOnly cookie + `/api/auth/me`). Gated on `cy.env(["realBackend"])`
+  (set in a gitignored `cypress.env.json`); run against `pnpm dev:local` + a seeded
+  **local test DB** (name ending in `_test`).
+
+**Faux auth (tier 1):** `cy.loginAs(role)` sets the shared `authState.fakeUser`; a single
+`/api/auth/me` intercept (in `support/e2e.ts`) returns it (or 401 when logged-out). This
+mirrors `AuthProvider`, which authenticates from `/api/auth/me` on mount.
+
+**Test data:** tier 1 uses fixtures (`cypress/fixtures/*`, shapes mirror `src/lib/api.ts`).
+Tier 2 seeds via `cy.task('db:seed')` / `cy.task('db:reset')` in `cypress/tasks/seed.ts`,
+which **refuses any DB whose name isn't `*_test`** and only touches tagged rows
+(`cypress+%@example.com`, night number ≥ 90000, bgg_id ≥ 9000000).
+
+**Conventions/caveats:**
+- `allowCypressEnv: false` is set, so use `cy.env([...])`, **not** `Cypress.env()`.
+- `cypress/tsconfig.json` uses `moduleResolution: "bundler"` (the deprecated `node`
+  resolver triggers a TS warning) and is excluded from the app `tsconfig.json`.
+- The Docker build skips the Cypress binary (`CYPRESS_INSTALL_BINARY=0`) and the
+  `cypress/` dir is in `.dockerignore`.
+- Running Cypress requires re-fetching its binary if a download was truncated:
+  `npx cypress install --force`.
+
+See `cypress/README.md` for the full rollout plan and commands.
+
+---
+
 ## Dev Commands
 
 ```bash
-# Frontend (port 3000)
+# Frontend (port 3010 in dev)
 pnpm run dev
 
 # Backend (port 3001) — from /backend
@@ -558,6 +614,14 @@ npx tsc --noEmit
 
 # Type check backend
 cd backend && npx tsc --noEmit
+
+# Type check Cypress project (separate tsconfig)
+npx tsc --noEmit -p cypress/tsconfig.json
+
+# E2E tests (dev server must be running on 3010; see Testing section)
+pnpm cypress:open            # interactive
+pnpm cypress:run:stubbed     # headless, tier-1 only (public + auth specs)
+pnpm e2e                     # boots `pnpm dev` then runs the full suite
 ```
 
 ### Environment variables

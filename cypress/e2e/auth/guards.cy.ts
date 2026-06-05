@@ -1,8 +1,7 @@
 // Auth/role redirects enforced by useRequireAuth (src/lib/useRequireAuth.ts).
 describe("Route guards", () => {
   it("redirects an unauthenticated visitor from a protected page to /login", () => {
-    // No session — make the silent /me check resolve as logged-out.
-    cy.intercept("GET", "**/api/auth/me", { statusCode: 401, body: {} }).as("me");
+    // No cy.loginAs → the shared /me intercept defaults to 401 (logged out).
     cy.visit("/member/dashboard");
     cy.location("pathname", { timeout: 10000 }).should("eq", "/login");
   });

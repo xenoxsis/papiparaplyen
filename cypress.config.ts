@@ -20,6 +20,9 @@ function loadBackendEnv(): Record<string, string> {
 }
 
 export default defineConfig({
+  // Don't expose Cypress.env() to the app-under-test (browser code). Silences
+  // the allowCypressEnv deprecation warning; spec-side env reads still work.
+  allowCypressEnv: false,
   e2e: {
     baseUrl: process.env.CYPRESS_BASE_URL || "http://localhost:3010",
     specPattern: "cypress/e2e/**/*.cy.ts",

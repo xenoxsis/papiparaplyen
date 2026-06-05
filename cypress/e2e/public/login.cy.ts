@@ -33,7 +33,8 @@ describe("Login page (stubbed)", () => {
 
     cy.get("input#email").type("nobody@example.com");
     cy.get("input#password").type("wrong-password");
-    cy.contains("button", "Log ind").click();
+    // Two buttons read "Log ind" (the tab toggle and the submit); click submit.
+    cy.get('form button[type="submit"]').click();
 
     cy.wait("@login");
     cy.contains("Forkert e-mail eller adgangskode.").should("be.visible");

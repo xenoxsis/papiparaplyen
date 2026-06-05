@@ -11,7 +11,9 @@ Member portal for the board game club **Pap i Paraplyen**.
 - **Home** — upcoming club nights (horizontally scrollable on mobile)
 - **Events** — full event list
 - **Calendar** — monthly view
-- **About** — club info
+- **About** — club info, venue/location map, and the volunteer team
+- **Board games** — the club's shared games plus members' BGG collections (search, filter, sort)
+- **Privacy** — GDPR privacy policy
 
 ### Authentication
 
@@ -25,8 +27,10 @@ Member portal for the board game club **Pap i Paraplyen**.
 
 - **Profile** — edit name, initials, avatar; upcoming shifts; pending confirmations
 - **Chat** — real-time channels via SSE; @-mentions with email notification
-- **Schedule (Vagtplan)** — drag-and-drop shift assignment on desktop, drawer on mobile; opt-out; shift swap requests; "I have reviewed" banner
+- **Schedule (Vagtplan)** — drag-and-drop shift assignment on desktop, drawer on mobile; opt-out; shift swap requests; "I have reviewed" banner; list and calendar views
+- **Draft nights** — new club nights start as drafts (admins only); publish them **individually** or **all at once** to notify Vagter
 - **Vagter page** — open/close codes, checklist, shift note (Vagt/Admin only)
+- **iCal feeds** — subscribe to club nights / personal shifts in any calendar app
 
 ### Admin area
 
@@ -39,12 +43,14 @@ Member portal for the board game club **Pap i Paraplyen**.
 
 | Layer           | Technology                                                   |
 | --------------- | ------------------------------------------------------------ |
-| Frontend        | Next.js 14 (App Router), TypeScript, Tailwind CSS v4         |
-| Backend         | Express 4, TypeScript, runs on port 3001                     |
+| Frontend        | Next.js 16 (App Router), TypeScript, Tailwind CSS v4         |
+| Backend         | Express, TypeScript, runs on port 3001                       |
 | Database        | Microsoft SQL Server (via `mssql`)                           |
 | Auth            | JWT in httpOnly cookie + optional OAuth (Google / Facebook)  |
 | Real-time       | Server-Sent Events (SSE) — one connection per logged-in user |
 | Email           | Nodemailer — HTML templates in `backend/src/email.ts`        |
+| Push            | OneSignal Web Push (optional, env-controlled)                |
+| E2E tests       | Cypress (`cypress/`) — see [Testing](#testing)               |
 | Package manager | pnpm (workspaces)                                            |
 | Container       | Docker + pm2 (single image, single port 3000)                |
 
@@ -112,7 +118,7 @@ sqlcmd -S localhost -U sa -P yourpassword -d paraplyen -i database/setup.sql
 
 # Then apply migrations in order
 sqlcmd ... -i database/migrations/001_add_notifications.sql
-# ... through the latest (013_audit_log.sql)
+# ... through the latest (027_locations_default.sql)
 ```
 
 ### 4 — Start dev servers
@@ -121,11 +127,11 @@ sqlcmd ... -i database/migrations/001_add_notifications.sql
 # Terminal 1 — backend (port 3001)
 cd backend && pnpm dev
 
-# Terminal 2 — frontend (port 3000)
+# Terminal 2 — frontend (port 3010 in dev; the Docker image serves on 3000)
 pnpm dev
 ```
 
-Open http://localhost:3000.
+Open http://localhost:3010.
 
 ---
 
@@ -137,6 +143,30 @@ docker-compose up -d --build
 ```
 
 Only port `3000` is exposed. The Next.js server proxies all `/api/*` requests internally to the Express backend on port `3001`.
+
+The Docker build skips the Cypress binary download (`CYPRESS_INSTALL_BINARY=0`) and excludes `cypress/`, so e2e tooling never bloats the image.
+
+---
+
+## Testing
+
+End-to-end tests use **Cypress** and live in `cypress/`. They run against the dev server (`baseUrl http://localhost:3010`).
+
+**Two tiers:**
+
+- **Tier 1 — stubbed (default, no backend).** `cy.intercept` + JSON fixtures cover the public pages and a faux-authenticated dashboard. Fast and CI-friendly — only the frontend needs to be running.
+- **Tier 2 — real backend (opt-in smoke).** Exercises the genuine login flow. Gated on `realBackend` in a gitignored `cypress.env.json`; run against `pnpm dev:local` + a seeded **local test database** (name ending in `_test`). Seed/cleanup run via `cy.task('db:seed' | 'db:reset')`, which refuses any non-`*_test` database.
+
+```bash
+pnpm dev                 # start the frontend (port 3010), in one terminal
+pnpm cypress:open        # interactive runner
+pnpm cypress:run:stubbed # headless tier-1 specs (public + auth)
+pnpm e2e                 # boots the dev server, runs the full suite, tears down
+```
+
+> If Cypress fails to start with a "bad option" / corrupt-binary error, re-fetch its binary: `npx cypress install --force`.
+
+See `cypress/README.md` for fixtures, custom commands, and the page-coverage rollout plan.
 
 ---
 
@@ -175,7 +205,13 @@ Only port `3000` is exposed. The Next.js server proxies all `/api/*` requests in
 │   └── routes/                   One file per API resource
 ├── database/
 │   ├── setup.sql                 Full idempotent schema
-│   └── migrations/               Incremental scripts (001–013)
+│   └── migrations/               Incremental scripts (001 … latest 027)
+├── cypress/                      E2E tests (see Testing)
+│   ├── e2e/{public,auth,smoke}/  Specs grouped by access tier
+│   ├── fixtures/                 JSON response fixtures
+│   ├── support/                  commands.ts, authState.ts, e2e.ts
+│   └── tasks/seed.ts             Tier-2 DB seed/reset (test DBs only)
+├── cypress.config.ts
 ├── docker-compose.yml
 ├── Dockerfile
 └── ecosystem.config.cjs          pm2 process config
@@ -203,7 +239,7 @@ All significant actions are logged to `dbo.audit_log` (auto-purged after 90 days
 
 - **Auth:** `login.success`, `login.failure`, `auth.register`, `oauth.login`, `oauth.register`, `auth.erasure`
 - **Email:** `email.sent`, `email.password_reset`
-- **Shifts:** `shift.create`, `shift.edit`, `shift.delete`, `shift.assign`, `shift.unassign`, `shift.confirm`, `shift.optout`, `shift.optout_remove`
+- **Shifts:** `shift.create`, `shift.edit`, `shift.delete`, `shift.assign`, `shift.unassign`, `shift.confirm`, `shift.optout`, `shift.optout_remove`, `shift.publish`, `shift.publish_drafts`
 - **Vagter:** `vagter.settings`, `vagter.checklist_create`, `vagter.checklist_edit`, `vagter.checklist_delete`
 
 Email log entries include the rendered HTML — click **Vis email** in the audit log UI to preview it in an iframe.

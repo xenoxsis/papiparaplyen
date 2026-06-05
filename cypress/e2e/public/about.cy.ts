@@ -13,8 +13,8 @@ describe("About page (stubbed)", () => {
   });
 
   it("renders the intro and values sections", () => {
-    cy.contains("h2", "Hvem er vi?").should("be.visible");
-    cy.contains("Hvad gør os specielle?").should("be.visible");
+    cy.contains("h1", "Hvem er vi?").should("be.visible");
+    cy.contains("h2", "Hvad gør os specielle?").should("be.visible");
     cy.contains("Fællesskab").should("exist");
     cy.contains("Sjove spil").should("exist");
     cy.contains("Lær nyt").should("exist");

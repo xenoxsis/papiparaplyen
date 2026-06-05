@@ -1,6 +1,8 @@
 /// <reference types="cypress" />
 /// <reference path="./index.d.ts" />
 
+import { authState } from "./authState";
+
 const FAKE_USERS: Record<Cypress.RoleName, Cypress.AuthUser> = {
   Administrator: {
     id: 700,
@@ -37,19 +39,18 @@ const FAKE_USERS: Record<Cypress.RoleName, Cypress.AuthUser> = {
 };
 
 // Fake auth without a backend. AuthProvider authenticates from GET /api/auth/me
-// on mount, so stubbing /me with a 200 user is what actually establishes the
-// session (useRequireAuth doesn't redirect while the auth check is loading).
-// We additionally seed localStorage["auth_user"] on the NEXT page load — via a
-// one-shot window:before:load hook — so the app hydrates without a flash, the
-// same way a real session does. Call BEFORE cy.visit().
+// on mount, so driving the shared /me intercept (registered in support/e2e.ts)
+// to return this user is what establishes the session. We set it via shared
+// module state, which the intercept reads at request time — avoiding precedence
+// ambiguity with the default logged-out response. We also seed
+// localStorage["auth_user"] on the NEXT page load (one-shot window:before:load
+// hook) so the app hydrates without a flash, the same way a real session does.
+// Call BEFORE cy.visit().
 Cypress.Commands.add(
   "loginAs",
   (role: Cypress.RoleName, overrides?: Partial<Cypress.AuthUser>) => {
     const user: Cypress.AuthUser = { ...FAKE_USERS[role], ...overrides };
-    cy.intercept("GET", "**/api/auth/me", {
-      statusCode: 200,
-      body: user,
-    }).as("me");
+    authState.fakeUser = user;
 
     const seed = (win: Window) => {
       win.localStorage.setItem("auth_user", JSON.stringify(user));
@@ -66,7 +67,8 @@ Cypress.Commands.add("loginReal", (email: string, password: string) => {
   cy.visit("/login");
   cy.get("input#email").clear().type(email);
   cy.get("input#password").clear().type(password, { log: false });
-  cy.contains("button", "Log ind").click();
+  // "Log ind" is also the tab label, so target the form's submit button.
+  cy.get('form button[type="submit"]').click();
   cy.location("pathname", { timeout: 15000 }).should(
     "eq",
     "/member/dashboard",
