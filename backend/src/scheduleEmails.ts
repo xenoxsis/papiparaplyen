@@ -22,6 +22,7 @@ import {
   sendEmail,
   newNightsDigestEmailHtml,
   shiftAssignedEmailHtml,
+  shiftsAssignedDigestEmailHtml,
   shiftUnassignedEmailHtml,
   shiftDeletedEmailHtml,
   shiftCancelledEmailHtml,
@@ -171,6 +172,71 @@ export async function sendShiftAssignedEmail(
       nightName: night.name,
       nightDate: night.date,
       html: assignedHtml,
+    },
+  });
+}
+
+/**
+ * Send an immediate assignment email covering one or more newly-published
+ * nights the member was assigned to. When more than one night is supplied they
+ * are batched into a single digest so a vagt assigned to several nights that
+ * are published together receives one email instead of one per night.
+ */
+export async function sendShiftsAssignedEmail(
+  memberId: number,
+  nights: NightSummary[],
+): Promise<void> {
+  if (nights.length === 0) return;
+
+  const pool = await getPool();
+
+  const result = await pool
+    .request()
+    .input("memberId", sql.Int, memberId)
+    .query(
+      "SELECT m.name, m.email, m.is_virtual, ISNULL(u.email_on_shift, 1) AS email_on_shift FROM dbo.members m LEFT JOIN dbo.users u ON u.member_id = m.id WHERE m.id = @memberId",
+    );
+
+  const member:
+    | {
+        name: string;
+        email: string;
+        is_virtual: boolean | number;
+        email_on_shift: boolean | number;
+      }
+    | undefined = result.recordset[0];
+  if (!member?.email) return;
+  if (member.is_virtual === true || member.is_virtual === 1) return;
+  if (member.email_on_shift !== true && member.email_on_shift !== 1) {
+    console.log(
+      `[scheduleEmails] ${member.name} has email_on_shift=false — skipping`,
+    );
+    return;
+  }
+
+  const isSingle = nights.length === 1;
+  const subject = isSingle
+    ? `Du er tildelt vagten: ${nights[0].name}`
+    : `Du er tildelt ${nights.length} vagter`;
+  const html = isSingle
+    ? shiftAssignedEmailHtml(member.name, nights[0])
+    : shiftsAssignedDigestEmailHtml(member.name, nights);
+
+  console.log(
+    `[scheduleEmails] Sending shift-assigned email to ${member.email} (${nights.length} night(s))`,
+  );
+
+  await sendEmail(member.email, subject, html);
+  logEvent({
+    eventType: "email.sent",
+    targetMemberId: memberId,
+    targetEmail: member.email,
+    detail: {
+      type: "shift_assigned",
+      subject,
+      nightCount: nights.length,
+      nightNames: nights.map((n) => n.name),
+      html,
     },
   });
 }

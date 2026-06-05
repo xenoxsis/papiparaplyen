@@ -269,6 +269,52 @@ export function shiftAssignedEmailHtml(
   `;
 }
 
+/**
+ * Combined assignment email sent to a vagt who was assigned to several nights
+ * that are published in one go. Lists every shift so the vagt receives a single
+ * email instead of one per night.
+ */
+export function shiftsAssignedDigestEmailHtml(
+  memberName: string,
+  nights: NightSummary[],
+): string {
+  const rows = nights
+    .map(
+      (n, i) => `
+      <tr style="background:${i % 2 === 0 ? "#fff" : "#fafafa"}">
+        <td style="padding:8px 12px;font-weight:600;color:#1a1a1a;white-space:nowrap">${formatDanishDate(n.date)}</td>
+        <td style="padding:8px 12px;color:#555">${n.name}</td>
+        <td style="padding:8px 12px;color:#555;white-space:nowrap">${n.time_from}–${n.time_to}</td>
+        <td style="padding:8px 12px;color:#555">${n.location}</td>
+      </tr>`,
+    )
+    .join("");
+
+  return `
+    <div style="font-family:sans-serif;max-width:560px;margin:0 auto;padding:24px">
+      <h2 style="color:#1a1a1a;margin-bottom:4px">Du er tildelt ${nights.length} vagter</h2>
+      <p style="color:#555">Hej ${memberName},</p>
+      <p style="color:#555">Du er blevet tildelt følgende vagter og skal bekræfte din deltagelse:</p>
+      <table style="width:100%;border-collapse:collapse;margin:16px 0;font-size:14px">
+        <thead>
+          <tr style="background:#f5f5f5">
+            <th style="padding:8px 12px;text-align:left;color:#888;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.05em">Dato</th>
+            <th style="padding:8px 12px;text-align:left;color:#888;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.05em">Navn</th>
+            <th style="padding:8px 12px;text-align:left;color:#888;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.05em">Tid</th>
+            <th style="padding:8px 12px;text-align:left;color:#888;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.05em">Sted</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <a href="${process.env.FRONTEND_URL ?? "http://localhost:3000"}/member/schedule"
+         style="display:inline-block;margin:8px 0 16px;padding:10px 20px;background:#e63946;color:white;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px">
+        Bekræft vagter
+      </a>
+      <p style="color:#999;font-size:12px">Du modtager denne e-mail fordi du er tilknyttet Esbjerg Brætspil som vagt.</p>
+    </div>
+  `;
+}
+
 // ── Night follower emails ─────────────────────────────────────────────────────
 
 export type NightChangeSummary = {

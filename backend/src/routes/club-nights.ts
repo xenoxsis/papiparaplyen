@@ -15,6 +15,7 @@ import {
 import {
   queueNewNightEmail,
   sendShiftAssignedEmail,
+  sendShiftsAssignedEmail,
   sendShiftUnassignedEmail,
   sendShiftDeletedEmail,
   sendShiftCancelledEmail,
@@ -22,6 +23,7 @@ import {
   sendFollowerDeletedEmails,
   sendFollowerCancelledEmails,
 } from "../scheduleEmails";
+import type { NightSummary } from "../email";
 import { logEvent } from "../audit";
 import { broadcastToUser, getConnectedUserIds } from "../broadcaster";
 import { buildIcal, type IcalEvent } from "../ical";
@@ -496,9 +498,16 @@ router.patch("/:id", requireAuth, async (req, res) => {
   const nightCheck = await pool
     .request()
     .input("id", sql.Int, nightId)
-    .query("SELECT vagt_member_id FROM dbo.club_nights WHERE id = @id");
+    .query(
+      "SELECT vagt_member_id, [status] FROM dbo.club_nights WHERE id = @id",
+    );
   if (nightCheck.recordset.length === 0)
     return res.status(404).json({ error: "Not found" });
+
+  // Draft nights are invisible to vagter, so assignment/unassignment
+  // notifications and emails are deferred until the night is published
+  // (see POST /:id/publish and POST /publish-drafts).
+  const nightIsDraft = nightCheck.recordset[0].status === "draft";
 
   if ("vagt_member_id" in req.body && req.body.vagt_member_id !== null) {
     // Block if opted out
@@ -561,7 +570,8 @@ router.patch("/:id", requireAuth, async (req, res) => {
         const prevIsVirtual =
           prevVirtualCheck.recordset[0]?.is_virtual === true ||
           prevVirtualCheck.recordset[0]?.is_virtual === 1;
-        if (!prevIsVirtual) {
+        // Skip on drafts: the previous vagt was never told they were assigned.
+        if (!prevIsVirtual && !nightIsDraft) {
           await createNotification(
             previousVagtId,
             "shift_unassigned",
@@ -612,22 +622,25 @@ router.patch("/:id", requireAuth, async (req, res) => {
     newVagt !== null &&
     newVagt !== previousVagt
   ) {
-    await createNotification(
-      newVagt,
-      "shift_assigned",
-      `Du er blevet tildelt vagten: ${updatedNight.name}`,
-      "/member/schedule",
-    );
-    // Send assignment email (fire-and-forget — don't block the response)
-    sendShiftAssignedEmail(newVagt, {
-      name: updatedNight.name,
-      date: updatedNight.date,
-      time_from: updatedNight.time_from,
-      time_to: updatedNight.time_to,
-      location: updatedNight.location,
-    }).catch((err) =>
-      console.error("[scheduleEmails] shift-assigned send failed:", err),
-    );
+    // Defer the notification + email on drafts until the night is published.
+    if (!nightIsDraft) {
+      await createNotification(
+        newVagt,
+        "shift_assigned",
+        `Du er blevet tildelt vagten: ${updatedNight.name}`,
+        "/member/schedule",
+      );
+      // Send assignment email (fire-and-forget — don't block the response)
+      sendShiftAssignedEmail(newVagt, {
+        name: updatedNight.name,
+        date: updatedNight.date,
+        time_from: updatedNight.time_from,
+        time_to: updatedNight.time_to,
+        location: updatedNight.location,
+      }).catch((err) =>
+        console.error("[scheduleEmails] shift-assigned send failed:", err),
+      );
+    }
     logEvent({
       eventType: "shift.assign",
       actorMemberId: callerId(res),
@@ -649,25 +662,28 @@ router.patch("/:id", requireAuth, async (req, res) => {
       prevVirtualCheck2.recordset[0]?.is_virtual === true ||
       prevVirtualCheck2.recordset[0]?.is_virtual === 1;
     if (!prevWasVirtual) {
-      await createNotification(
-        previousVagt as number,
-        "shift_unassigned",
-        `Du er blevet fjernet fra vagten: ${updatedNight.name}`,
-        "/member/schedule",
-      );
-      sendShiftUnassignedEmail(
-        previousVagt as number,
-        {
-          name: updatedNight.name,
-          date: updatedNight.date,
-          time_from: updatedNight.time_from,
-          time_to: updatedNight.time_to,
-          location: updatedNight.location,
-        },
-        callerId(res),
-      ).catch((err) =>
-        console.error("[scheduleEmails] shift-unassigned send failed:", err),
-      );
+      // Skip on drafts: the vagt was never told they were assigned.
+      if (!nightIsDraft) {
+        await createNotification(
+          previousVagt as number,
+          "shift_unassigned",
+          `Du er blevet fjernet fra vagten: ${updatedNight.name}`,
+          "/member/schedule",
+        );
+        sendShiftUnassignedEmail(
+          previousVagt as number,
+          {
+            name: updatedNight.name,
+            date: updatedNight.date,
+            time_from: updatedNight.time_from,
+            time_to: updatedNight.time_to,
+            location: updatedNight.location,
+          },
+          callerId(res),
+        ).catch((err) =>
+          console.error("[scheduleEmails] shift-unassigned send failed:", err),
+        );
+      }
       logEvent({
         eventType: "shift.unassign",
         actorMemberId: callerId(res),
@@ -1189,8 +1205,10 @@ router.post("/:id/publish", requireAuth, async (req, res) => {
     .input("id", sql.Int, nightId)
     .query(`
       SELECT n.id, n.name, CONVERT(varchar(10), n.date, 120) AS date,
-             n.time_from, n.time_to, n.location, n.[status]
+             n.time_from, n.time_to, n.location, n.[status],
+             n.vagt_member_id, m.is_virtual AS vagt_is_virtual
       FROM dbo.club_nights n
+      LEFT JOIN dbo.members m ON m.id = n.vagt_member_id
       WHERE n.id = @id
     `);
   if (nightCheck.recordset.length === 0)
@@ -1204,6 +1222,8 @@ router.post("/:id/publish", requireAuth, async (req, res) => {
     time_to: string;
     location: string;
     status: string;
+    vagt_member_id: number | null;
+    vagt_is_virtual: boolean | number | null;
   };
   if (draft.status !== "draft") {
     return res.status(409).json({ error: "Klubaften er allerede udgivet" });
@@ -1241,6 +1261,33 @@ router.post("/:id/publish", requireAuth, async (req, res) => {
     location: draft.location,
   });
 
+  // Deliver the deferred shift-assignment notification + email to the assigned
+  // (real, non-virtual) vagt now that the night is visible to them.
+  const draftVagtIsVirtual =
+    draft.vagt_is_virtual === true || draft.vagt_is_virtual === 1;
+  if (draft.vagt_member_id !== null && !draftVagtIsVirtual) {
+    await createNotification(
+      draft.vagt_member_id,
+      "shift_assigned",
+      `Du er blevet tildelt vagten: ${draft.name}`,
+      "/member/schedule",
+    );
+    sendShiftsAssignedEmail(draft.vagt_member_id, [
+      {
+        name: draft.name,
+        date: draft.date,
+        time_from: draft.time_from,
+        time_to: draft.time_to,
+        location: draft.location,
+      },
+    ]).catch((err) =>
+      console.error(
+        "[scheduleEmails] shift-assigned (publish) send failed:",
+        err,
+      ),
+    );
+  }
+
   logEvent({
     eventType: "shift.publish",
     actorMemberId: callerId(res),
@@ -1271,8 +1318,10 @@ router.post("/publish-drafts", requireAuth, async (req, res) => {
   const draftsResult = await pool.request().query(`
     SELECT n.id, n.name,
            CONVERT(varchar(10), n.date, 120) AS date,
-           n.time_from, n.time_to, n.location
+           n.time_from, n.time_to, n.location,
+           n.vagt_member_id, m.is_virtual AS vagt_is_virtual
     FROM dbo.club_nights n
+    LEFT JOIN dbo.members m ON m.id = n.vagt_member_id
     WHERE n.[status] = N'draft'
     ORDER BY n.date
   `);
@@ -1284,6 +1333,8 @@ router.post("/publish-drafts", requireAuth, async (req, res) => {
     time_from: string;
     time_to: string;
     location: string;
+    vagt_member_id: number | null;
+    vagt_is_virtual: boolean | number | null;
   }>;
 
   if (drafts.length === 0) {
@@ -1331,6 +1382,43 @@ router.post("/publish-drafts", requireAuth, async (req, res) => {
       time_to: night.time_to,
       location: night.location,
     });
+  }
+
+  // Deliver the deferred shift-assignment notifications + emails. Group the
+  // nights per assigned (real, non-virtual) vagt so a member assigned to
+  // several nights published together gets one combined email, not one each.
+  const shiftsByVagt = new Map<number, NightSummary[]>();
+  for (const night of drafts) {
+    const isVirtual =
+      night.vagt_is_virtual === true || night.vagt_is_virtual === 1;
+    if (night.vagt_member_id === null || isVirtual) continue;
+    const list = shiftsByVagt.get(night.vagt_member_id) ?? [];
+    list.push({
+      name: night.name,
+      date: night.date,
+      time_from: night.time_from,
+      time_to: night.time_to,
+      location: night.location,
+    });
+    shiftsByVagt.set(night.vagt_member_id, list);
+  }
+  for (const [vagtId, nights] of shiftsByVagt) {
+    const notifBody =
+      nights.length === 1
+        ? `Du er blevet tildelt vagten: ${nights[0].name}`
+        : `Du er blevet tildelt ${nights.length} vagter`;
+    await createNotification(
+      vagtId,
+      "shift_assigned",
+      notifBody,
+      "/member/schedule",
+    );
+    sendShiftsAssignedEmail(vagtId, nights).catch((err) =>
+      console.error(
+        "[scheduleEmails] shift-assigned (publish-drafts) send failed:",
+        err,
+      ),
+    );
   }
 
   logEvent({

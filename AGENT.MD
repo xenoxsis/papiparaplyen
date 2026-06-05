@@ -417,6 +417,12 @@ Two publish paths (both admin-only):
 
 Both broadcast the SSE `schedule_updated` / `drafts_published` payload (the single-publish path sends a one-element array), so the schedule page updates live. UI: an amber **Udgiv** button per draft on the schedule list card and in the calendar day popover, alongside the existing publish-all banner. Audit events: `shift.publish` (single), `shift.publish_drafts` (all).
 
+**Shift-assignment notifications/emails are deferred for drafts.** Assigning (or unassigning) a vagt on a *draft* night via `PATCH /api/club-nights/:id` updates the DB and writes the audit log, but sends **no** `shift_assigned`/`shift_unassigned` notification or email (the vagt can't see the night yet). The PATCH handler reads the night's `status` and gates all assign/unassign notifications + emails on `!nightIsDraft`. When the night is later published, the assigned (real, non-virtual) vagt receives the deferred `shift_assigned` notification + email:
+- **Publish one** (`/:id/publish`) → one shift-assigned email to the assigned vagt (via `sendShiftsAssignedEmail(id, [night])`).
+- **Publish all** (`/publish-drafts`) → nights are grouped per assigned vagt and each vagt gets **one combined** email (`shiftsAssignedDigestEmailHtml` for ≥2 nights, the single template for 1). Implemented with `sendShiftsAssignedEmail(memberId, nights[])` in `scheduleEmails.ts`.
+
+Assigning a vagt to an **already-published** night still emails immediately (unchanged), including self-assignment.
+
 ### Creating a night on a day that already has one
 
 `POST /api/club-nights` enforces same-day conflicts server-side (the create modal mirrors this for UX):
