@@ -132,6 +132,7 @@ JWT payload: `{ memberId: number, roles: string[] }`
 - Backend: `email.toLowerCase() === process.env.SUPERUSER_EMAIL?.toLowerCase()`
 - Frontend: `user.is_superuser` boolean on the `User` type (populated by `GET /api/auth/me`)
 - Superuser is the only one who can access `/member/admin/logs` and `GET /api/audit-log`
+- Superuser is the only one who can create virtual members (`POST /api/members`); the "Opret virtuel vagt" button is hidden for other admins
 - The superuser account cannot be banned or have its roles changed via the admin UI
 
 ---
@@ -393,11 +394,17 @@ Members with a role in `AVATAR_UPLOAD_ROLES` (currently `["Vagt", "Administrator
 
 ### Virtual members
 
-Members with `is_virtual = 1` have no login account — they can be assigned to shifts but cannot log in. Created via `POST /api/members` (admin only). They appear in shift assignment dropdowns but not on the About page.
+Members with `is_virtual = 1` have no login account — they can be assigned to shifts but cannot log in. Created via `POST /api/members` (**superuser only**). They appear in shift assignment dropdowns but not on the About page.
 
 ### Draft nights
 
 Club nights have `status: 'draft' | 'published'`. Drafts are only visible to Administrators. Vagter only see published nights. Bulk-publish via `POST /api/club-nights/publish`.
+
+### Creating a night on a day that already has one
+
+`POST /api/club-nights` enforces same-day conflicts server-side (the create modal mirrors this for UX):
+- A **non-cancelled** night on that date → **409** `{ error: "Der er allerede en klubaften på denne dato" }` (one live night per day, unchanged).
+- Only **cancelled** night(s) on that date → allowed. Cancelled nights whose `time_from`/`time_to` **overlap** the new one (`a.time_from < b.time_to AND a.time_to > b.time_from`, "HH:MM" string compare) are **deleted** in the same transaction (opt-outs removed manually, followers cascade; silent — they were already notified at cancel time). Non-overlapping cancelled nights stay, preserving history. The response is the new night plus `replaced_cancelled_ids: number[]` so the client can drop the deleted rows from local state. `ClubNightModal` shows an amber "Opret og erstat" warning when a replacement will occur.
 
 ---
 

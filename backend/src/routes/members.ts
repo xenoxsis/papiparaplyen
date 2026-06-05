@@ -1,13 +1,27 @@
-import { Router } from "express";
+import { Router, Response } from "express";
 import * as crypto from "crypto";
 import { getPool, sql } from "../db";
-import { requireAdmin, requireAuth } from "../auth";
+import { requireAdmin, requireAuth, callerId } from "../auth";
 import { sendEmail, resetPasswordEmailHtml } from "../email";
 import { logEvent } from "../audit";
 import { broadcastToUser } from "../broadcaster";
 
 const SUPERUSER_EMAIL = (process.env.SUPERUSER_EMAIL ?? "").toLowerCase();
 const FRONTEND_URL = process.env.FRONTEND_URL ?? "http://localhost:3000";
+
+/** True if the authenticated caller is the superuser (email matches SUPERUSER_EMAIL). */
+async function callerIsSuperuser(res: Response): Promise<boolean> {
+  if (!SUPERUSER_EMAIL) return false;
+  const memberId = callerId(res);
+  if (memberId === null) return false;
+  const pool = await getPool();
+  const result = await pool
+    .request()
+    .input("id", sql.Int, memberId)
+    .query("SELECT email FROM dbo.members WHERE id = @id");
+  const email: string | undefined = result.recordset[0]?.email;
+  return !!email && email.toLowerCase() === SUPERUSER_EMAIL;
+}
 
 // ── Helper: map a DB row → API member shape ─────────────────────────────────
 function mapMember(row: Record<string, unknown>) {
@@ -118,9 +132,14 @@ router.get("/:id", requireAuth, async (req, res) => {
   return res.json(mapMember(result.recordset[0]));
 });
 
-// POST /api/members — create a virtual member (admin only)
+// POST /api/members — create a virtual member (superuser only)
 router.post("/", requireAuth, async (req, res) => {
   if (!(await requireAdmin(req, res))) return;
+  if (!(await callerIsSuperuser(res))) {
+    return res
+      .status(403)
+      .json({ error: "Kun superbrugeren kan oprette virtuelle vagter" });
+  }
   const { name, initials } = req.body ?? {};
   if (!name || !initials) {
     return res.status(400).json({ error: "name and initials are required" });

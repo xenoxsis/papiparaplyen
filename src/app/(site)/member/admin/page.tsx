@@ -52,7 +52,7 @@ const ROLE_STYLES: Record<Role, string> = {
 };
 
 export default function AdminPage() {
-  const { authorized } = useRequireAuth(["Administrator"]);
+  const { user, authorized } = useRequireAuth(["Administrator"]);
   const [members, setMembers] = useState<ApiMember[]>([]);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"alle" | Role | "banned" | "virtuelle">(
@@ -521,14 +521,16 @@ export default function AdminPage() {
             </h2>
           </div>
           <div className="flex items-center gap-2 ml-auto flex-wrap justify-end">
-            <Button
-              size="sm"
-              onClick={() => setShowCreateVirtual(true)}
-              className="bg-brand-teal hover:bg-teal-600 text-white gap-1.5 h-9 text-xs"
-            >
-              <Ghost className="size-3.5" />
-              Opret virtuel vagt
-            </Button>
+            {user?.is_superuser && (
+              <Button
+                size="sm"
+                onClick={() => setShowCreateVirtual(true)}
+                className="bg-brand-teal hover:bg-teal-600 text-white gap-1.5 h-9 text-xs"
+              >
+                <Ghost className="size-3.5" />
+                Opret virtuel vagt
+              </Button>
+            )}
             <div className="relative w-full sm:w-72">
               <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
               <Input

@@ -575,6 +575,7 @@ export default function ProfilePage() {
               ? Math.max(...nights.map((n) => n.number)) + 1
               : 51
           }
+          existingNights={nights}
           onClose={() => setShowAddModal(false)}
           onAdd={async (data) => {
             try {
@@ -587,7 +588,12 @@ export default function ProfilePage() {
                 vagt_member_id: data.vagt_member_id,
               });
               setNights((prev) =>
-                [...prev, created].sort((a, b) => a.date.localeCompare(b.date)),
+                [
+                  ...prev.filter(
+                    (n) => !data.replacedCancelledIds.includes(n.id),
+                  ),
+                  created,
+                ].sort((a, b) => a.date.localeCompare(b.date)),
               );
             } catch (err) {
               console.error(err);

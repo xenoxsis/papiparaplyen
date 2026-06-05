@@ -360,6 +360,38 @@ router.post("/", requireAuth, async (req, res) => {
   const pool = await getPool();
   const now = new Date().toISOString();
 
+  const newFrom: string = req.body.time_from ?? "18:00";
+  const newTo: string = req.body.time_to ?? "23:00";
+
+  // ── Same-day conflict handling ────────────────────────────────────────────
+  // A live (non-cancelled) night on this date blocks creation, exactly as
+  // before. Cancelled nights whose times overlap the new one are overwritten
+  // (deleted); non-overlapping cancelled nights are kept so the schedule
+  // history stays visible (e.g. a cancelled late shift when adding an early one).
+  // Times are "HH:MM" (zero-padded) so string compare is chronological.
+  const sameDay = await pool
+    .request()
+    .input("date", sql.Date, req.body.date)
+    .query(
+      "SELECT id, cancelled, time_from, time_to FROM dbo.club_nights WHERE date = @date",
+    );
+
+  const isRowCancelled = (r: { cancelled: boolean | number }) =>
+    r.cancelled === true || r.cancelled === 1;
+
+  if (sameDay.recordset.some((r: NightRow) => !isRowCancelled(r))) {
+    return res
+      .status(409)
+      .json({ error: "Der er allerede en klubaften på denne dato" });
+  }
+
+  const replacedCancelledIds: number[] = sameDay.recordset
+    .filter(
+      (r: { time_from: string; time_to: string; cancelled: boolean | number }) =>
+        isRowCancelled(r) && r.time_from < newTo && r.time_to > newFrom,
+    )
+    .map((r: { id: number }) => r.id);
+
   // Get next number
   const maxResult = await pool
     .request()
@@ -384,37 +416,69 @@ router.post("/", requireAuth, async (req, res) => {
   }
   if (!locationText) locationText = "Kulturhuset";
 
-  const insertResult = await pool
-    .request()
-    .input("number", sql.Int, nextNumber)
-    .input("name", sql.NVarChar, req.body.name ?? "Klubaften")
-    .input("date", sql.Date, req.body.date)
-    .input("timeFrom", sql.NVarChar, req.body.time_from ?? "18:00")
-    .input("timeTo", sql.NVarChar, req.body.time_to ?? "23:00")
-    .input("location", sql.NVarChar, locationText)
-    .input("locationId", sql.Int, locationId)
-    .input("vagtMemberId", sql.Int, req.body.vagt_member_id ?? null)
-    .input("createdAt", sql.DateTime2, now)
-    .input("updatedAt", sql.DateTime2, now).query(`
-      INSERT INTO dbo.club_nights
-        (number, name, date, time_from, time_to, location, location_id, vagt_member_id, vagt_confirmed, [status], created_at, updated_at)
-      OUTPUT INSERTED.id
-      VALUES (@number, @name, @date, @timeFrom, @timeTo, @location, @locationId, @vagtMemberId, 0, N'draft', @createdAt, @updatedAt)
-    `);
+  // Delete the overwritten cancelled nights and insert the new one atomically.
+  // The cancelled nights already notified their vagt/followers at cancel time,
+  // so this is a silent cleanup. opt_outs have no cascade (delete manually);
+  // followers cascade with the night.
+  const tx = pool.transaction();
+  await tx.begin();
+  try {
+    for (const id of replacedCancelledIds) {
+      await tx
+        .request()
+        .input("id", sql.Int, id)
+        .query("DELETE FROM dbo.club_night_opt_outs WHERE club_night_id = @id");
+      await tx
+        .request()
+        .input("id", sql.Int, id)
+        .query("DELETE FROM dbo.club_nights WHERE id = @id");
+    }
 
-  const newId: number = insertResult.recordset[0].id;
-  const night = await fetchNightWithOptOuts(pool, newId);
+    const insertResult = await tx
+      .request()
+      .input("number", sql.Int, nextNumber)
+      .input("name", sql.NVarChar, req.body.name ?? "Klubaften")
+      .input("date", sql.Date, req.body.date)
+      .input("timeFrom", sql.NVarChar, newFrom)
+      .input("timeTo", sql.NVarChar, newTo)
+      .input("location", sql.NVarChar, locationText)
+      .input("locationId", sql.Int, locationId)
+      .input("vagtMemberId", sql.Int, req.body.vagt_member_id ?? null)
+      .input("createdAt", sql.DateTime2, now)
+      .input("updatedAt", sql.DateTime2, now).query(`
+        INSERT INTO dbo.club_nights
+          (number, name, date, time_from, time_to, location, location_id, vagt_member_id, vagt_confirmed, [status], created_at, updated_at)
+        OUTPUT INSERTED.id
+        VALUES (@number, @name, @date, @timeFrom, @timeTo, @location, @locationId, @vagtMemberId, 0, N'draft', @createdAt, @updatedAt)
+      `);
 
-  // Night is created in draft mode — notifications and emails are sent only
-  // when all drafts are published via POST /api/club-nights/publish-drafts.
+    await tx.commit();
 
-  logEvent({
-    eventType: "shift.create",
-    actorMemberId: callerId(res),
-    detail: { nightId: newId, name: night.name, date: night.date },
-  });
+    const newId: number = insertResult.recordset[0].id;
+    const night = await fetchNightWithOptOuts(pool, newId);
 
-  return res.status(201).json(night);
+    // Night is created in draft mode — notifications and emails are sent only
+    // when all drafts are published via POST /api/club-nights/publish-drafts.
+
+    logEvent({
+      eventType: "shift.create",
+      actorMemberId: callerId(res),
+      detail: {
+        nightId: newId,
+        name: night.name,
+        date: night.date,
+        replacedCancelledIds,
+      },
+    });
+
+    return res
+      .status(201)
+      .json({ ...night, replaced_cancelled_ids: replacedCancelledIds });
+  } catch (err) {
+    await tx.rollback();
+    console.error("[club-nights] create failed:", err);
+    return res.status(500).json({ error: "Kunne ikke oprette klubaften" });
+  }
 });
 
 // PATCH /api/club-nights/:id  — update vagt_member_id / vagt_confirmed

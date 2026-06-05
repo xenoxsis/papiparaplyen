@@ -45,16 +45,28 @@ function dayNameForDate(dateStr: string) {
   return DAY_NAMES[new Date(dateStr).getDay()];
 }
 
+/** Two "HH:MM" windows overlap when each starts before the other ends.
+ *  Zero-padded times compare lexicographically, so string compare works.
+ *  Must stay in sync with the SQL check in the backend POST handler. */
+function timesOverlap(aFrom: string, aTo: string, bFrom: string, bTo: string) {
+  return aFrom < bTo && aTo > bFrom;
+}
+
+type ExistingNight = Pick<
+  ApiClubNight,
+  "id" | "date" | "time_from" | "time_to" | "cancelled" | "name"
+>;
+
 export function ClubNightModal({
   nextNumber,
-  existingDates = [],
+  existingNights = [],
   onClose,
   onAdd,
   night,
   onEdit,
 }: {
   nextNumber?: number;
-  existingDates?: string[];
+  existingNights?: ExistingNight[];
   onClose: () => void;
   onAdd?: (data: {
     name: string;
@@ -63,6 +75,7 @@ export function ClubNightModal({
     timeTo: string;
     location_id: number | null;
     vagt_member_id: number | null;
+    replacedCancelledIds: number[];
   }) => void;
   /** When provided, the modal runs in edit mode */
   night?: ApiClubNight;
@@ -89,9 +102,18 @@ export function ClubNightModal({
   const [vagter, setVagter] = useState<ApiMember[]>([]);
   const overlayRef = useRef<HTMLDivElement>(null);
 
-  const isDuplicate = !isEditMode && existingDates.includes(date);
+  // Same-day conflict logic (add mode only):
+  //  - a live (non-cancelled) night that day blocks creation;
+  //  - cancelled nights that overlap the chosen times will be replaced (deleted).
+  const sameDayNights = isEditMode
+    ? []
+    : existingNights.filter((n) => n.date === date);
+  const hasActiveConflict = sameDayNights.some((n) => !n.cancelled);
+  const replacedCancelled = sameDayNights.filter(
+    (n) => n.cancelled && timesOverlap(n.time_from, n.time_to, timeFrom, timeTo),
+  );
   const isPast = !isEditMode && date < today();
-  const isBlocked = isDuplicate || isPast || !locationId;
+  const isBlocked = hasActiveConflict || isPast || !locationId;
 
   // Detect destructive changes (time or location changed) in edit mode
   const hasDestructiveChange = useMemo(() => {
@@ -147,6 +169,7 @@ export function ClubNightModal({
         timeTo,
         location_id: locationId,
         vagt_member_id: vagtId === "none" ? null : Number(vagtId),
+        replacedCancelledIds: replacedCancelled.map((n) => n.id),
       });
     }
     onClose();
@@ -212,7 +235,7 @@ export function ClubNightModal({
                   {dayNameForDate(date)}
                 </p>
               )}
-              {isDuplicate && (
+              {hasActiveConflict && (
                 <p className="text-xs text-brand-red flex items-center gap-1">
                   <CalendarDays className="size-3.5 shrink-0" />
                   Der er allerede en klubaften på denne dato.
@@ -297,6 +320,37 @@ export function ClubNightModal({
             </div>
           )}
 
+          {/* Replace-cancelled warning (add mode) — the new night overwrites an
+              overlapping cancelled aften, which will be permanently deleted. */}
+          {!isEditMode && !isBlocked && replacedCancelled.length > 0 && (
+            <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2.5">
+              <AlertTriangle className="size-4 text-amber-500 shrink-0 mt-0.5" />
+              <p className="text-xs text-amber-800 leading-5">
+                {replacedCancelled.length === 1 ? (
+                  <>
+                    Dette erstatter en aflyst klubaften (
+                    <span className="font-semibold">
+                      {replacedCancelled[0].name}
+                    </span>{" "}
+                    · {replacedCancelled[0].time_from}–
+                    {replacedCancelled[0].time_to}). Den{" "}
+                    <span className="font-semibold">slettes</span>, når du
+                    opretter den nye.
+                  </>
+                ) : (
+                  <>
+                    Dette erstatter{" "}
+                    <span className="font-semibold">
+                      {replacedCancelled.length} aflyste klubaftener
+                    </span>{" "}
+                    på denne dato, som <span className="font-semibold">slettes</span>,
+                    når du opretter den nye.
+                  </>
+                )}
+              </p>
+            </div>
+          )}
+
           {/* Destructive-change warning */}
           {showWarning && (
             <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2.5">
@@ -324,7 +378,11 @@ export function ClubNightModal({
               disabled={isBlocked}
               className="bg-brand-red hover:bg-red-600 text-white disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isEditMode ? "Gem ændringer" : "Tilføj klubaften"}
+              {isEditMode
+                ? "Gem ændringer"
+                : replacedCancelled.length > 0
+                  ? "Opret og erstat"
+                  : "Tilføj klubaften"}
             </Button>
           </div>
         </form>
