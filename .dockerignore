@@ -12,3 +12,9 @@ backend/dist
 # Dev / docs
 *.md
 database/
+
+# Cypress e2e tests (never run inside the image)
+cypress/
+cypress.config.ts
+cypress.env.json
+cypress.env.example.json

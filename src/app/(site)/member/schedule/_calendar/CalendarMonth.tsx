@@ -33,6 +33,7 @@ export interface CalendarMonthProps {
   onEdit: (night: ApiClubNight) => void;
   onDelete: (nightId: number) => void;
   onCancel: (night: ApiClubNight) => void;
+  onPublish: (night: ApiClubNight) => void;
 }
 
 export function CalendarMonth({
@@ -61,6 +62,7 @@ export function CalendarMonth({
   onEdit,
   onDelete,
   onCancel,
+  onPublish,
 }: CalendarMonthProps) {
   const days = buildMonthDays(year, monthIdx);
   const today = todayIso();
@@ -138,6 +140,7 @@ export function CalendarMonth({
               onEdit={() => onEdit(cellNight)}
               onDelete={() => onDelete(cellNight.id)}
               onCancel={() => onCancel(cellNight)}
+              onPublish={() => onPublish(cellNight)}
             >
               {dayEl}
             </DayDetailPopover>

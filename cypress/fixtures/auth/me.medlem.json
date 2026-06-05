@@ -1,0 +1,8 @@
+{
+  "id": 702,
+  "name": "Test Medlem",
+  "initials": "TM",
+  "roles": ["Medlem"],
+  "is_superuser": false,
+  "has_avatar": false
+}

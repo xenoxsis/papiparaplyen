@@ -1,0 +1,22 @@
+[
+  {
+    "bgg_id": 9000001,
+    "name": "Catan (Cypress)",
+    "avg_weight": 2.3,
+    "min_players": 3,
+    "max_players": 4,
+    "year_published": 1995,
+    "playing_time": 90,
+    "owners": [{ "name": "Test Medlem" }]
+  },
+  {
+    "bgg_id": 9000002,
+    "name": "Wingspan (Cypress)",
+    "avg_weight": 2.4,
+    "min_players": 1,
+    "max_players": 5,
+    "year_published": 2019,
+    "playing_time": 70,
+    "owners": [{ "name": "Test Vagt" }, { "name": null }]
+  }
+]

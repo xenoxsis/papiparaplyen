@@ -1,0 +1,4 @@
+[
+  { "id": 700, "name": "Test Admin", "initials": "TA", "has_avatar": false },
+  { "id": 701, "name": "Test Vagt", "initials": "TV", "has_avatar": false }
+]

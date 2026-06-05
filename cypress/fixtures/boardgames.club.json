@@ -1,0 +1,20 @@
+[
+  {
+    "bgg_id": 9000010,
+    "name": "Gloomhaven (Cypress)",
+    "avg_weight": 3.9,
+    "min_players": 1,
+    "max_players": 4,
+    "year_published": 2017,
+    "playing_time": 120
+  },
+  {
+    "bgg_id": 9000011,
+    "name": "Azul (Cypress)",
+    "avg_weight": 1.8,
+    "min_players": 2,
+    "max_players": 4,
+    "year_published": 2017,
+    "playing_time": 45
+  }
+]

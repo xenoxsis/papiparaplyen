@@ -214,6 +214,9 @@ export const publishDraftNights = () =>
   apiPost<{ published: number; nights: ApiClubNight[] }>(
     "/api/club-nights/publish-drafts",
   );
+/** Publish a single draft night (admin). */
+export const publishClubNight = (nightId: number) =>
+  apiPost<ApiClubNight>(`/api/club-nights/${nightId}/publish`);
 
 // ── Locations ─────────────────────────────────────────────────────────────────
 

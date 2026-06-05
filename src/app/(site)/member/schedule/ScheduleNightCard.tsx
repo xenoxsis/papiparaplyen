@@ -9,6 +9,7 @@ import {
   MapPin,
   MessagesSquare,
   Pencil,
+  Send,
   Trash2,
   UserMinus,
   UserPlus,
@@ -45,6 +46,7 @@ interface ScheduleNightCardProps {
   onEdit: () => void;
   onDelete: () => void;
   onCancel?: () => void;
+  onPublish?: () => void;
   onToggleOptOut: () => void;
 }
 
@@ -68,6 +70,7 @@ export function ScheduleNightCard({
   onEdit,
   onDelete,
   onCancel,
+  onPublish,
   onToggleOptOut,
 }: ScheduleNightCardProps) {
   const d = new Date(night.date);
@@ -275,6 +278,15 @@ export function ScheduleNightCard({
         </div>
         {isAdmin && !isPast && (
           <div className="shrink-0 flex items-center gap-1">
+            {!night.cancelled && night.status === "draft" && onPublish && (
+              <button
+                onClick={onPublish}
+                className="inline-flex items-center justify-center w-7 h-7 rounded-md border-none bg-transparent text-amber-500 hover:text-amber-600 hover:bg-amber-500/10 transition-colors cursor-pointer"
+                title="Udgiv klubaften"
+              >
+                <Send className="size-3.5" />
+              </button>
+            )}
             {!night.cancelled && (
               <button
                 onClick={onEdit}

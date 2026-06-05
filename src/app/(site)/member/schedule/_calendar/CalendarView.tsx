@@ -34,6 +34,7 @@ export interface CalendarViewProps {
   onEdit: (night: ApiClubNight) => void;
   onDelete: (nightId: number) => void;
   onCancel: (night: ApiClubNight) => void;
+  onPublish: (night: ApiClubNight) => void;
 }
 
 function isMobile(): boolean {
@@ -74,6 +75,7 @@ export function CalendarView({
   onEdit,
   onDelete,
   onCancel,
+  onPublish,
 }: CalendarViewProps) {
   const now = new Date();
 
@@ -351,6 +353,7 @@ export function CalendarView({
     onEdit,
     onDelete,
     onCancel,
+    onPublish,
   };
 
   // Header label for desktop

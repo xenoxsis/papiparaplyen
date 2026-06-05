@@ -1,0 +1,8 @@
+{
+  "id": 701,
+  "name": "Test Vagt",
+  "initials": "TV",
+  "roles": ["Vagt"],
+  "is_superuser": false,
+  "has_avatar": false
+}

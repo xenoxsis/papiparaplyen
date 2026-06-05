@@ -1175,6 +1175,90 @@ router.delete("/:id", requireAuth, async (req, res) => {
   return res.status(200).json({ ok: true });
 });
 
+// POST /api/club-nights/:id/publish — admin only
+// Publishes a single draft night (so admins can release them one at a time
+// instead of all at once), then notifies + emails Vagter/Administrators.
+router.post("/:id/publish", requireAuth, async (req, res) => {
+  if (!(await requireAdmin(req, res))) return;
+
+  const pool = await getPool();
+  const nightId = Number(req.params.id);
+
+  const nightCheck = await pool
+    .request()
+    .input("id", sql.Int, nightId)
+    .query(`
+      SELECT n.id, n.name, CONVERT(varchar(10), n.date, 120) AS date,
+             n.time_from, n.time_to, n.location, n.[status]
+      FROM dbo.club_nights n
+      WHERE n.id = @id
+    `);
+  if (nightCheck.recordset.length === 0)
+    return res.status(404).json({ error: "Not found" });
+
+  const draft = nightCheck.recordset[0] as {
+    id: number;
+    name: string;
+    date: string;
+    time_from: string;
+    time_to: string;
+    location: string;
+    status: string;
+  };
+  if (draft.status !== "draft") {
+    return res.status(409).json({ error: "Klubaften er allerede udgivet" });
+  }
+
+  await pool
+    .request()
+    .input("id", sql.Int, nightId)
+    .query("UPDATE dbo.club_nights SET [status] = N'published' WHERE id = @id");
+
+  // Notify all Vagt + Administrator members about the newly published night.
+  const vagtMembersResult = await pool.request().query(`
+    SELECT DISTINCT mr.member_id
+    FROM dbo.member_roles mr
+    JOIN dbo.roles r ON r.id = mr.role_id
+    WHERE r.name IN (N'Vagt', N'Administrator')
+  `);
+  const vagtMemberIds: number[] = vagtMembersResult.recordset.map(
+    (r: { member_id: number }) => r.member_id,
+  );
+
+  await createNotificationForMany(
+    vagtMemberIds,
+    "nights_published",
+    `Ny klubaften er klar til gennemgang: ${draft.name}`,
+    "/member/schedule",
+  );
+
+  // Queue debounced digest email (existing 30-min debounce collapses repeats).
+  queueNewNightEmail({
+    name: draft.name,
+    date: draft.date,
+    time_from: draft.time_from,
+    time_to: draft.time_to,
+    location: draft.location,
+  });
+
+  logEvent({
+    eventType: "shift.publish",
+    actorMemberId: callerId(res),
+    detail: { nightId, name: draft.name, date: draft.date },
+  });
+
+  // Reuse the drafts_published broadcast shape (single-element array): the
+  // schedule page already updates admins and adds the night for Vagter.
+  const publishedNight = await fetchNightWithOptOuts(pool, nightId);
+  const payload = {
+    event: "schedule_updated",
+    data: { type: "drafts_published", nights: [publishedNight] },
+  };
+  for (const uid of getConnectedUserIds()) broadcastToUser(uid, payload);
+
+  return res.status(200).json(publishedNight);
+});
+
 // POST /api/club-nights/publish-drafts — admin only
 // Publishes all draft nights at once, then sends a single batch notification
 // and queues a single digest email to all Vagter/Administrators.

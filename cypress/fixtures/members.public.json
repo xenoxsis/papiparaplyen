@@ -1,0 +1,18 @@
+[
+  {
+    "id": 701,
+    "name": "Test Vagt",
+    "initials": "TV",
+    "show_on_about_page": true,
+    "roles": ["Vagt"],
+    "has_avatar": false
+  },
+  {
+    "id": 700,
+    "name": "Test Admin",
+    "initials": "TA",
+    "show_on_about_page": true,
+    "roles": ["Administrator", "Vagt"],
+    "has_avatar": false
+  }
+]

@@ -1,0 +1,4 @@
+[
+  { "id": 1, "name": "Alle medlemmer", "type": "general" },
+  { "id": 2, "name": "Vagter", "type": "vagter" }
+]

@@ -19,6 +19,11 @@ RUN npm install -g pnpm@8.15.6
 
 WORKDIR /app
 
+# Cypress is a dev-only dependency used for local e2e tests; the image never
+# runs them. Skip its (large) binary download during install so it doesn't
+# bloat the build. --frozen-lockfile still installs the tiny npm package.
+ENV CYPRESS_INSTALL_BINARY=0
+
 # Copy workspace manifests first for better layer caching
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml ./
 COPY backend/package.json ./backend/

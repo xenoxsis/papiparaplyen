@@ -1,0 +1,9 @@
+{
+  "id": 1,
+  "name": "Testlokation",
+  "address": "Testvej 1, 6700 Esbjerg",
+  "disabled": false,
+  "is_default": true,
+  "created_at": "2099-01-01T00:00:00.000Z",
+  "updated_at": "2099-01-01T00:00:00.000Z"
+}

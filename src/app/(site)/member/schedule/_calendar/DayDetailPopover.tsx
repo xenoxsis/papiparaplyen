@@ -4,6 +4,7 @@ import {
   Clock,
   MapPin,
   Pencil,
+  Send,
   Trash2,
   UserMinus,
   UserPlus,
@@ -36,6 +37,7 @@ export interface DayDetailPopoverProps {
   onEdit: () => void;
   onDelete: () => void;
   onCancel?: () => void;
+  onPublish?: () => void;
   /** Render-prop for the trigger element. */
   children: React.ReactNode;
 }
@@ -52,6 +54,7 @@ export function DayDetailPopover({
   onEdit,
   onDelete,
   onCancel,
+  onPublish,
   children,
 }: DayDetailPopoverProps) {
   const isPast =
@@ -193,6 +196,18 @@ export function DayDetailPopover({
               <UserPlus className="size-3.5" />
               {vagt ? "Skift vagt" : "Tildel vagt"}
             </button>
+            {!night.cancelled && night.status === "draft" && onPublish && (
+              <button
+                onClick={() => {
+                  onPublish();
+                  onOpenChange(false);
+                }}
+                className="flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-md text-amber-600 hover:bg-amber-500/10 transition-colors cursor-pointer"
+              >
+                <Send className="size-3.5" />
+                Udgiv
+              </button>
+            )}
             {!night.cancelled && (
               <button
                 onClick={() => {

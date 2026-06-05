@@ -1,0 +1,25 @@
+[
+  {
+    "id": 902,
+    "number": 90002,
+    "name": "Strategispilsaften",
+    "date": "2099-01-15",
+    "time_from": "18:00",
+    "time_to": "22:00",
+    "location": "Testlokation",
+    "location_id": 1,
+    "location_name": "Testlokation",
+    "location_address": "Testvej 1, 6700 Esbjerg",
+    "vagt_member_id": 700,
+    "assigned_member_name": "Test Admin",
+    "assigned_member_initials": "TA",
+    "vagt_member_has_avatar": false,
+    "opted_out_members": [],
+    "vagt_confirmed": true,
+    "cancelled": false,
+    "cancelled_at": null,
+    "created_at": "2099-01-01T00:00:00.000Z",
+    "updated_at": "2099-01-01T00:00:00.000Z",
+    "status": "published"
+  }
+]

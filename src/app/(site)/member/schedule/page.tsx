@@ -30,6 +30,7 @@ import {
   putClubNight,
   cancelClubNight,
   publishDraftNights,
+  publishClubNight,
   markNotificationsReadByLink,
   type ApiClubNight,
 } from "@/lib/api";
@@ -217,6 +218,19 @@ export default function SchedulePage() {
       toast.error("Noget gik galt. Prøv igen.");
     } finally {
       setPublishingDrafts(false);
+    }
+  }
+
+  async function handlePublishSingle(night: ApiClubNight) {
+    try {
+      const published = await publishClubNight(night.id);
+      setNights((prev) =>
+        prev.map((n) => (n.id === published.id ? published : n)),
+      );
+      toast.success(`Klubaften er nu udgivet og synlig for vagterne.`);
+    } catch (err) {
+      console.error(err);
+      toast.error("Noget gik galt. Prøv igen.");
     }
   }
 
@@ -643,6 +657,7 @@ export default function SchedulePage() {
             onEdit={(night) => setEditingNight(night)}
             onDelete={(nightId) => setDeleteConfirmId(nightId)}
             onCancel={(night) => setCancelConfirmNight(night)}
+            onPublish={(night) => handlePublishSingle(night)}
           />
         </div>
       ) : (
@@ -905,6 +920,7 @@ export default function SchedulePage() {
                             onEdit={() => setEditingNight(night)}
                             onDelete={() => setDeleteConfirmId(night.id)}
                             onCancel={() => setCancelConfirmNight(night)}
+                            onPublish={() => handlePublishSingle(night)}
                             onToggleOptOut={() =>
                               toggleOptOut(night.id, myOptOut)
                             }

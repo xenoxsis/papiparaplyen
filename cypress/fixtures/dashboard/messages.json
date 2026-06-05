@@ -1,0 +1,13 @@
+[
+  {
+    "id": 5001,
+    "channel_id": 1,
+    "sender_id": 701,
+    "body": "Velkommen til klubchatten!",
+    "sent_at": "2099-01-02T19:00:00.000Z",
+    "edited_at": null,
+    "is_deleted": false,
+    "sender_name": "Test Vagt",
+    "sender_initials": "TV"
+  }
+]
