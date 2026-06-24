@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import {
+  BookOpen,
   Calendar,
   Dices,
   Home,
@@ -62,6 +63,7 @@ const navLinks = [
   { href: "/about", label: "Om os", icon: Info },
   { href: "/events", label: "Events", icon: Calendar },
   { href: "/boardgames", label: "Brætspil", icon: Puzzle },
+  { href: "/praktisk", label: "Praktisk", icon: BookOpen },
 ];
 
 export default function Nav() {

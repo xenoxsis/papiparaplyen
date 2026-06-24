@@ -114,6 +114,7 @@ async function sendNewNightsDigest(nights: NightSummary[]): Promise<void> {
       subject,
       nightCount: nights.length,
       recipientCount: recipients.length,
+      recipients: recipients.map((r) => r.email),
       html: htmlPreview,
     },
   });

@@ -190,6 +190,7 @@ router.post("/", requireAuth, async (req, res) => {
 
     logEvent({
       eventType: "member.create_virtual",
+      actorMemberId: callerId(res),
       detail: {
         memberId: newMemberId,
         name: trimmedName,
@@ -410,6 +411,7 @@ router.post("/:id/realize", requireAuth, async (req, res) => {
 
     logEvent({
       eventType: "member.realize_merge",
+      actorMemberId: callerId(res),
       detail: { virtualId, realId, email: normalizedEmail },
     });
 
@@ -464,6 +466,7 @@ router.post("/:id/realize", requireAuth, async (req, res) => {
 
     logEvent({
       eventType: "member.realize_invite",
+      actorMemberId: callerId(res),
       detail: { virtualId, email: normalizedEmail },
     });
   } catch (err) {

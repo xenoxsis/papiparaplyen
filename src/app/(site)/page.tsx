@@ -1,4 +1,4 @@
-import { Sparkles, Users, ArrowRight } from "lucide-react";
+import { Sparkles, Users, ArrowRight, CalendarDays, Bell, Library, MessageCircle } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -136,8 +136,76 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* Events */}
+      {/* Member benefits */}
       <section className="w-full bg-neutral-100 dark:bg-neutral-900">
+        <div className="max-w-285 mx-auto px-4 sm:px-8 py-10 sm:py-12 flex flex-col gap-8">
+          <div className="flex flex-col items-center text-center gap-3">
+            <span className="font-semibold uppercase text-red-500 text-sm tracking-wider">
+              Bliv medlem
+            </span>
+            <h2 className="font-bold text-neutral-900 dark:text-neutral-100 text-3xl">
+              Hvad får du som medlem?
+            </h2>
+            <p className="text-neutral-500 dark:text-neutral-400 max-w-xl">
+              Det er gratis og uforpligtende — opret en konto og få adgang til
+              alt det klubben har at tilbyde.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="flex flex-col gap-3 bg-white dark:bg-neutral-950 rounded-2xl p-6">
+              <CalendarDays className="size-7 text-green-500" />
+              <h3 className="font-semibold text-neutral-900 dark:text-neutral-100">
+                Kalenderabonnement
+              </h3>
+              <p className="text-sm text-neutral-500 dark:text-neutral-400 leading-relaxed">
+                Abonnér på klubbens kalender og få alle klubaftener direkte i
+                din kalender-app.
+              </p>
+            </div>
+            <div className="flex flex-col gap-3 bg-white dark:bg-neutral-950 rounded-2xl p-6">
+              <Bell className="size-7 text-blue-500" />
+              <h3 className="font-semibold text-neutral-900 dark:text-neutral-100">
+                Hold dig opdateret
+              </h3>
+              <p className="text-sm text-neutral-500 dark:text-neutral-400 leading-relaxed">
+                Følg klubaftener og få notifikationer, så du aldrig går glip af
+                en aften.
+              </p>
+            </div>
+            <div className="flex flex-col gap-3 bg-white dark:bg-neutral-950 rounded-2xl p-6">
+              <Library className="size-7 text-yellow-500" />
+              <h3 className="font-semibold text-neutral-900 dark:text-neutral-100">
+                Spillekatalog
+              </h3>
+              <p className="text-sm text-neutral-500 dark:text-neutral-400 leading-relaxed">
+                Se hvilke spil andre medlemmer ejer, og foreslå at tage dem med
+                til næste klubaften.
+              </p>
+            </div>
+            <div className="flex flex-col gap-3 bg-white dark:bg-neutral-950 rounded-2xl p-6">
+              <MessageCircle className="size-7 text-red-500" />
+              <h3 className="font-semibold text-neutral-900 dark:text-neutral-100">
+                Vær i kontakt
+              </h3>
+              <p className="text-sm text-neutral-500 dark:text-neutral-400 leading-relaxed">
+                Chat direkte med andre medlemmer og vagter via klubbens
+                beskedssystem.
+              </p>
+            </div>
+          </div>
+          <div className="flex justify-center">
+            <Button asChild variant="destructive" size="lg" className="gap-2">
+              <Link href="/login">
+                Opret konto gratis
+                <ArrowRight className="size-4" />
+              </Link>
+            </Button>
+          </div>
+        </div>
+      </section>
+
+      {/* Events */}
+      <section className="w-full bg-white dark:bg-neutral-950">
         <div className="max-w-285 mx-auto px-4 sm:px-8 py-10 sm:py-12 flex flex-col gap-8">
           <div className="flex justify-between items-end">
             <div className="flex flex-col gap-2">
