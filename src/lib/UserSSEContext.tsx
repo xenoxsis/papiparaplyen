@@ -23,7 +23,7 @@ import {
   useCallback,
   ReactNode,
 } from "react";
-import type { ApiClubNight } from "@/lib/api";
+import type { ApiClubNight, ApiShiftSwap } from "@/lib/api";
 
 export type UserSSEEvent =
   | { event: "notification"; data: unknown }
@@ -47,6 +47,14 @@ export type UserSSEEvent =
             memberInitials: string;
             reviewedAt: string;
           };
+    }
+  | {
+      /** Mutual shift swap ("Byt vagt") lifecycle — sent to both parties. */
+      event: "shift_swap";
+      data: {
+        type: "proposed" | "accepted" | "declined" | "cancelled" | "voided";
+        swap: ApiShiftSwap;
+      };
     };
 
 type Handler = (evt: UserSSEEvent) => void;

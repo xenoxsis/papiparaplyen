@@ -82,6 +82,8 @@ export type ApiClubNight = {
   assigned_member_name: string | null;
   assigned_member_initials: string | null;
   vagt_member_has_avatar: boolean;
+  /** True when the assigned vagt is a virtual member (no login, can't swap). */
+  vagt_member_is_virtual: boolean;
   opted_out_members: { id: number; name: string; initials: string }[];
   vagt_confirmed: boolean;
   cancelled: boolean;
@@ -117,6 +119,9 @@ export type ApiMessage = {
   is_deleted?: boolean;
   sender_name: string | null;
   sender_initials: string | null;
+  /** 'shift_swap' is the HANDOVER flow ("Afgiv vagt") — a broadcast request
+   *  in the vagter channel that any vagt can take. Mutual swaps
+   *  ("Byt vagt") are not messages; see ApiShiftSwap. */
   type?: "shift_swap";
   shift_night_id?: number;
   swap_status?: "pending" | "taken" | "cancelled";
@@ -128,6 +133,42 @@ export type ApiMessage = {
   reply_to_body?: string | null;
   reply_to_sender_name?: string | null;
   reply_to_is_deleted?: boolean | null;
+};
+
+/**
+ * A mutual shift swap ("Byt vagt"): a targeted 1:1 proposal where from_member
+ * offers from_night in exchange for to_member's to_night. Accepting trades both
+ * assignments and confirms them — nobody approves anything afterwards.
+ *
+ * Distinct from a handover ("Afgiv vagt"), which is an ApiMessage with
+ * type: 'shift_swap'.
+ */
+export type ApiShiftSwapMember = {
+  id: number;
+  name: string;
+  initials: string;
+  has_avatar: boolean;
+};
+
+export type ApiShiftSwapNight = {
+  id: number;
+  name: string;
+  date: string;
+  time_from: string;
+  time_to: string;
+  location: string;
+};
+
+export type ApiShiftSwap = {
+  id: number;
+  status: "pending" | "accepted" | "declined" | "cancelled" | "voided";
+  message: string | null;
+  created_at: string;
+  responded_at: string | null;
+  from_member: ApiShiftSwapMember;
+  to_member: ApiShiftSwapMember;
+  from_night: ApiShiftSwapNight;
+  to_night: ApiShiftSwapNight;
 };
 
 export type AuthUser = {
@@ -202,6 +243,23 @@ export const deleteClubNightOptOut = (nightId: number) =>
   apiDelete<{ ok: boolean }>(`/api/club-nights/${nightId}/opt-out`);
 export const postClubNightConfirm = (nightId: number) =>
   apiPost<ApiClubNight>(`/api/club-nights/${nightId}/confirm`);
+// ── Mutual shift swaps ("Byt vagt") ─────────────────────────────────────────
+/** Live proposals the signed-in member is party to (incoming and outgoing). */
+export const getShiftSwaps = () => api<ApiShiftSwap[]>("/api/shift-swaps");
+/** Offer `from_night_id` (mine) in exchange for `to_night_id` (theirs). */
+export const proposeShiftSwap = (body: {
+  from_night_id: number;
+  to_night_id: number;
+  message?: string | null;
+}) => apiPost<ApiShiftSwap>("/api/shift-swaps", body);
+export const acceptShiftSwap = (id: number) =>
+  apiPost<ApiShiftSwap>(`/api/shift-swaps/${id}/accept`);
+export const declineShiftSwap = (id: number) =>
+  apiPost<ApiShiftSwap>(`/api/shift-swaps/${id}/decline`);
+/** Withdraw a proposal you made. */
+export const cancelShiftSwap = (id: number) =>
+  apiDelete<ApiShiftSwap>(`/api/shift-swaps/${id}`);
+
 export const getFollowingNightIds = () =>
   api<number[]>("/api/club-nights/following");
 export const postClubNightFollow = (nightId: number) =>

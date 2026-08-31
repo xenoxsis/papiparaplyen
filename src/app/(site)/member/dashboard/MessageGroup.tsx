@@ -169,7 +169,7 @@ export const MessageGroup = memo(function MessageGroup({
             const userOptedOut =
               !!user &&
               !!swapNight &&
-              swapNight.opted_out_members.some((o) => o.id === user.id);
+              (swapNight.opted_out_members ?? []).some((o) => o.id === user.id);
             const canTake =
               !outgoing &&
               msg.swap_status === "pending" &&
@@ -189,7 +189,7 @@ export const MessageGroup = memo(function MessageGroup({
                   <div className="flex items-center gap-2">
                     <RefreshCcw className="size-3.5 text-brand-teal shrink-0" />
                     <span className="text-[0.65rem] font-semibold text-neutral-500 uppercase tracking-wide">
-                      Vagtbytte
+                      Vagt afgives
                     </span>
                     <span className="ml-auto text-[0.6rem] text-neutral-400">
                       {timeStr}

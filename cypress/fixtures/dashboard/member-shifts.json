@@ -14,6 +14,7 @@
     "assigned_member_name": "Test Admin",
     "assigned_member_initials": "TA",
     "vagt_member_has_avatar": false,
+    "vagt_member_is_virtual": false,
     "opted_out_members": [],
     "vagt_confirmed": true,
     "cancelled": false,

@@ -94,7 +94,7 @@ export type NightSummary = {
   location: string;
 };
 
-function formatDanishDate(iso: string): string {
+export function formatDanishDate(iso: string): string {
   const [year, month, day] = iso.split("-");
   const months = [
     "januar",
@@ -407,6 +407,101 @@ export function shiftCancelledEmailHtml(
       <a href="${process.env.FRONTEND_URL ?? "http://localhost:3000"}/member/schedule"
          style="display:inline-block;margin:8px 0 16px;padding:10px 20px;background:#e63946;color:white;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px">
         Gå til vagtplan
+      </a>
+      <p style="color:#999;font-size:12px">Du modtager denne e-mail fordi du er tilknyttet Esbjerg Brætspil som vagt.</p>
+    </div>
+  `;
+}
+
+// ── Mutual shift swaps ("Byt vagt") ─────────────────────────────────────────
+
+/** Renders one night as a labelled detail block, used by the swap emails. */
+function swapNightBlock(
+  label: string,
+  night: NightSummary,
+  accent: string,
+): string {
+  return `
+      <div style="margin:12px 0;padding:16px;background:#f9f9f9;border-radius:8px;border-left:4px solid ${accent};font-size:14px">
+        <p style="margin:0 0 8px;color:#888;font-size:11px;text-transform:uppercase;letter-spacing:.05em;font-weight:600">${escHtml(label)}</p>
+        <p style="margin:0 0 6px;font-weight:700;font-size:16px;color:#1a1a1a">${escHtml(night.name)}</p>
+        <p style="margin:0 0 4px;color:#555">📅 ${formatDanishDate(night.date)}</p>
+        <p style="margin:0 0 4px;color:#555">🕐 ${escHtml(night.time_from)}–${escHtml(night.time_to)}</p>
+        <p style="margin:0;color:#555">📍 ${escHtml(night.location)}</p>
+      </div>`;
+}
+
+/**
+ * Email to the member who was asked to swap. `youGive` is their current shift,
+ * `youGet` is the proposer's shift they would take over.
+ */
+export function swapProposedEmailHtml(
+  recipientName: string,
+  proposerName: string,
+  youGive: NightSummary,
+  youGet: NightSummary,
+  message?: string | null,
+): string {
+  const note = message?.trim()
+    ? `<div style="margin:16px 0;padding:14px 16px;background:#f9f9f9;border-radius:8px;border-left:4px solid #6366f1;font-size:14px;color:#333">${escHtml(message.trim())}</div>`
+    : "";
+  return `
+    <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px">
+      <h2 style="color:#1a1a1a;margin-bottom:4px">Forslag om vagtbytte</h2>
+      <p style="color:#555">Hej ${escHtml(recipientName)},</p>
+      <p style="color:#555"><strong>${escHtml(proposerName)}</strong> foreslår at bytte vagter med dig.</p>
+      ${note}
+      ${swapNightBlock("Du afgiver", youGive, "#e63946")}
+      ${swapNightBlock("Du overtager", youGet, "#2a9d8f")}
+      <p style="color:#555">Accepterer du byttet, bliver begge vagter byttet og bekræftet med det samme — I skal ikke godkende noget bagefter.</p>
+      <a href="${process.env.FRONTEND_URL ?? "http://localhost:3000"}/member/dashboard"
+         style="display:inline-block;margin:8px 0 16px;padding:10px 20px;background:#e63946;color:white;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px">
+        Svar på forslaget
+      </a>
+      <p style="color:#999;font-size:12px">Du modtager denne e-mail fordi du er tilknyttet Esbjerg Brætspil som vagt.</p>
+    </div>
+  `;
+}
+
+/** Email to both parties once a swap has gone through. */
+export function swapAcceptedEmailHtml(
+  recipientName: string,
+  otherName: string,
+  youGave: NightSummary,
+  youGot: NightSummary,
+): string {
+  return `
+    <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px">
+      <h2 style="color:#1a1a1a;margin-bottom:4px">Vagtbyttet er gennemført</h2>
+      <p style="color:#555">Hej ${escHtml(recipientName)},</p>
+      <p style="color:#555">Du har byttet vagt med <strong>${escHtml(otherName)}</strong>. Begge vagter er bekræftet — du skal ikke foretage dig mere.</p>
+      ${swapNightBlock("Du har afgivet", youGave, "#9ca3af")}
+      ${swapNightBlock("Du har overtaget", youGot, "#2a9d8f")}
+      <a href="${process.env.FRONTEND_URL ?? "http://localhost:3000"}/member/schedule"
+         style="display:inline-block;margin:8px 0 16px;padding:10px 20px;background:#e63946;color:white;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px">
+        Gå til vagtplan
+      </a>
+      <p style="color:#999;font-size:12px">Du modtager denne e-mail fordi du er tilknyttet Esbjerg Brætspil som vagt.</p>
+    </div>
+  `;
+}
+
+/** Email to the proposer when the other member turns the swap down. */
+export function swapDeclinedEmailHtml(
+  recipientName: string,
+  otherName: string,
+  yourNight: NightSummary,
+): string {
+  return `
+    <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px">
+      <h2 style="color:#1a1a1a;margin-bottom:4px">Dit vagtbytte blev afvist</h2>
+      <p style="color:#555">Hej ${escHtml(recipientName)},</p>
+      <p style="color:#555"><strong>${escHtml(otherName)}</strong> kunne ikke bytte vagt med dig. Du beholder din vagt.</p>
+      ${swapNightBlock("Din vagt", yourNight, "#e63946")}
+      <p style="color:#555">Du kan foreslå et bytte med en anden vagt, eller afgive vagten i vagter-kanalen.</p>
+      <a href="${process.env.FRONTEND_URL ?? "http://localhost:3000"}/member/dashboard"
+         style="display:inline-block;margin:8px 0 16px;padding:10px 20px;background:#e63946;color:white;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px">
+        Gå til oversigten
       </a>
       <p style="color:#999;font-size:12px">Du modtager denne e-mail fordi du er tilknyttet Esbjerg Brætspil som vagt.</p>
     </div>

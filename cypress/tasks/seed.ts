@@ -34,9 +34,15 @@ export async function reset(cfg: sql.config): Promise<void> {
       DELETE mr FROM dbo.member_roles mr
         JOIN dbo.members m ON m.id = mr.member_id
         WHERE m.email LIKE 'cypress+%@example.com';
+      DELETE s FROM dbo.shift_swaps s
+        JOIN dbo.club_nights n ON n.id IN (s.from_night_id, s.to_night_id)
+        WHERE n.number >= ${NIGHT_NUMBER_BASE};
       DELETE FROM dbo.club_nights WHERE number >= ${NIGHT_NUMBER_BASE};
       DELETE FROM dbo.club_boardgames WHERE bgg_id >= ${BGG_ID_BASE};
       DELETE FROM dbo.boardgames WHERE bgg_id >= ${BGG_ID_BASE};
+      DELETE s FROM dbo.shift_swaps s
+        JOIN dbo.members m ON m.id IN (s.from_member_id, s.to_member_id)
+        WHERE m.email LIKE 'cypress+%@example.com';
       DELETE u FROM dbo.users u
         JOIN dbo.members m ON m.id = u.member_id
         WHERE m.email LIKE 'cypress+%@example.com';

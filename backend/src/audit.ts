@@ -29,6 +29,11 @@ export type AuditEventType =
   | "shift.optout_remove"
   | "shift.publish"
   | "shift.publish_drafts"
+  // Mutual shift swaps ("Byt vagt")
+  | "shift.swap_propose"
+  | "shift.swap_accept"
+  | "shift.swap_decline"
+  | "shift.swap_cancel"
   // Vagter page
   | "vagter.settings"
   | "vagter.checklist_create"

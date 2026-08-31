@@ -24,6 +24,8 @@ describe("Member dashboard (faux auth)", () => {
     cy.intercept("GET", "**/api/notifications", {
       body: { notifications: [], unreadCount: 0 },
     });
+    // Mutual swap proposals ("Byt vagt") — none by default.
+    cy.intercept("GET", "**/api/shift-swaps", { body: [] });
     cy.intercept("PATCH", "**/api/notifications/read-by-link", { body: { ok: true } });
     cy.intercept("POST", "**/api/channels/*/mark-read", { body: { ok: true } });
     // SSE stream — keep it from hanging the page.

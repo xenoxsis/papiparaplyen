@@ -1,0 +1,37 @@
+[
+  {
+    "id": 9002,
+    "status": "pending",
+    "message": null,
+    "created_at": "2099-01-02T10:00:00.000Z",
+    "responded_at": null,
+    "from_member": {
+      "id": 700,
+      "name": "Test Admin",
+      "initials": "TA",
+      "has_avatar": false
+    },
+    "to_member": {
+      "id": 701,
+      "name": "Test Vagt",
+      "initials": "TV",
+      "has_avatar": false
+    },
+    "from_night": {
+      "id": 902,
+      "name": "Strategispilsaften",
+      "date": "2099-01-15",
+      "time_from": "18:00",
+      "time_to": "22:00",
+      "location": "Testlokation"
+    },
+    "to_night": {
+      "id": 901,
+      "name": "Klubaften i Cypress-land",
+      "date": "2099-01-08",
+      "time_from": "18:00",
+      "time_to": "22:00",
+      "location": "Testlokation"
+    }
+  }
+]

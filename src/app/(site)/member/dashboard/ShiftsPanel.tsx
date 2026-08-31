@@ -1,13 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { AlarmClock, Clock, MapPin, RefreshCcw } from "lucide-react";
+import { AlarmClock, Clock, HandHeart, MapPin, RefreshCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DateBadge } from "@/components/DateBadge";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { ApiClubNight } from "@/lib/api";
 
-interface PendingSwap {
+/** A live handover request ("Afgiv vagt") the member has posted. */
+interface PendingHandover {
   shiftId: number;
   messageId: number;
 }
@@ -16,24 +17,31 @@ interface ShiftsPanelProps {
   loading?: boolean;
   shifts: ApiClubNight[];
   pendingShiftsForMe: ApiClubNight[];
-  pendingSwap: PendingSwap | null;
+  pendingHandover: PendingHandover | null;
+  /** Night ids already tied up in a live mutual swap proposal. */
+  swapPendingNightIds: number[];
   onConfirmShift: (shiftId: number) => void;
   onOptOut: (shiftId: number) => void;
   onConfirmAllShifts: () => void;
-  onRequestSwap: (shift: ApiClubNight) => void;
-  onCancelSwap: () => void;
+  /** Give the shift away to whoever picks it up (broadcast to the channel). */
+  onRequestHandover: (shift: ApiClubNight) => void;
+  onCancelHandover: () => void;
+  /** Propose trading this shift for a specific other member's shift. */
+  onProposeSwap: (shift: ApiClubNight) => void;
 }
 
 export function ShiftsPanel({
   loading = false,
   shifts,
   pendingShiftsForMe,
-  pendingSwap,
+  pendingHandover,
+  swapPendingNightIds,
   onConfirmShift,
   onOptOut,
   onConfirmAllShifts,
-  onRequestSwap,
-  onCancelSwap,
+  onRequestHandover,
+  onCancelHandover,
+  onProposeSwap,
 }: ShiftsPanelProps) {
   const [showAllShifts, setShowAllShifts] = useState(false);
   // A cancelled shift is no longer an obligation: it isn't the "next" shift and
@@ -203,30 +211,42 @@ export function ShiftsPanel({
               </p>
             )}
             {nextShift && (
-              <div className="flex gap-2">
-                {pendingSwap?.shiftId === nextShift.id ? (
+              <div className="flex flex-col sm:flex-row gap-2">
+                {pendingHandover?.shiftId === nextShift.id ? (
                   <Button
                     variant="outline"
                     className="flex-1 gap-2 border-red-300 text-brand-red hover:bg-red-50"
-                    onClick={onCancelSwap}
+                    onClick={onCancelHandover}
                   >
-                    <RefreshCcw className="size-4" />
-                    Annuller bytte
+                    <HandHeart className="size-4" />
+                    Annuller afgivelse
                   </Button>
                 ) : (
                   <Button
                     variant="outline"
                     className="flex-1 gap-2"
-                    onClick={() => onRequestSwap(nextShift)}
+                    onClick={() => onRequestHandover(nextShift)}
                     disabled={
-                      pendingSwap !== null &&
-                      pendingSwap.shiftId !== nextShift.id
+                      pendingHandover !== null ||
+                      swapPendingNightIds.includes(nextShift.id)
                     }
                   >
-                    <RefreshCcw className="size-4" />
-                    Byt vagt
+                    <HandHeart className="size-4" />
+                    Afgiv vagt
                   </Button>
                 )}
+                <Button
+                  variant="outline"
+                  className="flex-1 gap-2"
+                  onClick={() => onProposeSwap(nextShift)}
+                  disabled={
+                    pendingHandover?.shiftId === nextShift.id ||
+                    swapPendingNightIds.includes(nextShift.id)
+                  }
+                >
+                  <RefreshCcw className="size-4" />
+                  Byt vagt
+                </Button>
               </div>
             )}
             <button
@@ -290,25 +310,45 @@ export function ShiftsPanel({
                       </div>
                     </div>
                     {!cancelled &&
-                      (pendingSwap?.shiftId === s.id ? (
-                        <button
-                          onClick={onCancelSwap}
-                          className="w-full h-8 rounded-lg border border-red-200 bg-red-50 text-brand-red text-xs font-medium hover:bg-red-100 transition-colors cursor-pointer"
-                        >
-                          Annuller vagtbytte
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => onRequestSwap(s)}
-                          disabled={
-                            pendingSwap !== null && pendingSwap.shiftId !== s.id
-                          }
-                          className="w-full h-8 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 text-xs font-medium hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
-                        >
-                          <RefreshCcw className="size-3" />
-                          Byt vagt
-                        </button>
-                      ))}
+                      (() => {
+                        const swapPending = swapPendingNightIds.includes(s.id);
+                        if (swapPending)
+                          return (
+                            <span className="w-full h-8 rounded-lg border border-brand-teal/30 bg-brand-teal/5 text-brand-teal text-xs font-medium flex items-center justify-center gap-1.5">
+                              <RefreshCcw className="size-3" />
+                              Bytte foreslået
+                            </span>
+                          );
+                        return (
+                          <div className="flex gap-2">
+                            {pendingHandover?.shiftId === s.id ? (
+                              <button
+                                onClick={onCancelHandover}
+                                className="flex-1 h-8 rounded-lg border border-red-200 bg-red-50 text-brand-red text-xs font-medium hover:bg-red-100 transition-colors cursor-pointer"
+                              >
+                                Annuller afgivelse
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => onRequestHandover(s)}
+                                disabled={pendingHandover !== null}
+                                className="flex-1 h-8 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 text-xs font-medium hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
+                              >
+                                <HandHeart className="size-3" />
+                                Afgiv vagt
+                              </button>
+                            )}
+                            <button
+                              onClick={() => onProposeSwap(s)}
+                              disabled={pendingHandover?.shiftId === s.id}
+                              className="flex-1 h-8 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 text-xs font-medium hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
+                            >
+                              <RefreshCcw className="size-3" />
+                              Byt vagt
+                            </button>
+                          </div>
+                        );
+                      })()}
                   </div>
                 );
               })}

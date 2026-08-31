@@ -271,7 +271,7 @@ export function ScheduleNightCard({
                 className="flex items-center gap-1 rounded-full px-2 py-0.5 bg-blue-50 border border-blue-200 text-[10px] font-medium text-blue-600 hover:bg-blue-100 transition-colors"
               >
                 <MessagesSquare className="size-3" />
-                Afbud anmodet
+                Vagt afgives
               </Link>
             )}
           </div>

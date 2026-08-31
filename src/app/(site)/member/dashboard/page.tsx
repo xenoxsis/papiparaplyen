@@ -32,11 +32,17 @@ import {
   postClubNightConfirm,
   postClubNightOptOut,
   markNotificationsReadByLink,
+  getShiftSwaps,
+  proposeShiftSwap,
+  acceptShiftSwap,
+  declineShiftSwap,
+  cancelShiftSwap,
   type ApiClubNight,
   type ApiChannel,
   type ApiMessage,
   type ApiScheduleReview,
   type ApiChannelMember,
+  type ApiShiftSwap,
 } from "@/lib/api";
 import { useChannelSSE } from "@/lib/useChannelSSE";
 import { useUserSSE } from "@/lib/UserSSEContext";
@@ -44,6 +50,8 @@ import { IcalCard } from "../schedule/IcalCard";
 import { ShiftsPanel } from "./ShiftsPanel";
 import { SwapModal } from "./SwapModal";
 import { SwapConfirmModal } from "./SwapConfirmModal";
+import { SwapProposeModal } from "./SwapProposeModal";
+import { SwapProposalsPanel } from "./SwapProposalsPanel";
 import { ChatPanel } from "./ChatPanel";
 
 // ── Message map helpers ─────────────────────────────────────────────────────
@@ -58,7 +66,9 @@ function upsertIntoMap(
   return { ...map, [msg.channel_id]: next };
 }
 
-// ── Swap modal state ──────────────────────────────────────────────────────────
+// ── Handover modal state ─────────────────────────────────────────────────────
+// "Afgiv vagt": broadcast the shift to the vagter channel for anyone to take.
+// The mutual "Byt vagt" flow is separate — see swapProposal* state below.
 type SwapState = {
   showModal: boolean;
   targetShift: ApiClubNight | null;
@@ -132,8 +142,16 @@ export default function ProfilePage() {
     [channels],
   );
 
-  // ── Swap state ────────────────────────────────────────────────────────────
+  // ── Handover state ("Afgiv vagt") ─────────────────────────────────────────
   const [swap, dispatchSwap] = useReducer(swapReducer, initialSwapState);
+
+  // ── Mutual swap state ("Byt vagt") ────────────────────────────────────────
+  const [shiftSwaps, setShiftSwaps] = useState<ApiShiftSwap[]>([]);
+  const [swapProposeShift, setSwapProposeShift] = useState<ApiClubNight | null>(
+    null,
+  );
+  const [swapSubmitting, setSwapSubmitting] = useState(false);
+  const [swapBusyId, setSwapBusyId] = useState<number | null>(null);
 
   // ── Deep link ─────────────────────────────────────────────────────────────
   const [vagterMsgId, setVagterMsgId] = useState<number | null>(null);
@@ -195,6 +213,7 @@ export default function ProfilePage() {
     if (user)
       promises.push(
         getMemberShifts(user.id).then(setShifts).catch(console.error),
+        getShiftSwaps().then(setShiftSwaps).catch(console.error),
       );
     Promise.all(promises).finally(() => setLoading(false));
   }, [user]);
@@ -232,11 +251,24 @@ export default function ProfilePage() {
     setMessageMap((prev) => upsertIntoMap(prev, msg));
   });
 
-  // Handle message_edited and message_deleted from the user SSE stream
+  // Handle message_edited / message_deleted and swap lifecycle events
   useUserSSE((evt) => {
     if (evt.event === "message_edited" || evt.event === "message_deleted") {
       const msg = evt.data.message as ApiMessage;
       setMessageMap((prev) => upsertIntoMap(prev, msg));
+      return;
+    }
+    if (evt.event === "shift_swap") {
+      const { type, swap: incoming } = evt.data;
+      setShiftSwaps((prev) => {
+        const rest = prev.filter((s) => s.id !== incoming.id);
+        return type === "proposed" ? [incoming, ...rest] : rest;
+      });
+      // An accepted swap moves shifts between the two members.
+      if (type === "accepted") {
+        getClubNights().then(setNights).catch(console.error);
+        if (user) getMemberShifts(user.id).then(setShifts).catch(console.error);
+      }
     }
   });
 
@@ -339,7 +371,8 @@ export default function ProfilePage() {
   }, [loading]);
 
   // ── Derived state ─────────────────────────────────────────────────────────
-  const pendingSwap = useMemo(() => {
+  /** The member's own live handover request ("Afgiv vagt"), if any. */
+  const pendingHandover = useMemo(() => {
     if (!user || vagterChannelId === undefined) return null;
     const m = (
       vagterChannelId !== undefined ? (messageMap[vagterChannelId] ?? []) : []
@@ -353,6 +386,42 @@ export default function ProfilePage() {
       return { shiftId: m.shift_night_id, messageId: m.id };
     return null;
   }, [messageMap, user, vagterChannelId]);
+
+  /** Nights tied up in a live swap proposal — they can't be offered again. */
+  const swapPendingNightIds = useMemo(
+    () => shiftSwaps.flatMap((s) => [s.from_night.id, s.to_night.id]),
+    [shiftSwaps],
+  );
+
+  /**
+   * Shifts the member may propose to trade for, given the shift they're
+   * offering. Mirrors the server-side rules in routes/shift-swaps.ts; the
+   * server re-validates everything on submit.
+   */
+  const swapCandidates = useMemo(() => {
+    if (!user || !swapProposeShift) return [];
+    const now = new Date();
+    return nights.filter((n) => {
+      if (n.id === swapProposeShift.id) return false;
+      if (n.status !== "published" || n.cancelled) return false;
+      if (n.vagt_member_id === null || n.vagt_member_id === user.id)
+        return false;
+      if (n.vagt_member_is_virtual) return false;
+      if (swapPendingNightIds.includes(n.id)) return false;
+      // Neither of us can be pushed onto a night we opted out of.
+      if ((n.opted_out_members ?? []).some((o) => o.id === user.id))
+        return false;
+      if (
+        (swapProposeShift.opted_out_members ?? []).some(
+          (o) => o.id === n.vagt_member_id,
+        )
+      )
+        return false;
+      const end = new Date(`${n.date}T${n.time_to || "23:59:59"}`);
+      if (!Number.isFinite(end.getTime())) return true;
+      return end > now;
+    });
+  }, [nights, user, swapProposeShift, swapPendingNightIds]);
 
   const today = new Date().toISOString().slice(0, 10);
   const upcomingShifts = (() => {
@@ -481,9 +550,9 @@ export default function ProfilePage() {
   ]);
 
   const cancelSwap = useCallback(async () => {
-    if (!user || !pendingSwap || vagterChannelId === undefined) return;
+    if (!user || !pendingHandover || vagterChannelId === undefined) return;
     try {
-      await patchMessage(vagterChannelId, pendingSwap.messageId, {
+      await patchMessage(vagterChannelId, pendingHandover.messageId, {
         body: `Annulleret af ${user.name}`,
         swap_status: "cancelled",
       });
@@ -495,7 +564,69 @@ export default function ProfilePage() {
         err instanceof Error ? err.message : "Noget gik galt. Prøv igen.",
       );
     }
-  }, [user, pendingSwap, vagterChannelId]);
+  }, [user, pendingHandover, vagterChannelId]);
+
+  // ── Mutual swap handlers ("Byt vagt") ─────────────────────────────────────
+
+  const proposeSwap = useCallback(
+    async (toNightId: number, message: string) => {
+      if (!swapProposeShift) return;
+      setSwapSubmitting(true);
+      try {
+        const created = await proposeShiftSwap({
+          from_night_id: swapProposeShift.id,
+          to_night_id: toNightId,
+          message: message.trim() || null,
+        });
+        setShiftSwaps((prev) => [
+          created,
+          ...prev.filter((s) => s.id !== created.id),
+        ]);
+        setSwapProposeShift(null);
+        toast.success("Byttet er foreslået");
+      } catch (err) {
+        toast.error(
+          err instanceof Error ? err.message : "Noget gik galt. Prøv igen.",
+        );
+      } finally {
+        setSwapSubmitting(false);
+      }
+    },
+    [swapProposeShift],
+  );
+
+  const respondToSwap = useCallback(
+    async (id: number, action: "accept" | "decline" | "cancel") => {
+      setSwapBusyId(id);
+      try {
+        if (action === "accept") await acceptShiftSwap(id);
+        else if (action === "decline") await declineShiftSwap(id);
+        else await cancelShiftSwap(id);
+
+        setShiftSwaps((prev) => prev.filter((s) => s.id !== id));
+        if (action === "accept") {
+          // Both shifts changed hands and are already confirmed.
+          getClubNights().then(setNights).catch(console.error);
+          if (user)
+            getMemberShifts(user.id).then(setShifts).catch(console.error);
+          toast.success("Vagtbyttet er gennemført");
+        } else if (action === "decline") {
+          toast.success("Byttet er afvist");
+        } else {
+          toast.success("Byttet er trukket tilbage");
+        }
+      } catch (err) {
+        toast.error(
+          err instanceof Error ? err.message : "Noget gik galt. Prøv igen.",
+        );
+        // The proposal may have died under us — resync.
+        getShiftSwaps().then(setShiftSwaps).catch(console.error);
+      } finally {
+        setSwapBusyId(null);
+      }
+    },
+    [user],
+  );
 
   const confirmTakeSwap = useCallback(async () => {
     if (
@@ -608,7 +739,7 @@ export default function ProfilePage() {
         />
       )}
 
-      {/* Swap modals */}
+      {/* Handover modals ("Afgiv vagt") */}
       <SwapModal
         open={swap.showModal && swap.targetShift !== null}
         onClose={() => dispatchSwap({ type: "CLOSE" })}
@@ -623,6 +754,16 @@ export default function ProfilePage() {
         nights={nights}
         onClose={() => dispatchSwap({ type: "SET_CONFIRM", msg: null })}
         onConfirm={confirmTakeSwap}
+      />
+
+      {/* Mutual swap modal ("Byt vagt") */}
+      <SwapProposeModal
+        open={swapProposeShift !== null}
+        onClose={() => setSwapProposeShift(null)}
+        myShift={swapProposeShift}
+        candidates={swapCandidates}
+        submitting={swapSubmitting}
+        onSubmit={proposeSwap}
       />
 
       {/* Profile hero */}
@@ -674,18 +815,30 @@ export default function ProfilePage() {
         {/* Left: Shifts panel + iCal — Vagt/Admin only */}
         {isVagtOrAdmin && (
           <div ref={leftColRef} className="flex flex-col gap-6">
+            {user && (
+              <SwapProposalsPanel
+                swaps={shiftSwaps}
+                userId={user.id}
+                busyId={swapBusyId}
+                onAccept={(id) => respondToSwap(id, "accept")}
+                onDecline={(id) => respondToSwap(id, "decline")}
+                onCancel={(id) => respondToSwap(id, "cancel")}
+              />
+            )}
             <ShiftsPanel
               loading={loading}
               shifts={upcomingShifts}
               pendingShiftsForMe={pendingShiftsForMe}
-              pendingSwap={pendingSwap}
+              pendingHandover={pendingHandover}
+              swapPendingNightIds={swapPendingNightIds}
               onConfirmShift={handleConfirmShift}
               onOptOut={handleOptOut}
               onConfirmAllShifts={handleConfirmAllShifts}
-              onRequestSwap={(shift) => {
+              onRequestHandover={(shift) => {
                 dispatchSwap({ type: "OPEN", shift });
               }}
-              onCancelSwap={cancelSwap}
+              onCancelHandover={cancelSwap}
+              onProposeSwap={setSwapProposeShift}
             />
             {isVagt && <IcalCard />}
           </div>
@@ -736,70 +889,77 @@ export default function ProfilePage() {
                       ? "bg-brand-orange"
                       : "bg-brand-red";
 
+                // Who's on — sits beside the title, and wraps onto its own
+                // line when the title needs the width (narrow screens).
+                const status = cancelled ? (
+                  <span className="text-xs font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full whitespace-nowrap bg-red-50 text-red-600 shrink-0">
+                    Aflyst
+                  </span>
+                ) : isMyShift ? (
+                  <span className="text-xs font-medium px-2 py-0.5 rounded-full whitespace-nowrap bg-brand-teal/10 text-brand-teal shrink-0">
+                    Din vagt
+                  </span>
+                ) : hasOtherVagt ? (
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {evt.vagt_member_has_avatar && evt.vagt_member_id ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={`/api/members/${evt.vagt_member_id}/avatar`}
+                        alt={evt.assigned_member_initials ?? ""}
+                        width={24}
+                        height={24}
+                        className="w-6 h-6 rounded-full object-cover shrink-0"
+                      />
+                    ) : (
+                      <span className="w-6 h-6 rounded-full bg-brand-orange text-white text-[0.6rem] font-bold flex items-center justify-center shrink-0">
+                        {evt.assigned_member_initials}
+                      </span>
+                    )}
+                    <span className="text-xs font-medium text-neutral-600 dark:text-neutral-300 whitespace-nowrap">
+                      {evt.assigned_member_name}
+                    </span>
+                  </div>
+                ) : (
+                  <span className="text-xs font-medium px-2 py-0.5 rounded-full whitespace-nowrap bg-brand-red/10 text-brand-red shrink-0">
+                    Ingen vagt
+                  </span>
+                );
+
                 return (
                   <div
                     key={evt.id}
-                    className={`rounded-lg flex p-3 items-center gap-4 border ${
+                    className={`rounded-lg flex p-3 items-start gap-3 sm:gap-4 border ${
                       cancelled
                         ? "border-red-200 dark:border-red-900/40"
                         : "border-neutral-200 dark:border-neutral-700"
                     }`}
                   >
                     <DateBadge date={evt.date} colorClass={colorClass} />
-                    <div className="flex flex-col flex-1 min-w-0 gap-0.5">
-                      <span
-                        className={`font-semibold text-sm truncate ${
-                          cancelled
-                            ? "text-neutral-400 line-through"
-                            : "text-neutral-900 dark:text-neutral-100"
-                        }`}
-                      >
-                        {evt.name}
-                      </span>
-                      <div className="flex items-center gap-3 text-neutral-500 text-xs">
+                    <div className="flex flex-col flex-1 min-w-0 gap-1">
+                      <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+                        <span
+                          className={`font-semibold text-sm min-w-0 break-words ${
+                            cancelled
+                              ? "text-neutral-400 line-through"
+                              : "text-neutral-900 dark:text-neutral-100"
+                          }`}
+                        >
+                          {evt.name}
+                        </span>
+                        {status}
+                      </div>
+                      {/* Stacked on phones; back on one line from sm up. */}
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-0.5 sm:gap-3 text-neutral-500 text-xs">
                         <span className="flex items-center gap-1">
-                          <Clock className="size-3" />
+                          <Clock className="size-3 shrink-0" />
                           {evt.time_from}
                         </span>
-                        <span className="flex items-center gap-1">
-                          <MapPin className="size-3" />
-                          {evt.location}
+                        <span className="flex items-start gap-1 min-w-0">
+                          <MapPin className="size-3 shrink-0 mt-0.5" />
+                          <span className="min-w-0">{evt.location}</span>
                         </span>
                       </div>
                     </div>
-                    {cancelled ? (
-                      <span className="text-xs font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full whitespace-nowrap bg-red-50 text-red-600 shrink-0">
-                        Aflyst
-                      </span>
-                    ) : isMyShift ? (
-                      <span className="text-xs font-medium px-2 py-0.5 rounded-full whitespace-nowrap bg-brand-teal/10 text-brand-teal shrink-0">
-                        Din vagt
-                      </span>
-                    ) : hasOtherVagt ? (
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        {evt.vagt_member_has_avatar && evt.vagt_member_id ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={`/api/members/${evt.vagt_member_id}/avatar`}
-                            alt={evt.assigned_member_initials ?? ""}
-                            width={24}
-                            height={24}
-                            className="w-6 h-6 rounded-full object-cover shrink-0"
-                          />
-                        ) : (
-                          <span className="w-6 h-6 rounded-full bg-brand-orange text-white text-[0.6rem] font-bold flex items-center justify-center shrink-0">
-                            {evt.assigned_member_initials}
-                          </span>
-                        )}
-                        <span className="text-xs font-medium text-neutral-600 dark:text-neutral-300 whitespace-nowrap">
-                          {evt.assigned_member_name}
-                        </span>
-                      </div>
-                    ) : (
-                      <span className="text-xs font-medium px-2 py-0.5 rounded-full whitespace-nowrap bg-brand-red/10 text-brand-red shrink-0">
-                        Ingen vagt
-                      </span>
-                    )}
                   </div>
                 );
               })}

@@ -486,6 +486,9 @@ router.post("/:id/realize", requireAuth, async (req, res) => {
 });
 
 // GET /api/members/:id/shifts  — upcoming confirmed shifts for this member
+// Returns the same shape as GET /api/club-nights (opt-outs, location and status
+// included) so the dashboard can feed these nights straight into the
+// shift-swap rules without re-fetching them.
 router.get("/:id/shifts", async (req, res) => {
   const memberId = Number(req.params.id);
   const pool = await getPool();
@@ -495,25 +498,57 @@ router.get("/:id/shifts", async (req, res) => {
     .request()
     .input("memberId", sql.Int, memberId)
     .input("today", sql.Date, today).query(`
-      SELECT n.id, n.number, n.name, n.date, n.time_from, n.time_to,
-             n.location, n.vagt_member_id, n.vagt_confirmed,
+      SELECT n.id, n.number, n.name,
+             CONVERT(varchar(10), n.date, 120) AS date,
+             n.time_from, n.time_to, n.location,
+             n.location_id, l.name AS location_name, l.address AS location_address,
+             n.vagt_member_id, n.vagt_confirmed,
              n.cancelled, n.cancelled_at,
              n.created_at, n.updated_at,
              m.name AS assigned_member_name,
              m.initials AS assigned_member_initials,
-             CASE WHEN ma.member_id IS NOT NULL THEN 1 ELSE 0 END AS vagt_member_has_avatar
+             CASE WHEN ma.member_id IS NOT NULL THEN 1 ELSE 0 END AS vagt_member_has_avatar,
+             ISNULL(m.is_virtual, 0) AS vagt_member_is_virtual,
+             n.[status]
       FROM dbo.club_nights n
       LEFT JOIN dbo.members m ON m.id = n.vagt_member_id
+      LEFT JOIN dbo.locations l ON l.id = n.location_id
       LEFT JOIN dbo.member_avatars ma ON ma.member_id = n.vagt_member_id
       WHERE n.vagt_member_id = @memberId
         AND n.vagt_confirmed = 1
         AND n.date >= @today
       ORDER BY n.date
     `);
+
+  const optOutsResult = await pool
+    .request()
+    .input("memberId", sql.Int, memberId)
+    .input("today", sql.Date, today).query(`
+      SELECT o.club_night_id, m.id, m.name, m.initials
+      FROM dbo.club_night_opt_outs o
+      JOIN dbo.members m ON m.id = o.member_id
+      JOIN dbo.club_nights n ON n.id = o.club_night_id
+      WHERE n.vagt_member_id = @memberId
+        AND n.vagt_confirmed = 1
+        AND n.date >= @today
+    `);
+
   res.json(
     result.recordset.map((r) => ({
       ...r,
+      vagt_confirmed: r.vagt_confirmed === true || r.vagt_confirmed === 1,
       cancelled: r.cancelled === true || r.cancelled === 1,
+      vagt_member_has_avatar:
+        r.vagt_member_has_avatar === true || r.vagt_member_has_avatar === 1,
+      vagt_member_is_virtual:
+        r.vagt_member_is_virtual === true || r.vagt_member_is_virtual === 1,
+      opted_out_members: optOutsResult.recordset
+        .filter((o: { club_night_id: number }) => o.club_night_id === r.id)
+        .map((o: { id: number; name: string; initials: string }) => ({
+          id: o.id,
+          name: o.name,
+          initials: o.initials,
+        })),
     })),
   );
 });

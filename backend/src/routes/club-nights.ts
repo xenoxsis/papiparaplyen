@@ -27,6 +27,10 @@ import type { NightSummary } from "../email";
 import { logEvent } from "../audit";
 import { broadcastToUser, getConnectedUserIds } from "../broadcaster";
 import { buildIcal, type IcalEvent } from "../ical";
+import {
+  deleteSwapsForNight,
+  voidPendingSwapsForNight,
+} from "../shiftSwaps";
 
 const router = Router();
 
@@ -50,10 +54,11 @@ type NightRow = {
   assigned_member_name: string | null;
   assigned_member_initials: string | null;
   vagt_member_has_avatar: boolean | number;
+  vagt_member_is_virtual: boolean | number;
   status: string;
 };
 
-async function fetchNightWithOptOuts(
+export async function fetchNightWithOptOuts(
   pool: Awaited<ReturnType<typeof getPool>>,
   nightId: number,
 ) {
@@ -68,6 +73,7 @@ async function fetchNightWithOptOuts(
              vm.name AS assigned_member_name,
              vm.initials AS assigned_member_initials,
              CASE WHEN ma.member_id IS NOT NULL THEN 1 ELSE 0 END AS vagt_member_has_avatar,
+             ISNULL(vm.is_virtual, 0) AS vagt_member_is_virtual,
              n.[status]
       FROM dbo.club_nights n
       LEFT JOIN dbo.members vm ON vm.id = n.vagt_member_id
@@ -91,6 +97,8 @@ async function fetchNightWithOptOuts(
     cancelled: row.cancelled === true || row.cancelled === 1,
     vagt_member_has_avatar:
       row.vagt_member_has_avatar === true || row.vagt_member_has_avatar === 1,
+    vagt_member_is_virtual:
+      row.vagt_member_is_virtual === true || row.vagt_member_is_virtual === 1,
     opted_out_members: optOutsResult.recordset,
   };
 }
@@ -124,6 +132,7 @@ router.get("/", async (req, res) => {
            vm.name AS assigned_member_name,
            vm.initials AS assigned_member_initials,
            CASE WHEN ma.member_id IS NOT NULL THEN 1 ELSE 0 END AS vagt_member_has_avatar,
+           ISNULL(vm.is_virtual, 0) AS vagt_member_is_virtual,
            n.[status]
     FROM dbo.club_nights n
     LEFT JOIN dbo.members vm ON vm.id = n.vagt_member_id
@@ -148,6 +157,9 @@ router.get("/", async (req, res) => {
     vagt_member_has_avatar:
       n.vagt_member_has_avatar === true ||
       (n.vagt_member_has_avatar as unknown) === 1,
+    vagt_member_is_virtual:
+      n.vagt_member_is_virtual === true ||
+      (n.vagt_member_is_virtual as unknown) === 1,
     opted_out_members: optOutsResult.recordset
       .filter((o: { club_night_id: number }) => o.club_night_id === n.id)
       .map(
@@ -430,6 +442,14 @@ router.post("/", requireAuth, async (req, res) => {
         .request()
         .input("id", sql.Int, id)
         .query("DELETE FROM dbo.club_night_opt_outs WHERE club_night_id = @id");
+      // Swaps referencing the night were already voided when it was cancelled,
+      // but the rows still FK-block the delete.
+      await tx
+        .request()
+        .input("id", sql.Int, id)
+        .query(
+          "DELETE FROM dbo.shift_swaps WHERE from_night_id = @id OR to_night_id = @id",
+        );
       await tx
         .request()
         .input("id", sql.Int, id)
@@ -554,6 +574,15 @@ router.patch("/:id", requireAuth, async (req, res) => {
         WHERE id = @id
       `);
 
+    // The night changed hands — any live swap proposal for it is now stale.
+    if (isChanging) {
+      await voidPendingSwapsForNight(
+        pool,
+        nightId,
+        "vagten blev tildelt en anden",
+      );
+    }
+
     // Skip assignment notifications/emails for virtual members
     // But still notify any real previous vagt who is being unassigned
     if (assigneeIsVirtual && isChanging) {
@@ -607,6 +636,7 @@ router.patch("/:id", requireAuth, async (req, res) => {
         SET vagt_member_id = NULL, vagt_confirmed = 0, updated_at = @updatedAt
         WHERE id = @id
       `);
+    await voidPendingSwapsForNight(pool, nightId, "vagten blev fjernet");
   }
 
   const updatedNight = await fetchNightWithOptOuts(pool, nightId);
@@ -786,6 +816,9 @@ router.post("/:id/opt-out", requireAuth, async (req, res) => {
         "UPDATE dbo.club_nights SET vagt_member_id = NULL, vagt_confirmed = 0, updated_at = @updatedAt WHERE id = @id",
       );
   }
+  // Opting out of a night makes any live swap for it impossible — either the
+  // member gave up the shift they offered, or they can no longer receive it.
+  await voidPendingSwapsForNight(pool, nightId, "en vagt har meldt fra");
 
   return res.status(201).json({ ok: true });
 });
@@ -885,6 +918,7 @@ router.put("/:id", requireAuth, async (req, res) => {
       .query(
         "DELETE FROM dbo.club_night_opt_outs WHERE club_night_id = @nightId",
       );
+    await voidPendingSwapsForNight(pool, nightId, "aftenens tid/sted er ændret");
     // Notify the previously assigned member
     await createNotification(
       current.vagt_member_id,
@@ -1027,6 +1061,8 @@ router.post("/:id/cancel", requireAuth, async (req, res) => {
       "UPDATE dbo.club_nights SET cancelled = 1, cancelled_at = @cancelledAt WHERE id = @id",
     );
 
+  await voidPendingSwapsForNight(pool, nightId, "klubaftenen er aflyst");
+
   const cancelledNight = await fetchNightWithOptOuts(pool, nightId);
 
   const nightSummary = {
@@ -1139,6 +1175,9 @@ router.delete("/:id", requireAuth, async (req, res) => {
     .query(
       "DELETE FROM dbo.club_night_opt_outs WHERE club_night_id = @nightId",
     );
+  // shift_swaps FKs to club_nights have no cascade (two paths to one table),
+  // so its rows have to go before the night itself.
+  await deleteSwapsForNight(pool, nightId, "klubaftenen er slettet");
   await pool
     .request()
     .input("id", sql.Int, nightId)

@@ -30,6 +30,9 @@ import {
   nightFollowerChangedEmailHtml,
   nightFollowerDeletedEmailHtml,
   nightFollowerCancelledEmailHtml,
+  swapProposedEmailHtml,
+  swapAcceptedEmailHtml,
+  swapDeclinedEmailHtml,
   NightSummary,
   NightChangeSummary,
 } from "./email";
@@ -580,6 +583,145 @@ export async function sendFollowerDeletedEmails(
       `[scheduleEmails] Sent night-deleted emails for nightId=${nightId} to ${followers.length} follower(s)`,
     );
   }
+}
+
+// ── Mutual shift swap emails ("Byt vagt") ───────────────────────────────────
+
+/**
+ * Look up a member for a shift-related email, honouring their email_on_shift
+ * preference. Returns null when they shouldn't (or can't) be emailed.
+ */
+async function shiftEmailRecipient(
+  memberId: number,
+): Promise<{ name: string; email: string } | null> {
+  const pool = await getPool();
+  const result = await pool
+    .request()
+    .input("memberId", sql.Int, memberId)
+    .query(
+      "SELECT m.name, m.email, m.is_virtual, ISNULL(u.email_on_shift, 1) AS email_on_shift FROM dbo.members m LEFT JOIN dbo.users u ON u.member_id = m.id WHERE m.id = @memberId",
+    );
+
+  const member:
+    | {
+        name: string;
+        email: string;
+        is_virtual: boolean | number;
+        email_on_shift: boolean | number;
+      }
+    | undefined = result.recordset[0];
+  if (!member?.email) return null;
+  if (member.is_virtual === true || member.is_virtual === 1) return null;
+  if (member.email_on_shift !== true && member.email_on_shift !== 1) {
+    console.log(
+      `[scheduleEmails] ${member.name} has email_on_shift=false — skipping`,
+    );
+    return null;
+  }
+  return { name: member.name, email: member.email };
+}
+
+/** Notify the member who was asked to swap that a proposal is waiting. */
+export async function sendSwapProposedEmail(
+  toMemberId: number,
+  proposerName: string,
+  youGive: NightSummary,
+  youGet: NightSummary,
+  message?: string | null,
+): Promise<void> {
+  const recipient = await shiftEmailRecipient(toMemberId);
+  if (!recipient) return;
+
+  const subject = `${proposerName} vil bytte vagt med dig`;
+  const html = swapProposedEmailHtml(
+    recipient.name,
+    proposerName,
+    youGive,
+    youGet,
+    message,
+  );
+  console.log(
+    `[scheduleEmails] Sending swap-proposed email to ${recipient.email}`,
+  );
+  await sendEmail(recipient.email, subject, html);
+  logEvent({
+    eventType: "email.sent",
+    targetMemberId: toMemberId,
+    targetEmail: recipient.email,
+    detail: {
+      type: "swap_proposed",
+      subject,
+      giveNight: youGive.name,
+      getNight: youGet.name,
+      html,
+    },
+  });
+}
+
+/**
+ * Confirm a completed swap to one party. `youGave` is the shift they no longer
+ * have, `youGot` is the one they took over.
+ */
+export async function sendSwapAcceptedEmail(
+  memberId: number,
+  otherName: string,
+  youGave: NightSummary,
+  youGot: NightSummary,
+): Promise<void> {
+  const recipient = await shiftEmailRecipient(memberId);
+  if (!recipient) return;
+
+  const subject = `Vagtbytte gennemført: du har nu ${youGot.name}`;
+  const html = swapAcceptedEmailHtml(
+    recipient.name,
+    otherName,
+    youGave,
+    youGot,
+  );
+  console.log(
+    `[scheduleEmails] Sending swap-accepted email to ${recipient.email}`,
+  );
+  await sendEmail(recipient.email, subject, html);
+  logEvent({
+    eventType: "email.sent",
+    targetMemberId: memberId,
+    targetEmail: recipient.email,
+    detail: {
+      type: "swap_accepted",
+      subject,
+      gaveNight: youGave.name,
+      gotNight: youGot.name,
+      html,
+    },
+  });
+}
+
+/** Tell the proposer their swap was turned down. */
+export async function sendSwapDeclinedEmail(
+  fromMemberId: number,
+  otherName: string,
+  yourNight: NightSummary,
+): Promise<void> {
+  const recipient = await shiftEmailRecipient(fromMemberId);
+  if (!recipient) return;
+
+  const subject = `${otherName} kunne ikke bytte vagt`;
+  const html = swapDeclinedEmailHtml(recipient.name, otherName, yourNight);
+  console.log(
+    `[scheduleEmails] Sending swap-declined email to ${recipient.email}`,
+  );
+  await sendEmail(recipient.email, subject, html);
+  logEvent({
+    eventType: "email.sent",
+    targetMemberId: fromMemberId,
+    targetEmail: recipient.email,
+    detail: {
+      type: "swap_declined",
+      subject,
+      nightName: yourNight.name,
+      html,
+    },
+  });
 }
 
 // ── GDPR data-retention cleanup jobs ─────────────────────────────────────────

@@ -4,6 +4,7 @@ import { getPool, sql } from "../db";
 import { requireAuth, verifyToken, extractToken } from "../auth";
 import {
   broadcast,
+  broadcastToUser,
   getConnectedUserIds,
   initSseResponse,
 } from "../broadcaster";
@@ -12,6 +13,9 @@ import {
   createNotificationForMany,
 } from "../notifications";
 import { sendMentionEmail } from "../scheduleEmails";
+import { logEvent } from "../audit";
+import { hasPendingSwap, voidPendingSwapsForNight } from "../shiftSwaps";
+import { fetchNightWithOptOuts } from "./club-nights";
 
 const router = Router();
 
@@ -290,6 +294,16 @@ router.post(
         return;
       }
       replyToId = parsedReplyToId;
+    }
+
+    // A shift can't be handed over and swapped at the same time.
+    if (isSwap && Number.isInteger(Number(req.body.shift_night_id))) {
+      if (await hasPendingSwap(pool, Number(req.body.shift_night_id))) {
+        res.status(409).json({
+          error: "Vagten indgår allerede i et vagtbytte",
+        });
+        return;
+      }
     }
 
     const insertResult = await pool
@@ -595,6 +609,54 @@ router.patch(
           .query(
             "UPDATE dbo.club_nights SET vagt_member_id = NULL, vagt_confirmed = 0, updated_at = @updatedAt WHERE id = @shiftNightId AND vagt_member_id = @senderId",
           );
+      }
+
+      // The night just changed hands — any live swap proposal for it is stale.
+      if (shiftNightId) {
+        await voidPendingSwapsForNight(
+          pool,
+          shiftNightId,
+          "vagten blev overtaget af en anden",
+        );
+      }
+
+      // Taking someone else's shift implies confirming it — the taker should
+      // not have to press "Bekræft vagt" afterwards.
+      const takerId: number | null =
+        row.recordset[0]?.taken_by_member_id ?? null;
+      if (shiftNightId && takerId) {
+        const confirmResult = await pool
+          .request()
+          .input("nightId", sql.Int, shiftNightId)
+          .input("takerId", sql.Int, takerId)
+          .input("updatedAt", sql.DateTime2, new Date().toISOString()).query(`
+            UPDATE dbo.club_nights
+            SET vagt_confirmed = 1, updated_at = @updatedAt
+            WHERE id = @nightId AND vagt_member_id = @takerId AND vagt_confirmed = 0
+          `);
+        if ((confirmResult.rowsAffected[0] ?? 0) > 0) {
+          const confirmedNight = await fetchNightWithOptOuts(
+            pool,
+            shiftNightId,
+          );
+          logEvent({
+            eventType: "shift.confirm",
+            actorMemberId: takerId,
+            detail: {
+              nightId: shiftNightId,
+              name: confirmedNight.name,
+              date: confirmedNight.date,
+              via: "swap",
+            },
+            ip: req.ip,
+          });
+          const payload = {
+            event: "schedule_updated",
+            data: { type: "night_confirmed", night: confirmedNight },
+          };
+          for (const uid of getConnectedUserIds())
+            broadcastToUser(uid, payload);
+        }
       }
     }
 

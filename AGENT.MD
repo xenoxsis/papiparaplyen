@@ -45,7 +45,9 @@ Quick-reference for AI agents making changes to this repository.
       reset-password/      Password reset flow
       oauth-callback/      OAuth landing page
       member/
-        dashboard/page.tsx   Member home: chat, upcoming shifts, swap requests
+        dashboard/page.tsx   Member home: chat, upcoming shifts, handovers + swap proposals
+                             SwapModal / SwapConfirmModal — handover ("Afgiv vagt")
+                             SwapProposeModal / SwapProposalsPanel — mutual swap ("Byt vagt")
         profile/page.tsx     Settings: name, password, email prefs, avatar, BGG
         schedule/page.tsx    Admin/Vagt schedule management (drag-and-drop)
         vagter/page.tsx      Vagt info page (codes, checklist, shift note)
@@ -86,6 +88,8 @@ backend/src/
   presence.ts              isRecentlyActive() — suppresses emails if user active < 5 min
   push.ts                  OneSignal Web Push via sendPushToMembers(); PUSH_ENABLED_TYPES controls
                            which NotificationTypes also trigger a push notification
+  shiftSwaps.ts            Mutual shift swap service ("Byt vagt") — row mapping, broadcastSwap(),
+                           voidPendingSwapsForNight(), deleteSwapsForNight()
   ical.ts                  RFC 5545 iCalendar builder for subscription feeds
   silence.ts               isSilenced() / setSilenced() — in-memory flag to suppress all emails
                            and push notifications (resets on server restart, useful for testing)
@@ -96,6 +100,8 @@ backend/src/
     members.ts             /api/members/*
     avatar.ts              /api/members/me/avatar (POST, DELETE) + /api/members/:id/avatar (GET public)
     channels.ts            /api/channels/* — messages, SSE stream, members
+                           (also the HANDOVER flow: type='shift_swap' messages)
+    shift-swaps.ts         /api/shift-swaps/* — mutual 1:1 shift swaps ("Byt vagt")
     club-nights.ts         /api/club-nights/* — includes GET /ical for calendar subscriptions
     schedule-reviews.ts    /api/schedule-reviews/*
     notifications.ts       /api/notifications/* — SSE stream, CRUD
@@ -111,7 +117,7 @@ backend/src/
 database/
   setup.sql                Full schema (idempotent drop+recreate) — update when adding columns
   migrations/              Incremental idempotent SQL scripts (001…024)
-                           Latest: 027_locations_default.sql
+                           Latest: 028_shift_swaps.sql
 
 cypress/                   E2E tests (Cypress) — see Testing section
   e2e/public/              Stubbed public-page specs (home, events, boardgames, about, …)
@@ -197,6 +203,17 @@ dbo.messages           id, channel_id FK, sender_id FK, body NVARCHAR(MAX),
                        reply_to_id INT NULL FK→dbo.messages
                        -- reply_to_id: populated for threaded replies; NULL = top-level message
 
+dbo.shift_swaps        id, from_member_id FK, from_night_id FK→club_nights,
+                       to_member_id FK, to_night_id FK→club_nights,
+                       message NVARCHAR(500) NULL,
+                       status NVARCHAR(20) DEFAULT 'pending'
+                         -- 'pending'|'accepted'|'declined'|'cancelled'|'voided'
+                       created_at, responded_at DATETIME2 NULL
+                       -- Mutual 1:1 shift swap ("Byt vagt"). Filtered unique index
+                       --   UX_shift_swaps_pending_from_night = one live proposal per
+                       --   offered shift. FKs to club_nights have NO cascade (two
+                       --   paths to one table) — delete rows before deleting a night.
+
 dbo.notifications      id, member_id FK, type, content, link, read_at DATETIME2 NULL, created_at
 
 dbo.password_reset_tokens  id, token, member_id FK, expires_at, used BIT
@@ -272,6 +289,7 @@ logEvent({
 `email.password_reset`, `auth.erasure`,
 `shift.create`, `shift.edit`, `shift.delete`, `shift.assign`, `shift.unassign`,
 `shift.confirm`, `shift.optout`, `shift.optout_remove`, `shift.publish`, `shift.publish_drafts`,
+`shift.swap_propose`, `shift.swap_accept`, `shift.swap_decline`, `shift.swap_cancel`,
 `vagter.settings`, `vagter.checklist_create`, `vagter.checklist_edit`, `vagter.checklist_delete`,
 `email.sent`
 
@@ -303,6 +321,7 @@ One SSE connection per logged-in user, keyed `"user:<memberId>"` in the broadcas
 { event: "typing",           data: { channelId: number; memberId: number; name: string } }
 { event: "roles_changed",    data?: unknown }  // forces JWT refresh on frontend
 { event: "schedule_updated", data: { type: "night_confirmed" | "drafts_published" | "review_submitted" } }
+{ event: "shift_swap",       data: { type: "proposed" | "accepted" | "declined" | "cancelled" | "voided", swap: ShiftSwap } }
 ```
 
 **Frontend subscription:**
@@ -429,6 +448,82 @@ Assigning a vagt to an **already-published** night still emails immediately (unc
 - A **non-cancelled** night on that date → **409** `{ error: "Der er allerede en klubaften på denne dato" }` (one live night per day, unchanged).
 - Only **cancelled** night(s) on that date → allowed. Cancelled nights whose `time_from`/`time_to` **overlap** the new one (`a.time_from < b.time_to AND a.time_to > b.time_from`, "HH:MM" string compare) are **deleted** in the same transaction (opt-outs removed manually, followers cascade; silent — they were already notified at cancel time). Non-overlapping cancelled nights stay, preserving history. The response is the new night plus `replaced_cancelled_ids: number[]` so the client can drop the deleted rows from local state. `ClubNightModal` shows an amber "Opret og erstat" warning when a replacement will occur.
 
+### Giving up a shift — two distinct flows
+
+| | **Handover — "Afgiv vagt"** | **Mutual swap — "Byt vagt"** |
+| --- | --- | --- |
+| Meaning | I just need to get rid of my shift | Two members trade two shifts |
+| Audience | Broadcast to the whole vagter channel | Targeted 1:1, private |
+| Storage | `dbo.messages` (`type='shift_swap'`) | `dbo.shift_swaps` |
+| Backend | `routes/channels.ts` | `routes/shift-swaps.ts` + `shiftSwaps.ts` |
+| Taker acts by | "Tag vagt" on the chat card | "Accepter bytte" on the dashboard panel |
+
+**Neither flow requires a confirmation step afterwards** — taking or accepting a
+shift already *is* the confirmation, so `vagt_confirmed` is set to 1 as part of
+the same operation and no "Bekræft vagt" button ever appears for it.
+
+#### Handover ("Afgiv vagt")
+
+A chat message in the vagter channel with `type = 'shift_swap'`, `shift_night_id`
+and `swap_status: 'pending' | 'taken' | 'cancelled'`. Taking it (dashboard →
+`confirmTakeSwap`) is two calls:
+
+1. `PATCH /api/club-nights/:id` with `vagt_member_id = <taker>` — self-assign (sets `vagt_confirmed = 0`).
+2. `PATCH /api/channels/:channelId/messages/:messageId` with `swap_status: 'taken'`, `taken_by_member_id`.
+
+Step 2 does all the side effects server-side:
+- opts the original sender out of the night and clears their assignment (`vagt_member_id = NULL`, no-op if the taker already took it),
+- voids any live swap proposal for that night,
+- **auto-confirms the taker's shift** (`vagt_confirmed = 1` guarded by `id = @nightId AND vagt_member_id = @takerId`). Logs `shift.confirm` (`detail.via = "swap"`) and broadcasts `schedule_updated` / `night_confirmed`,
+- notifies the original sender (`swap_accepted`).
+
+Posting a handover is rejected (409) when the night is already in a live swap proposal.
+
+#### Mutual swap ("Byt vagt")
+
+Member A picks one of their own shifts, then picks another member's shift to
+trade for. B gets a notification + email + a card on their dashboard and either
+accepts or declines. No chat message is created — proposals are private.
+
+`backend/src/shiftSwaps.ts` (service, importable from anywhere) holds the row →
+`ShiftSwap` mapping, `broadcastSwap()`, `voidPendingSwapsForNight()`,
+`deleteSwapsForNight()`, `hasPendingSwap()` / `hasPendingHandover()`.
+`backend/src/routes/shift-swaps.ts` holds the endpoints:
+
+| Method | Path | Who | Notes |
+| --- | --- | --- | --- |
+| `GET` | `/api/shift-swaps` | any member | Live proposals the caller is party to (both directions) |
+| `POST` | `/api/shift-swaps` | proposer | `{ from_night_id, to_night_id, message? }` |
+| `POST` | `/api/shift-swaps/:id/accept` | target member | Trades both nights in one transaction |
+| `POST` | `/api/shift-swaps/:id/decline` | target member | |
+| `DELETE` | `/api/shift-swaps/:id` | proposer or admin | Withdraw |
+
+Propose-time validation (all Danish error strings): the offered night must be
+the caller's own; both nights must be published, not cancelled and still in the
+future; the target night must belong to a different **real** (non-virtual)
+member; neither member may be pushed onto a night they opted out of; and neither
+night may already be in a live swap or handover.
+
+Accept re-validates everything (the world may have moved), then in **one
+transaction** sets `vagt_member_id` + `vagt_confirmed = 1` on both nights and
+flips the row to `accepted`. Each `UPDATE` is guarded by the expected current
+assignee, and a `rowsAffected !== 1` on any statement rolls the whole thing back
+with a 409. Afterwards it voids other proposals touching either night, notifies
+and emails both parties, and broadcasts `night_confirmed` for both nights.
+
+**Voiding.** A pending proposal is killed automatically (status `voided` + a
+`swap_voided` notification to both parties) whenever the ground shifts under it:
+vagt reassigned or removed (`PATCH /api/club-nights/:id`), time/place edited
+(`PUT`), opt-out, cancel, delete, or a handover being taken. `shift_swaps` FKs
+`club_nights` **without cascade** (two paths to one table), so anything that
+hard-deletes a night must call `deleteSwapsForNight()` first — this includes the
+cancelled-night replacement path in `POST /api/club-nights`.
+
+Frontend: `SwapProposeModal` (pick target), `SwapProposalsPanel` (answer /
+withdraw), both on the dashboard. Candidate filtering mirrors the server rules
+and uses `ApiClubNight.vagt_member_is_virtual`. Live updates arrive on the
+`shift_swap` SSE event.
+
 ---
 
 ## Dark Mode
@@ -487,6 +582,7 @@ Messages support quote-replies via `reply_to_id INT NULL FK→dbo.messages`.
 All valid values for `NotificationType` (defined in `backend/src/notifications.ts`):
 
 `swap_requested`, `swap_accepted`, `swap_cancelled`,
+`swap_proposed`, `swap_declined`, `swap_voided`,
 `shift_assigned`, `shift_unassigned`, `shift_deleted`, `shift_cancelled`,
 `nights_added`, `nights_published`,
 `mentioned`,
@@ -659,6 +755,6 @@ pnpm e2e                     # boots `pnpm dev` then runs the full suite
 
 Migrations live in `database/migrations/` and are **idempotent** (safe to re-run).
 They must be run manually against the SQL Server container after deploying schema changes.
-Latest migration: **027_locations_default.sql**
+Latest migration: **028_shift_swaps.sql**
 
 > **Agents must not run migrations.** Write the SQL file and inform the user — they will apply it themselves.

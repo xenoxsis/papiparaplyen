@@ -4,9 +4,14 @@ import { isSilenced } from "./silence";
 import { sendPushToMembers } from "./push";
 
 export type NotificationType =
+  // Handover ("Afgiv vagt") — broadcast chat request anyone can take
   | "swap_requested"
   | "swap_accepted"
   | "swap_cancelled"
+  // Mutual swap ("Byt vagt") — targeted 1:1 proposal
+  | "swap_proposed"
+  | "swap_declined"
+  | "swap_voided"
   | "shift_assigned"
   | "shift_unassigned"
   | "shift_deleted"

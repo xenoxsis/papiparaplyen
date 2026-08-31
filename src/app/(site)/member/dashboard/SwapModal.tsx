@@ -28,8 +28,12 @@ export function SwapModal({
       panelClassName="p-6 flex flex-col gap-4"
     >
       <h2 className="font-semibold text-base text-neutral-900 dark:text-neutral-100">
-        Anmod om vagtbytte
+        Afgiv vagt
       </h2>
+      <p className="text-xs text-neutral-500 dark:text-neutral-400 -mt-2">
+        Vagten slås op i vagter-kanalen, så en anden kan tage den. Vil du bytte
+        med en bestemt vagt, så brug &ldquo;Byt vagt&rdquo; i stedet.
+      </p>
       {shift && (
         <p className="text-sm text-neutral-500 dark:text-neutral-400">
           {shift.name} —{" "}

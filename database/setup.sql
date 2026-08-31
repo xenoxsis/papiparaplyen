@@ -9,6 +9,7 @@
 -- Drop tables in reverse dependency order
 -- ---------------------------------------------------------------
 IF OBJECT_ID('dbo.notifications',         'U') IS NOT NULL DROP TABLE dbo.notifications;
+IF OBJECT_ID('dbo.shift_swaps',           'U') IS NOT NULL DROP TABLE dbo.shift_swaps;
 IF OBJECT_ID('dbo.messages',              'U') IS NOT NULL DROP TABLE dbo.messages;
 IF OBJECT_ID('dbo.channel_members',       'U') IS NOT NULL DROP TABLE dbo.channel_members;
 IF OBJECT_ID('dbo.channels',              'U') IS NOT NULL DROP TABLE dbo.channels;
@@ -168,6 +169,42 @@ CREATE TABLE dbo.club_night_opt_outs (
     CONSTRAINT FK_opt_outs_club_night         FOREIGN KEY (club_night_id) REFERENCES dbo.club_nights (id),
     CONSTRAINT FK_opt_outs_member             FOREIGN KEY (member_id)     REFERENCES dbo.members     (id)
 );
+GO
+
+-- ---------------------------------------------------------------
+-- shift_swaps
+-- Mutual 1:1 shift swaps ("Byt vagt"): member A offers from_night in
+-- exchange for member B's to_night. Distinct from a HANDOVER
+-- ("Afgiv vagt"), which is a broadcast chat message
+-- (dbo.messages.type = 'shift_swap').
+-- ---------------------------------------------------------------
+CREATE TABLE dbo.shift_swaps (
+    id             INT           NOT NULL IDENTITY(1,1),
+    from_member_id INT           NOT NULL,
+    from_night_id  INT           NOT NULL,
+    to_member_id   INT           NOT NULL,
+    to_night_id    INT           NOT NULL,
+    message        NVARCHAR(500) NULL,
+    -- 'pending' | 'accepted' | 'declined' | 'cancelled' | 'voided'
+    status         NVARCHAR(20)  NOT NULL DEFAULT N'pending',
+    created_at     DATETIME2     NOT NULL DEFAULT SYSUTCDATETIME(),
+    responded_at   DATETIME2     NULL,
+    CONSTRAINT PK_shift_swaps             PRIMARY KEY (id),
+    CONSTRAINT FK_shift_swaps_from_member FOREIGN KEY (from_member_id) REFERENCES dbo.members     (id),
+    CONSTRAINT FK_shift_swaps_from_night  FOREIGN KEY (from_night_id)  REFERENCES dbo.club_nights (id),
+    CONSTRAINT FK_shift_swaps_to_member   FOREIGN KEY (to_member_id)   REFERENCES dbo.members     (id),
+    CONSTRAINT FK_shift_swaps_to_night    FOREIGN KEY (to_night_id)    REFERENCES dbo.club_nights (id),
+    CONSTRAINT CK_shift_swaps_distinct    CHECK (from_night_id <> to_night_id AND from_member_id <> to_member_id)
+);
+GO
+
+-- At most one live proposal per offered shift.
+CREATE UNIQUE INDEX UX_shift_swaps_pending_from_night
+    ON dbo.shift_swaps (from_night_id)
+    WHERE status = N'pending';
+CREATE INDEX IX_shift_swaps_to_member_status   ON dbo.shift_swaps (to_member_id, status);
+CREATE INDEX IX_shift_swaps_from_member_status ON dbo.shift_swaps (from_member_id, status);
+CREATE INDEX IX_shift_swaps_to_night           ON dbo.shift_swaps (to_night_id);
 GO
 
 -- ---------------------------------------------------------------
