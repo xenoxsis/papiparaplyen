@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import {
+  BarChart3,
   BookOpen,
   Calendar,
   Dices,
@@ -230,6 +231,14 @@ export default function Nav() {
                         <Settings className="size-4 text-neutral-500 dark:text-neutral-400" />
                         Brugeradmin
                       </Link>
+                      <Link
+                        href="/member/admin/stats"
+                        onClick={() => setOpen(false)}
+                        className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+                      >
+                        <BarChart3 className="size-4 text-neutral-500 dark:text-neutral-400" />
+                        Statistik
+                      </Link>
                       {user.is_superuser && (
                         <Link
                           href="/member/admin/logs"
@@ -370,6 +379,16 @@ export default function Nav() {
                 >
                   <Settings className="size-4 text-neutral-500 dark:text-neutral-400" />
                   Brugeradmin
+                </Link>
+              )}
+              {user.roles.includes("Administrator") && (
+                <Link
+                  href="/member/admin/stats"
+                  onClick={() => setMenuOpen(false)}
+                  className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+                >
+                  <BarChart3 className="size-4 text-neutral-500 dark:text-neutral-400" />
+                  Statistik
                 </Link>
               )}
               {user.is_superuser && (

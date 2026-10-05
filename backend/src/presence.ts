@@ -25,3 +25,11 @@ export function isRecentlyActive(
   if (ts === undefined) return false;
   return Date.now() - ts < windowMs;
 }
+
+/** Number of distinct members active within `windowMs` (default 5 min). */
+export function countRecentlyActive(windowMs = 5 * 60 * 1000): number {
+  const cutoff = Date.now() - windowMs;
+  let count = 0;
+  for (const ts of lastSeen.values()) if (ts >= cutoff) count++;
+  return count;
+}

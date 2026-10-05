@@ -167,6 +167,13 @@ export default function PrivacyPage() {
           </li>
           <li>Notifikationer slettes automatisk efter 90 dage.</li>
           <li>
+            Anonym besøgsstatistik (hvilken side der blev vist, enhedstype og
+            evt. henvisende website) slettes automatisk efter 12 måneder. Vi
+            bruger ingen cookies til statistik og gemmer hverken IP-adresse
+            eller browser-id — kun en anonym kode, der skifter hver dag.
+            Browsere med &quot;Do Not Track&quot; tælles ikke med.
+          </li>
+          <li>
             Slettede chatbeskeder anonymiseres øjeblikkeligt (indholdet
             fjernes).
           </li>

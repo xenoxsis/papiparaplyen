@@ -8,6 +8,7 @@
 -- ---------------------------------------------------------------
 -- Drop tables in reverse dependency order
 -- ---------------------------------------------------------------
+IF OBJECT_ID('dbo.page_views',            'U') IS NOT NULL DROP TABLE dbo.page_views;
 IF OBJECT_ID('dbo.notifications',         'U') IS NOT NULL DROP TABLE dbo.notifications;
 IF OBJECT_ID('dbo.shift_swaps',           'U') IS NOT NULL DROP TABLE dbo.shift_swaps;
 IF OBJECT_ID('dbo.messages',              'U') IS NOT NULL DROP TABLE dbo.messages;
@@ -338,6 +339,25 @@ CREATE TABLE dbo.vagt_checklist (
     is_header   BIT           NOT NULL DEFAULT 0,
     CONSTRAINT PK_vagt_checklist PRIMARY KEY (id)
 );
+GO
+
+-- ---------------------------------------------------------------
+-- page_views  (anonymous, cookie-less visitor statistics —
+-- visitor_hash uses a daily rotating in-memory salt, see 029)
+-- ---------------------------------------------------------------
+CREATE TABLE dbo.page_views (
+    id            BIGINT        NOT NULL IDENTITY(1,1),
+    path          NVARCHAR(300) NOT NULL,
+    referrer_host NVARCHAR(255) NULL,
+    visitor_hash  CHAR(16)      NOT NULL,
+    is_member     BIT           NOT NULL DEFAULT 0,
+    device        NVARCHAR(10)  NOT NULL,
+    created_at    DATETIME2     NOT NULL DEFAULT SYSUTCDATETIME(),
+    CONSTRAINT PK_page_views PRIMARY KEY (id)
+);
+CREATE INDEX IX_page_views_created_at
+    ON dbo.page_views (created_at)
+    INCLUDE (path, visitor_hash, is_member, device, referrer_host);
 GO
 
 -- =============================================================

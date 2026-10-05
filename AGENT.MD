@@ -53,6 +53,7 @@ Quick-reference for AI agents making changes to this repository.
         vagter/page.tsx      Vagt info page (codes, checklist, shift note)
         admin/page.tsx       Admin member management
         admin/logs/page.tsx  Superuser-only audit log browser
+        admin/stats/page.tsx Administrator-only statistics (visitors, members, nights, activity)
     components/
       Nav.tsx              Top nav — includes NotificationBell, useNotifications
       NotificationBell.tsx Notification dropdown
@@ -62,6 +63,7 @@ Quick-reference for AI agents making changes to this repository.
       MemberHero.tsx       Profile hero card (accepts `action` prop)
       UserSSEWrapper.tsx   Client wrapper that provides UserSSEContext
       EmailConsentModal.tsx  GDPR email consent modal (shown when needs_consent=true)
+      PageViewTracker.tsx  Mounted in (site)/layout — one anonymous beacon per client navigation
     lib/
       api.ts               ALL frontend API calls — single source of truth
       auth-context.tsx     useAuth() — user, logout, updateUser, pendingShiftCount
@@ -86,6 +88,7 @@ backend/src/
   scheduleEmails.ts        queueNewNightEmail(), sendShiftAssignedEmail(), sendMentionEmail()
                            Also runs daily data-retention cleanup (tokens, notifications, audit_log)
   presence.ts              isRecentlyActive() — suppresses emails if user active < 5 min
+                           countRecentlyActive() — "members online" on the stats page
   push.ts                  OneSignal Web Push via sendPushToMembers(); PUSH_ENABLED_TYPES controls
                            which NotificationTypes also trigger a push notification
   shiftSwaps.ts            Mutual shift swap service ("Byt vagt") — row mapping, broadcastSwap(),
@@ -113,11 +116,12 @@ backend/src/
     locations.ts           /api/locations/* — venue locations (admin CRUD, public GET)
                            GET /default (public), PATCH /:id/default (admin, single "Fast lokation")
     address-autocomplete.ts  /api/address-autocomplete?q=... — proxies api.danskadresseapi.dk
+    stats.ts               /api/stats/* — POST /pageview (public beacon), GET / (admin-only overview)
 
 database/
   setup.sql                Full schema (idempotent drop+recreate) — update when adding columns
   migrations/              Incremental idempotent SQL scripts (001…024)
-                           Latest: 028_shift_swaps.sql
+                           Latest: 029_page_views.sql
 
 cypress/                   E2E tests (Cypress) — see Testing section
   e2e/public/              Stubbed public-page specs (home, events, boardgames, about, …)
@@ -246,6 +250,13 @@ dbo.member_avatars     member_id INT PK FK→members (CASCADE DELETE),
                        updated_at DATETIME2 NOT NULL DEFAULT SYSDATETIME()
                        -- Row is absent when no avatar has been uploaded
                        -- Image is stored as 256×256 JPEG compressed server-side by sharp
+
+dbo.page_views         id BIGINT, path NVARCHAR(300), referrer_host NVARCHAR(255) NULL,
+                       visitor_hash CHAR(16), is_member BIT,
+                       device NVARCHAR(10)  -- 'mobile' | 'tablet' | 'desktop'
+                       created_at DATETIME2 DEFAULT SYSUTCDATETIME()
+                       -- Anonymous visitor statistics, see Statistics section.
+                       --   Purged after 365 days by the daily retention job.
 ```
 
 **When adding columns:** update **both** `database/setup.sql` (in the CREATE TABLE block) **and** create a new `database/migrations/0NN_description.sql` (idempotent — check `IF NOT EXISTS` / `IF EXISTS`).
@@ -581,6 +592,35 @@ Messages support quote-replies via `reply_to_id INT NULL FK→dbo.messages`.
 
 ---
 
+## Statistics (admin)
+
+`/member/admin/stats` — Administrator-only (`useRequireAuth(["Administrator"])`; backend `requireAdmin`).
+Linked as "Statistik" in the Nav admin section. Range selector 7 / 30 / 90 / 365 days
+(`GET /api/stats?days=N`; other values fall back to 30). All day/hour grouping uses Danish
+local time (`AT TIME ZONE 'Romance Standard Time'`).
+
+**Visitor tracking** — `PageViewTracker` (in `(site)/layout.tsx`) calls `trackPageView()` on
+every pathname change → `POST /api/stats/pageview { path, referrer? }` (always 204; the insert
+happens after responding). Rules in `routes/stats.ts`:
+
+- No cookies, no IP stored. `visitor_hash` = first 16 hex chars of SHA-256(daily salt | IP | UA).
+  The salt is in memory and rotates at Danish midnight (and on server restart), so "besøgende"
+  means unique visitors **per day** — a range total is the sum of daily uniques.
+- Skips bots (UA regex), `DNT: 1` / `Sec-GPC: 1`, and paths not starting with `/` or starting with `/api`.
+- Query string / hash stripped from `path`. Referrer is reduced to an external hostname and only
+  sent with the first view of a visit (Next client navigation keeps `document.referrer`).
+- `is_member` = the request carried a valid JWT cookie (no DB lookup, no member id stored).
+- The tracker does nothing on `localhost` (dev proxies to the prod backend; Cypress runs there).
+
+**Other figures** come from existing tables: members / roles / email prefs, upcoming and past
+nights, shifts per vagt (last 12 months, published and not cancelled), chat messages per channel,
+handovers, swaps, `email.sent` and logins from `audit_log` (capped at 90 days by its retention),
+board game counts, and "medlemmer online" from `presence.ts`.
+
+The privacy policy (§5) describes the anonymous statistics — update it if tracking changes.
+
+---
+
 ## Notification Types
 
 All valid values for `NotificationType` (defined in `backend/src/notifications.ts`):
@@ -599,7 +639,7 @@ All valid values for `NotificationType` (defined in `backend/src/notifications.t
 - `DELETE /api/auth/me` — right to erasure: anonymises member row, deletes user + oauth providers + tokens
 - `GET /api/auth/me/export` — data portability: returns all member data as JSON
 - `email_consent_at` on `dbo.users` — NULL = consent not given → `EmailConsentModal` shown
-- `password_reset_tokens` purged after 30 days; `notifications` + `audit_log` purged after 90 days
+- `password_reset_tokens` purged after 30 days; `notifications` + `audit_log` purged after 90 days; `page_views` after 365 days
 - Audit logs are operational records, not subject to the privacy policy
 
 ---
@@ -758,7 +798,20 @@ pnpm e2e                     # boots `pnpm dev` then runs the full suite
 ## Running Migrations
 
 Migrations live in `database/migrations/` and are **idempotent** (safe to re-run).
-They must be run manually against the SQL Server container after deploying schema changes.
-Latest migration: **028_shift_swaps.sql**
+The user applies them with `pnpm migrate` (root → `backend/scripts/migrate.ts`, connection from
+`backend/.env`):
+
+```bash
+pnpm migrate                  # apply pending migrations
+pnpm migrate --status         # list applied / baselined / pending
+pnpm migrate --dry-run        # show what would run
+pnpm migrate --baseline 028   # one-time: record 001…028 as applied WITHOUT running them
+```
+
+- Tracking table `dbo.schema_migrations` (name PK, checksum, baselined, applied_at) — created by the runner, not by a migration.
+- Each file runs in one transaction, split into batches on `GO` lines; the tracking row is written in the same transaction. First failure rolls back that file and stops.
+- Refuses to run if the DB has tables but no tracking table (pre-runner databases must be baselined — some old files, e.g. 016, are not safe to replay). A fresh DB from `setup.sql` uses `--baseline 0`, then `pnpm migrate` runs everything.
+- Files must be named `NNN_description.sql` with a unique 3-digit number; editing an applied file only produces a warning, so add a new migration instead.
+Latest migration: **029_page_views.sql**
 
 > **Agents must not run migrations.** Write the SQL file and inform the user — they will apply it themselves.

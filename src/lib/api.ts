@@ -548,6 +548,82 @@ export const setSilence = (silenced: boolean) =>
     body: JSON.stringify({ silenced }),
   });
 
+// ── Statistics ───────────────────────────────────────────────────────────────
+
+/** Anonymous page-view beacon — never throws, never blocks navigation. */
+export const trackPageView = (path: string, referrer?: string) => {
+  fetch(`${BASE}/api/stats/pageview`, {
+    method: "POST",
+    credentials: "include",
+    keepalive: true,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ path, referrer: referrer || undefined }),
+  }).catch(() => {});
+};
+
+export type StatsDays = 7 | 30 | 90 | 365;
+
+export type ApiStats = {
+  days: StatsDays;
+  visitors: {
+    live: number;
+    online_members: number;
+    today: { views: number; visitors: number };
+    range: { views: number; visitors: number };
+    previous: { views: number; visitors: number };
+    member_views: number;
+    tracking_since: string | null;
+    daily: { date: string; views: number; visitors: number }[];
+    hourly: number[]; // 24 entries, Danish local hour
+    top_pages: { path: string; views: number; visitors: number }[];
+    referrers: { host: string; views: number }[];
+    devices: { device: "mobile" | "tablet" | "desktop"; views: number }[];
+  };
+  members: {
+    total: number;
+    new_in_range: number;
+    banned: number;
+    virtual: number;
+    with_avatar: number;
+    email_consent: number;
+    email_on_mention: number;
+    email_on_nights: number;
+    email_on_shift: number;
+    logged_in_in_range: number;
+    roles: { role: string; count: number }[];
+  };
+  nights: {
+    upcoming: number;
+    upcoming_unassigned: number;
+    upcoming_unconfirmed: number;
+    drafts: number;
+    held_in_range: number;
+    cancelled_in_range: number;
+  };
+  shifts_per_vagt: {
+    id: number;
+    name: string;
+    is_virtual: boolean;
+    past: number;
+    upcoming: number;
+  }[];
+  activity: {
+    messages: number;
+    chatters: number;
+    handovers: number;
+    handovers_taken: number;
+    swaps: number;
+    swaps_accepted: number;
+    emails_sent: number;
+    channels: { name: string; messages: number }[];
+  };
+  boardgames: { member_games: number; owners: number; club_games: number };
+};
+
+/** Administrator-only statistics overview. */
+export const getStats = (days: StatsDays) =>
+  api<ApiStats>(`/api/stats?days=${days}`);
+
 // ── iCal ─────────────────────────────────────────────────────────────────────
 
 /** Fetch existing personal iCal feed token (null if not yet generated). */

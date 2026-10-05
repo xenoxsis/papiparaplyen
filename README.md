@@ -116,9 +116,19 @@ SUPERUSER_EMAIL=you@example.com
 # Run the full schema against your SQL Server instance
 sqlcmd -S localhost -U sa -P yourpassword -d paraplyen -i database/setup.sql
 
-# Then apply migrations in order
-sqlcmd ... -i database/migrations/001_add_notifications.sql
-# ... through the latest (027_locations_default.sql)
+# Then start migration tracking and apply every migration on top
+# (uses the DB_* settings in backend/.env)
+pnpm migrate --baseline 0
+pnpm migrate
+```
+
+Existing database that was migrated by hand before `pnpm migrate` existed? Record
+what's already applied once (use the last number you actually ran), then migrate as usual:
+
+```bash
+pnpm migrate --baseline 028
+pnpm migrate --status
+pnpm migrate
 ```
 
 ### 4 — Start dev servers
@@ -262,4 +272,4 @@ Users opt in via the email consent modal and can configure preferences per type:
 
 1. Update `database/setup.sql` (in the relevant `CREATE TABLE` block)
 2. Create `database/migrations/0NN_description.sql` (idempotent — use `IF NOT EXISTS` / `IF EXISTS`)
-3. Run the migration against the production database
+3. Run `pnpm migrate` against the production database (`pnpm migrate --dry-run` to preview)

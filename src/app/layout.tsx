@@ -22,7 +22,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="da">
+    // suppressHydrationWarning: the anti-FOUC script below adds `dark` to
+    // <html> before hydration, so its className intentionally differs.
+    <html lang="da" suppressHydrationWarning>
       <head>
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#c0392b" />

@@ -8,6 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "migrate": "pnpm --dir backend migrate",
     "cypress:open": "cypress open --e2e",
     "cypress:run": "cypress run --e2e",
     "cypress:run:stubbed": "cypress run --e2e --spec \"cypress/e2e/public/**/*.cy.ts,cypress/e2e/auth/**/*.cy.ts\"",

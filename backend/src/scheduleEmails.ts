@@ -765,6 +765,18 @@ async function runRetentionCleanup(): Promise<void> {
         `[retention] Purged ${auditResult.rowsAffected[0]} old audit_log entries`,
       );
     }
+
+    // Purge anonymous page views older than 365 days
+    const pageViewResult = await pool.request().query(`
+      IF OBJECT_ID('dbo.page_views', 'U') IS NOT NULL
+        DELETE FROM dbo.page_views
+        WHERE created_at < DATEADD(day, -365, SYSUTCDATETIME())
+    `);
+    if (pageViewResult.rowsAffected[0] > 0) {
+      console.log(
+        `[retention] Purged ${pageViewResult.rowsAffected[0]} old page_views`,
+      );
+    }
   } catch (err) {
     console.error("[retention] Cleanup job failed:", err);
   }
