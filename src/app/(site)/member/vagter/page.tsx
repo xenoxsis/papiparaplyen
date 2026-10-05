@@ -22,6 +22,7 @@ import { useRequireAuth } from "@/lib/useRequireAuth";
 import { MemberHero } from "@/components/MemberHero";
 import {
   getClubNights,
+  patchClubNight,
   getChannels,
   getMessages,
   getChannelMembers,
@@ -44,6 +45,7 @@ import {
 import { useChannelSSE } from "@/lib/useChannelSSE";
 import { useUserSSE } from "@/lib/UserSSEContext";
 import { ChatPanel } from "@/app/(site)/member/dashboard/ChatPanel";
+import { SwapConfirmModal } from "@/app/(site)/member/dashboard/SwapConfirmModal";
 import { DateBadge } from "@/components/DateBadge";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -1033,6 +1035,9 @@ export default function VagterPage() {
     null,
   );
   const [loading, setLoading] = useState(true);
+  const [swapConfirmMsg, setSwapConfirmMsg] = useState<ApiMessage | null>(
+    null,
+  );
 
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -1197,6 +1202,37 @@ export default function VagterPage() {
       );
     }
   }, []);
+
+  // Take a handed-over shift ("Tag vagt") — same two-step flow as the dashboard.
+  const confirmTakeSwap = useCallback(async () => {
+    if (
+      !user ||
+      !swapConfirmMsg ||
+      swapConfirmMsg.shift_night_id === undefined ||
+      !activeChannelId
+    )
+      return;
+    try {
+      await patchClubNight(swapConfirmMsg.shift_night_id, {
+        vagt_member_id: user.id,
+      });
+      await patchMessage(activeChannelId, swapConfirmMsg.id, {
+        swap_status: "taken",
+        taken_by_member_id: user.id,
+      });
+      setSwapConfirmMsg(null);
+      getClubNights().then(setNights).catch(console.error);
+      getMessages(activeChannelId)
+        .then((msgs) =>
+          setMessageMap((prev) => ({ ...prev, [activeChannelId]: msgs })),
+        )
+        .catch(console.error);
+    } catch (err: unknown) {
+      toast.error(
+        err instanceof Error ? err.message : "Noget gik galt. Prøv igen.",
+      );
+    }
+  }, [user, swapConfirmMsg, activeChannelId]);
 
   const handleSaveSettings = useCallback(
     async (patch: Partial<ApiVagterSettings>) => {
@@ -1366,8 +1402,8 @@ export default function VagterPage() {
             nights={nights}
             highlightMessageId={highlightMessageId}
             setHighlightMessageId={setHighlightMessageId}
-            swapConfirmMsg={null}
-            setSwapConfirmMsg={() => {}}
+            swapConfirmMsg={swapConfirmMsg}
+            setSwapConfirmMsg={setSwapConfirmMsg}
             channelMembers={channelMembers}
             onSend={handleSendMessage}
             onEdit={handleEditMessage}
@@ -1379,6 +1415,13 @@ export default function VagterPage() {
           />
         </div>
       )}
+
+      <SwapConfirmModal
+        msg={swapConfirmMsg}
+        nights={nights}
+        onClose={() => setSwapConfirmMsg(null)}
+        onConfirm={confirmTakeSwap}
+      />
     </main>
   );
 }

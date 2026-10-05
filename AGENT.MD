@@ -479,6 +479,10 @@ Step 2 does all the side effects server-side:
 
 Posting a handover is rejected (409) when the night is already in a live swap proposal.
 
+`ChatPanel` is rendered on **both** the dashboard and `/member/vagter`. Any page
+that renders it must own `swapConfirmMsg` state, render `SwapConfirmModal` and
+implement the take flow above — otherwise "Tag vagt" silently does nothing.
+
 #### Mutual swap ("Byt vagt")
 
 Member A picks one of their own shifts, then picks another member's shift to
