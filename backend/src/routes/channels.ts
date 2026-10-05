@@ -383,6 +383,8 @@ router.post(
     }
 
     // ── Group mentions: @vagter and @alle ────────────────────────────────────
+    // Each recipient gets at most one mention notification/email, using the
+    // most specific mention that applies: individual > @vagter > @alle.
     const hasVagterMention = /@vagter\b/.test(sanitisedBody ?? "");
     const hasAlleMention = /@alle\b/.test(sanitisedBody ?? "");
 
@@ -395,17 +397,24 @@ router.post(
       const channelNameGroup: string =
         chanNameResultGroup.recordset[0]?.name ?? "kanalen";
       const messageBodyGroup: string = req.body.body ?? "";
+      let vagterIds: number[] = [];
 
       if (hasVagterMention) {
-        // Notify all members with the Vagt role (excluding sender)
+        // Notify members of this channel with the Vagt role (excluding sender
+        // and anyone already mentioned individually)
         const vagterResult = await pool
           .request()
+          .input("channelId", sql.Int, channelId)
           .query(
-            "SELECT mr.member_id FROM dbo.member_roles mr JOIN dbo.roles r ON r.id = mr.role_id WHERE r.name = 'Vagt'",
+            `SELECT DISTINCT mr.member_id
+             FROM dbo.member_roles mr
+             JOIN dbo.roles r ON r.id = mr.role_id
+             JOIN dbo.channel_members cm ON cm.member_id = mr.member_id AND cm.channel_id = @channelId
+             WHERE r.name = 'Vagt'`,
           );
-        const vagterIds: number[] = vagterResult.recordset
+        vagterIds = vagterResult.recordset
           .map((r: { member_id: number }) => r.member_id)
-          .filter((id: number) => id !== senderId);
+          .filter((id: number) => id !== senderId && !mentionedIds.has(id));
 
         if (vagterIds.length > 0) {
           await createNotificationForMany(
@@ -429,16 +438,18 @@ router.post(
       }
 
       if (hasAlleMention) {
-        // Notify all channel members (excluding sender) — no email for @alle
+        // Notify all channel members (excluding sender and anyone already
+        // notified via an individual or @vagter mention) — no email for @alle
         const alleMembersResult = await pool
           .request()
           .input("channelId", sql.Int, channelId)
           .query(
             "SELECT member_id FROM dbo.channel_members WHERE channel_id = @channelId",
           );
+        const alreadyNotified = new Set<number>([...mentionedIds, ...vagterIds]);
         const alleIds: number[] = alleMembersResult.recordset
           .map((r: { member_id: number }) => r.member_id)
-          .filter((id: number) => id !== senderId);
+          .filter((id: number) => id !== senderId && !alreadyNotified.has(id));
 
         if (alleIds.length > 0) {
           await createNotificationForMany(
